@@ -39,7 +39,7 @@
               }
             ],
             "iss": "https://test.maskinporten.no/",
-            "scope": "nav:syfo/arkivporten nav:syfo/dokumentporten",
+            "scope": "nav:syfo/dokumentporten",
             "consumer": {
               "authority": "${consumerAuthority}",
               "ID": "${consumerId}"
