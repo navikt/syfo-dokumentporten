@@ -3,6 +3,8 @@ package no.nav.syfo.document.db
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import no.nav.syfo.application.database.DatabaseInterface
+import no.nav.syfo.document.api.v1.dto.DialogResponse
+import no.nav.syfo.document.api.v1.dto.DocumentResponse
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import java.sql.ResultSet
 import java.sql.Timestamp
@@ -206,7 +208,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
         dialogId: String? = null,
         orderBy: Page.OrderBy = Page.OrderBy.CREATED,
         orderDirection: Page.OrderDirection = Page.OrderDirection.DESC,
-    ): Page<PersistedDocumentEntity> {
+    ): Page<DocumentResponse> {
         val limitInRange = pageSize.coerceIn(1, Page.MAX_PAGE_SIZE)
 
         return withContext(Dispatchers.IO) {
@@ -265,10 +267,10 @@ class DocumentDAO(private val database: DatabaseInterface) {
                         if (resultSet.next()) {
                             // Probably faster to "manually" get the first item to fetch the count, than to use a scrollable ResultSet
                             totalCount = resultSet.getLong(COUNT_COLUMN_NAME)
-                            add(resultSet.toDocumentEntity())
+                            add(resultSet.toDocumentResponse())
 
                             while (resultSet.next()) {
-                                add(resultSet.toDocumentEntity())
+                                add(resultSet.toDocumentResponse())
                             }
                         }
                     }
@@ -286,6 +288,28 @@ class DocumentDAO(private val database: DatabaseInterface) {
     }
 }
 
+fun ResultSet.toDocumentResponse() = DocumentResponse(
+    documentId = getObject("document_id") as UUID,
+    type = DocumentType.valueOf(getString("type")),
+    contentType = getString("content_type"),
+    title = getString("title"),
+    summary = getString("summary"),
+    linkId = getObject("link_id") as UUID,
+    status = DocumentStatus.valueOf(getString("status")),
+    isRead = getBoolean("is_read"),
+    dialog = DialogResponse(
+        title = getString("dialog_title"),
+        summary = getString("dialog_summary"),
+        fnr = getString("fnr"),
+        orgNumber = getString("org_number"),
+        dialogportenUUID = getObject("dialog_uuid") as UUID?,
+        created = getTimestamp("dialog_created").toInstant(),
+        updated = getTimestamp("dialog_updated").toInstant(),
+    ),
+    transmissionId = getObject("transmission_id") as UUID?,
+    created = getTimestamp("created").toInstant(),
+    updated = getTimestamp("updated").toInstant(),
+)
 
 fun ResultSet.toDocumentEntity(withDialog: PersistedDialogEntity? = null): PersistedDocumentEntity =
     PersistedDocumentEntity(

@@ -6,9 +6,9 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.SystemPrincipal
+import no.nav.syfo.document.api.v1.dto.DocumentResponse
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
-import no.nav.syfo.document.db.DocumentEntity
 import no.nav.syfo.document.db.Page
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.texas.MaskinportenIdportenAndTokenXAuthPlugin
@@ -68,7 +68,7 @@ fun Route.registerExternalDocumentsApiV1(
                 documentType = documentType,
             )
 
-            call.respond<Page<DocumentEntity>>(
+            call.respond<Page<DocumentResponse>>(
                 documentDAO.findDocumentsByParameters(
                     orgnumber = orgNumber,
                     isRead = isRead,

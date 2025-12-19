@@ -1,8 +1,9 @@
 package no.nav.syfo.document.db
 
-import java.util.UUID
-import java.time.Instant
+import no.nav.syfo.document.api.v1.dto.DocumentResponse
 import no.nav.syfo.document.api.v1.dto.DocumentType
+import java.time.Instant
+import java.util.*
 
 enum class DocumentStatus {
     RECEIVED,
@@ -56,8 +57,6 @@ open class DocumentEntity(
         result = 31 * result + (transmissionId?.hashCode() ?: 0)
         return result
     }
-
-
 }
 
 data class PersistedDocumentEntity(
@@ -126,5 +125,22 @@ data class PersistedDocumentEntity(
         result = 31 * result + created.hashCode()
         result = 31 * result + updated.hashCode()
         return result
+    }
+
+    fun toDocumentResponse(): DocumentResponse {
+        return DocumentResponse(
+            documentId = documentId,
+            type = type,
+            contentType = contentType,
+            title = title,
+            summary = summary,
+            linkId = linkId,
+            status = status,
+            isRead = isRead,
+            dialog = dialog.toDialogResponse(),
+            transmissionId = transmissionId,
+            created = created,
+            updated = updated,
+        )
     }
 }

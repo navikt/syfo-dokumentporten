@@ -273,8 +273,8 @@ class DocumentDbTest : DescribeSpec({
                 val result = documentDAO.findDocumentsByParameters(pageSize = 50, page = 0)
 
                 // Assert - most recent first
-                result.items.first().id shouldBe doc2.id
-                result.items.last().id shouldBe doc1.id
+                result.items.first().documentId shouldBe doc2.documentId
+                result.items.last().documentId shouldBe doc1.documentId
             }
         }
 
@@ -294,8 +294,8 @@ class DocumentDbTest : DescribeSpec({
                 )
 
                 // Assert - oldest first
-                result.items.first().id shouldBe doc1.id
-                result.items.last().id shouldBe doc2.id
+                result.items.first().documentId shouldBe doc1.documentId
+                result.items.last().documentId shouldBe doc2.documentId
             }
         }
 
