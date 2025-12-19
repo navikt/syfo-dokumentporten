@@ -15,7 +15,6 @@ import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
-import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.jackson.*
 import io.ktor.server.routing.*
@@ -411,11 +410,6 @@ class ExternalDocumentApiTest : DescribeSpec({
                         client.get("/api/v1/documents?organizationId=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z") {
                             bearerAuth(createMockToken(ident = orgNumber))
                         }
-
-                    // Debug output
-                    if (response.status != HttpStatusCode.OK) {
-                        println("DEBUG ERROR: Status=${response.status}, Body=${response.bodyAsText()}")
-                    }
 
                     // Assert
                     response.status shouldBe HttpStatusCode.OK
