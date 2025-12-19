@@ -95,17 +95,21 @@ class ValidationServiceTest :
                             "0192:systemOwner",
                             "systemUserId"
 
-                        )
+                    )
 
-                        // Act & Assert - should not throw exception
-                        validationService.validateMaskinportenTilgang(systemPrincipal, documentEntity)
-                        coVerify(exactly = 0) {
-                            eregService.getOrganization(any())
-                        }
-                        coVerify(exactly = 0) {
-                            altinnTilgangerService.validateTilgangToOrganisasjon(any(), any(), any())
-                        }
+                    // Act & Assert - should not throw exception
+                    validationService.validateMaskinportenTilgang(
+                        systemPrincipal,
+                        documentEntity.dialog.orgNumber,
+                        documentEntity.type
+                    )
+                    coVerify(exactly = 0) {
+                        eregService.getOrganization(any())
                     }
+                    coVerify(exactly = 0) {
+                        altinnTilgangerService.validateTilgangToOrganisasjon(any(), any(), any())
+                    }
+                }
 
                     it("should throw ForbiddenException when PDP denies access") {
                         // Arrange
@@ -153,11 +157,12 @@ class ValidationServiceTest :
                             )
                             coEvery { eregService.getOrganization(entity.dialog.orgNumber) } returns organization
 
-                            // Act & Assert - should not throw exception
-                            validationService.validateMaskinportenTilgang(
-                                systemPrincipal,
-                                entity,
-                            )
+                        // Act & Assert - should not throw exception
+                        validationService.validateMaskinportenTilgang(
+                            systemPrincipal,
+                            entity.dialog.orgNumber,
+                            entity.type
+                        )
 
                             coVerify(exactly = 1) {
                                 eregService.getOrganization(eq(entity.dialog.orgNumber))
@@ -186,16 +191,17 @@ class ValidationServiceTest :
                                 inngaarIJuridiskEnheter = null
                             )
 
-                            // Act & Assert
-                            shouldThrow<ApiErrorException.ForbiddenException> {
-                                validationService.validateMaskinportenTilgang(
-                                    systemPrincipal,
-                                    entity
-                                )
-                            }
-                            coVerify { eregService.getOrganization(entity.dialog.orgNumber) }
+                        // Act & Assert
+                        shouldThrow<ApiErrorException.ForbiddenException> {
+                            validationService.validateMaskinportenTilgang(
+                                systemPrincipal,
+                                entity.dialog.orgNumber,
+                                entity.type,
+                            )
                         }
+                        coVerify { eregService.getOrganization(entity.dialog.orgNumber) }
                     }
+                }
 
                     context("and organization has parent organizations but none match token orgnumber") {
                         it("should deny access") {
@@ -215,14 +221,15 @@ class ValidationServiceTest :
                             )
                             coEvery { eregService.getOrganization(entity.dialog.orgNumber) } returns organization
 
-                            // Act & Assert
-                            val exception = shouldThrow<ApiErrorException.ForbiddenException> {
-                                validationService.validateMaskinportenTilgang(
-                                    systemPrincipal,
-                                    entity
-                                )
-                            }
-                            exception.message shouldBe "Access denied. Invalid organization."
+                        // Act & Assert
+                        val exception = shouldThrow<ApiErrorException.ForbiddenException> {
+                            validationService.validateMaskinportenTilgang(
+                                systemPrincipal,
+                                entity.dialog.orgNumber,
+                                entity.type,
+                            )
+                        }
+                        exception.message shouldBe "Access denied. Invalid organization."
 
                             coVerify { eregService.getOrganization(eq(entity.dialog.orgNumber)) }
                         }

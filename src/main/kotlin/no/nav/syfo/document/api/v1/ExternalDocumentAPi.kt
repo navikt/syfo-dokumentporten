@@ -8,13 +8,11 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import no.nav.syfo.application.auth.BrukerPrincipal
-import no.nav.syfo.application.auth.Principal
 import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.texas.MaskinportenIdportenAndTokenXAuthPlugin
-import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.logger
 import org.slf4j.Logger
 import java.time.Instant
@@ -44,6 +42,39 @@ fun Route.registerExternalGetDocumentByIdApiV1(
             call.respond<ByteArray>(content)
             countRead(logger, principal, document.isRead, document.dialog.orgNumber)
             call.response.status(HttpStatusCode.OK)
+        }
+    }
+
+    route(DOCUMENT_API_PATH) {
+        install(MaskinportenIdportenAndTokenXAuthPlugin) {
+            client = texasHttpClient
+        }
+        get() {
+            val organizationId =
+                call.queryParameters["organizationId"] ?: throw BadRequestException("Missing parameter: organizationId")
+            val isRead = call.queryParameters["isRead"]?.toBoolean() ?: false
+            val documentType = call.queryParameters.extractDocumentTypeParameter("documentType")
+            val pageSize = call.getPageSize()
+            val page = call.getPage()
+            val createdAfter = call.getCreatedAfter()
+            val principal = call.getPrincipal()
+
+            validationService.validateDocumentsOfTypeAccess(
+                principal = principal,
+                requestedOrgNumber = organizationId,
+                documentType = documentType,
+            )
+
+            call.respond<Page<DocumentEntity>>(
+                documentDAO.findDocumentsByParameters(
+                    orgnumber = organizationId,
+                    isRead = isRead,
+                    type = documentType,
+                    pageSize = pageSize ?: Page.DEFAULT_PAGE_SIZE,
+                    createdAfter = createdAfter,
+                    page = page ?: Page.FIRST_PAGE
+                )
+            )
         }
     }
 }
