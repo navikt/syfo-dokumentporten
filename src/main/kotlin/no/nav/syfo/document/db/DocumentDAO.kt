@@ -191,10 +191,9 @@ class DocumentDAO(private val database: DatabaseInterface) {
     }
 
     suspend fun findDocumentsByParameters(
-        id: String? = null,
+        pageSize: Int,
+        page: Int,
         orgnumber: String? = null,
-        linkId: String? = null,
-        documentId: String? = null,
         type: DocumentType? = null,
         contentType: String? = null,
         status: DocumentStatus? = null,
@@ -205,8 +204,6 @@ class DocumentDAO(private val database: DatabaseInterface) {
         createdBefore: Instant? = null,
         updatedBefore: Instant? = null,
         dialogId: String? = null,
-        pageSize: Int,
-        page: Int,
         orderBy: Page.OrderBy = Page.OrderBy.CREATED,
         orderDirection: Page.OrderDirection = Page.OrderDirection.DESC,
     ): Page<PersistedDocumentEntity> {
@@ -216,9 +213,6 @@ class DocumentDAO(private val database: DatabaseInterface) {
             database.connection.use { connection ->
                 val preparedStatement = SqlFilterBuilder().run {
                     filterParam("doc.is_read", isRead)
-                    filterParam("doc.id", id)
-                    filterParam("doc.link_id", linkId)
-                    filterParam("doc.document_id", documentId)
                     filterParam("doc.type", type)
                     filterParam("doc.content_type", contentType)
                     filterParam("doc.status", status)

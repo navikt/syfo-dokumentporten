@@ -1,22 +1,21 @@
 package no.nav.syfo.document.api.v1
 
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.server.plugins.NotFoundException
-import io.ktor.server.response.respond
-import io.ktor.server.routing.Route
-import io.ktor.server.routing.get
-import io.ktor.server.routing.route
-import java.time.Instant
+import io.ktor.http.*
+import io.ktor.server.plugins.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
+import no.nav.syfo.document.db.DocumentEntity
+import no.nav.syfo.document.db.Page
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.texas.MaskinportenIdportenAndTokenXAuthPlugin
 import no.nav.syfo.texas.client.TexasHttpClient
 import no.nav.syfo.util.logger
 import org.slf4j.Logger
+import java.time.Instant
 
 const val DOCUMENT_API_PATH = "/documents"
 
@@ -49,6 +48,38 @@ fun Route.registerExternalDocumentsApiV1(
         }
     }
 
+    route(DOCUMENT_API_PATH) {
+        install(MaskinportenIdportenAndTokenXAuthPlugin) {
+            client = texasHttpClient
+        }
+        get() {
+            val organizationId =
+                call.queryParameters["organizationId"] ?: throw BadRequestException("Missing parameter: organizationId")
+            val isRead = call.queryParameters["isRead"]?.toBoolean() ?: false
+            val documentType = call.queryParameters.extractDocumentTypeParameter("documentType")
+            val pageSize = call.getPageSize()
+            val page = call.getPage()
+            val createdAfter = call.getCreatedAfter()
+            val principal = call.getPrincipal()
+
+            validationService.validateDocumentsOfTypeAccess(
+                principal = principal,
+                requestedOrgNumber = organizationId,
+                documentType = documentType,
+            )
+
+            call.respond<Page<DocumentEntity>>(
+                documentDAO.findDocumentsByParameters(
+                    orgnumber = organizationId,
+                    isRead = isRead,
+                    type = documentType,
+                    pageSize = pageSize ?: Page.DEFAULT_PAGE_SIZE,
+                    createdAfter = createdAfter,
+                    page = page ?: Page.FIRST_PAGE
+                )
+            )
+        }
+    }
 }
 
 fun countRead(
