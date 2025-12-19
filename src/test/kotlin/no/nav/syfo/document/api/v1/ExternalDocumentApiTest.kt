@@ -426,11 +426,6 @@ class ExternalDocumentApiTest :
                             bearerAuth(createMockToken(ident = orgNumber))
                         }
 
-                    // Debug output
-                    if (response.status != HttpStatusCode.OK) {
-                        println("DEBUG ERROR: Status=${response.status}, Body=${response.bodyAsText()}")
-                    }
-
                     // Assert
                     response.status shouldBe HttpStatusCode.OK
                 }
