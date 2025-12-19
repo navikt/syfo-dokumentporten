@@ -53,8 +53,8 @@ fun Route.registerExternalDocumentsApiV1(
             client = texasHttpClient
         }
         get() {
-            val organizationId =
-                call.queryParameters["organizationId"] ?: throw BadRequestException("Missing parameter: organizationId")
+            val orgNumber =
+                call.queryParameters["orgNumber"] ?: throw BadRequestException("Missing parameter: orgNumber")
             val isRead = call.queryParameters["isRead"]?.toBoolean() ?: false
             val documentType = call.queryParameters.extractDocumentTypeParameter("documentType")
             val pageSize = call.getPageSize()
@@ -64,13 +64,13 @@ fun Route.registerExternalDocumentsApiV1(
 
             validationService.validateDocumentsOfTypeAccess(
                 principal = principal,
-                requestedOrgNumber = organizationId,
+                requestedOrgNumber = orgNumber,
                 documentType = documentType,
             )
 
             call.respond<Page<DocumentEntity>>(
                 documentDAO.findDocumentsByParameters(
-                    orgnumber = organizationId,
+                    orgnumber = orgNumber,
                     isRead = isRead,
                     type = documentType,
                     pageSize = pageSize ?: Page.DEFAULT_PAGE_SIZE,
