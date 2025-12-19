@@ -407,7 +407,7 @@ class ExternalDocumentApiTest : DescribeSpec({
 
                     // Act
                     val response =
-                        client.get("/api/v1/documents?organizationId=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z") {
+                        client.get("/api/v1/documents?orgNumber=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z") {
                             bearerAuth(createMockToken(ident = orgNumber))
                         }
 
@@ -443,7 +443,7 @@ class ExternalDocumentApiTest : DescribeSpec({
 
                     // Act
                     val response =
-                        client.get("/api/v1/documents?organizationId=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z") {
+                        client.get("/api/v1/documents?orgNumber=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z") {
                             bearerAuth(createMockToken(ident = orgNumber))
                         }
 
@@ -478,7 +478,7 @@ class ExternalDocumentApiTest : DescribeSpec({
 
                     // Act
                     val response =
-                        client.get("/api/v1/documents?organizationId=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z&pageSize=5&page=2") {
+                        client.get("/api/v1/documents?orgNumber=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z&pageSize=5&page=2") {
                             bearerAuth(createMockToken(ident = orgNumber))
                         }
 
@@ -512,7 +512,7 @@ class ExternalDocumentApiTest : DescribeSpec({
 
                     // Act
                     val response =
-                        client.get("/api/v1/documents?organizationId=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z&isRead=true") {
+                        client.get("/api/v1/documents?orgNumber=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z&isRead=true") {
                             bearerAuth(createMockToken(ident = orgNumber))
                         }
 
@@ -521,7 +521,7 @@ class ExternalDocumentApiTest : DescribeSpec({
                 }
             }
 
-            it("should return 400 Bad Request when organizationId is missing") {
+            it("should return 400 Bad Request when orgNumber is missing") {
                 withTestApplication {
                     // Arrange
                     val orgNumber = "123456789"
@@ -552,7 +552,7 @@ class ExternalDocumentApiTest : DescribeSpec({
 
                     // Act
                     val response =
-                        client.get("/api/v1/documents?organizationId=$orgNumber&createdAfter=2024-01-01T00:00:00Z") {
+                        client.get("/api/v1/documents?orgNumber=$orgNumber&createdAfter=2024-01-01T00:00:00Z") {
                             bearerAuth(createMockToken(ident = orgNumber))
                         }
 
@@ -571,7 +571,7 @@ class ExternalDocumentApiTest : DescribeSpec({
                     )
 
                     // Act
-                    val response = client.get("/api/v1/documents?organizationId=$orgNumber&documentType=DIALOGMOTE") {
+                    val response = client.get("/api/v1/documents?orgNumber=$orgNumber&documentType=DIALOGMOTE") {
                         bearerAuth(createMockToken(ident = orgNumber))
                     }
 
@@ -597,7 +597,7 @@ class ExternalDocumentApiTest : DescribeSpec({
 
                     // Act
                     val response =
-                        client.get("/api/v1/documents?organizationId=$requestedOrgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z") {
+                        client.get("/api/v1/documents?orgNumber=$requestedOrgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z") {
                             bearerAuth(createMockToken(ident = tokenOrgNumber))
                         }
 
@@ -630,7 +630,7 @@ class ExternalDocumentApiTest : DescribeSpec({
 
                     // Act
                     val response =
-                        client.get("/api/v1/documents?organizationId=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z") {
+                        client.get("/api/v1/documents?orgNumber=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z") {
                             bearerAuth(createMockToken(ident = orgNumber))
                         }
 
