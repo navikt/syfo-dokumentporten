@@ -77,15 +77,13 @@ class ValidationService(
     suspend fun validateMaskinportenTilgang(
         principal: SystemPrincipal,
         requestedOrgNumber: String,
-        documentType: DocumentType?
+        documentType: DocumentType
     ) {
         val orgNumberFromToken = maskinportenIdToOrgnumber(principal.ident)
         if (orgNumberFromToken != requestedOrgNumber) {
             validateHierarchicalEeregAccess(requestedOrgNumber, orgNumberFromToken)
         }
-        if (documentType != null) {
-            validateAltinnRessursTilgang(principal, documentType)
-        }
+        validateAltinnRessursTilgang(principal, documentType)
     }
 
     private suspend fun validateHierarchicalEeregAccess(
