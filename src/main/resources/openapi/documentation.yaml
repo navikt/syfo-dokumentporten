@@ -25,14 +25,89 @@ tags:
   - name: Internal
     description: Internal operations (requires Azure AD)
 paths:
+  /api/v1/documents:
+    get:
+      summary: Get paginated documents
+      description: |
+        Fetch a paginated list of documents for an organization.
+        
+        Requires authentication with Maskinporten or IDporten.
+        The caller must have access to the specified organization and document type.
+      tags: [ Documents ]
+      security:
+        - maskinporten_jwt: [ ]
+        - tokenx_jwt: [ ]
+      parameters:
+        - in: query
+          name: orgNumber
+          description: Organization number to fetch documents for
+          schema:
+            type: string
+            pattern: '^\d{9}$'
+          required: true
+          example: "123456789"
+        - in: query
+          name: documentType
+          description: Type of documents to fetch
+          schema:
+            type: string
+            enum: [ DIALOGMOTE, OPPFOLGINGSPLAN ]
+          required: true
+        - in: query
+          name: createdAfter
+          description: Filter documents created after this timestamp (ISO-8601 format)
+          schema:
+            type: string
+            format: date-time
+          required: true
+          example: "2024-01-01T00:00:00Z"
+        - in: query
+          name: isRead
+          description: Filter by read status. Defaults to false (unread documents).
+          schema:
+            type: boolean
+            default: false
+          required: false
+        - in: query
+          name: page
+          description: Page number (0-indexed). Defaults to 0.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          required: false
+        - in: query
+          name: pageSize
+          description: Number of items per page. Defaults to 50, max 200.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+          required: false
+      responses:
+        '200':
+          description: Paginated list of documents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentPage'
+        '400':
+          description: Bad Request - Missing or invalid parameters
+        '401':
+          description: Unauthorized - Invalid or missing token
+        '403':
+          description: Forbidden - Caller does not have access to the organization or document type
+        '500':
+          description: Internal server error
   /api/v1/documents/{id}:
     get:
       summary: Get a document by id
       description: Fetch a stored document. Returns the binary content with its original media type.
       tags: [ Documents ]
       security:
-        - maskinporten_jwt: []
-        - tokenx_jwt: []
+        - maskinporten_jwt: [ ]
+        - tokenx_jwt: [ ]
       parameters:
         - in: path
           name: id
@@ -66,7 +141,7 @@ paths:
       description: Create a document (internal, Azure AD required).
       tags: [ Internal ]
       security:
-        - azuread_jwt: []
+        - azuread_jwt: [ ]
       requestBody:
         required: true
         content:
@@ -153,7 +228,7 @@ components:
         status:
           type: string
           description: Processing status.
-          enum: [RECEIVED, PENDING, COMPLETED, ERROR]
+          enum: [ RECEIVED, PENDING, COMPLETED, ERROR ]
         isRead:
           type: boolean
           description: Whether the document has been marked as read.
@@ -178,3 +253,143 @@ components:
         - linkId
         - status
       additionalProperties: false
+    DocumentPage:
+      type: object
+      description: Paginated response containing documents
+      properties:
+        page:
+          type: integer
+          description: Current page number (0-indexed)
+          example: 0
+        totalPages:
+          type: integer
+          description: Total number of pages available
+          example: 5
+        totalElements:
+          type: integer
+          format: int64
+          description: Total number of documents matching the query
+          example: 42
+        pageSize:
+          type: integer
+          description: Number of items per page
+          example: 50
+        items:
+          type: array
+          description: List of documents on this page
+          items:
+            $ref: '#/components/schemas/DocumentListItem'
+      required:
+        - page
+        - totalPages
+        - totalElements
+        - pageSize
+        - items
+    DocumentListItem:
+      type: object
+      description: Document entity returned in list responses
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Internal database identifier
+        documentId:
+          type: string
+          format: uuid
+          description: Unique document UUID
+        type:
+          type: string
+          description: Document type
+          enum: [ DIALOGMOTE, OPPFOLGINGSPLAN, UNDEFINED ]
+        contentType:
+          type: string
+          description: MIME type of the content
+          example: application/pdf
+        title:
+          type: string
+          description: Document title
+        summary:
+          type: string
+          nullable: true
+          description: Document summary
+        linkId:
+          type: string
+          format: uuid
+          description: Public link UUID used for external retrieval
+        status:
+          type: string
+          description: Processing status
+          enum: [ RECEIVED, PENDING, COMPLETED, ERROR ]
+        isRead:
+          type: boolean
+          description: Whether the document has been marked as read
+        transmissionId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Dialogporten transmission ID if assigned
+        created:
+          type: string
+          format: date-time
+          description: Creation timestamp (UTC)
+        updated:
+          type: string
+          format: date-time
+          description: Last update timestamp (UTC)
+        dialog:
+          $ref: '#/components/schemas/Dialog'
+      required:
+        - id
+        - documentId
+        - type
+        - contentType
+        - title
+        - linkId
+        - status
+        - isRead
+        - created
+        - updated
+        - dialog
+    Dialog:
+      type: object
+      description: Dialog entity containing document metadata
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Internal database identifier
+        title:
+          type: string
+          description: Dialog title
+        summary:
+          type: string
+          nullable: true
+          description: Dialog summary
+        fnr:
+          type: string
+          description: Person identifier (fødselsnummer)
+          example: "12345678901"
+        orgNumber:
+          type: string
+          description: Organization number
+          example: "123456789"
+        dialogportenUUID:
+          type: string
+          format: uuid
+          nullable: true
+          description: Dialogporten dialog UUID if assigned
+        created:
+          type: string
+          format: date-time
+          description: Creation timestamp (UTC)
+        updated:
+          type: string
+          format: date-time
+          description: Last update timestamp (UTC)
+      required:
+        - id
+        - title
+        - fnr
+        - orgNumber
+        - created
+        - updated
