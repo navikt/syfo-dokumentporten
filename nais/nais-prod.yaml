@@ -56,6 +56,12 @@ spec:
           - name: syfo-dokumentporten-db
             envVarPrefix: SYFO_DOKUMENTPORTEN_DB
         diskAutoresize: true
+  idporten:
+    enabled: true
+    sidecar:
+      enabled: true
+      autoLogin: false
+      level: Level4
   tokenx:
     enabled: true
   maskinporten:
