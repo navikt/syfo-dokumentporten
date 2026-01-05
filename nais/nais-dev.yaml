@@ -13,6 +13,7 @@ spec:
     - https://arkivporten.ekstern.dev.nav.no/openapi
     - https://syfo-dokumentporten.intern.dev.nav.no
     - https://syfo-dokumentporten.ekstern.dev.nav.no/api/v1/documents
+    - https://syfo-dokumentporten.ekstern.dev.nav.no/api/v1/gui/documents
     - https://syfo-dokumentporten.ekstern.dev.nav.no/swagger
     - https://syfo-dokumentporten.ekstern.dev.nav.no/openapi
   image: {{image}} #
