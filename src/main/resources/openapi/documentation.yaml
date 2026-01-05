@@ -294,10 +294,6 @@ components:
       type: object
       description: Document entity returned in list responses
       properties:
-        id:
-          type: integer
-          format: int64
-          description: Internal database identifier
         documentId:
           type: string
           format: uuid
