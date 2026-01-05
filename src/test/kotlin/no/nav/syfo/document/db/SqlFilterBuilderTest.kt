@@ -7,11 +7,11 @@ import io.kotest.matchers.string.shouldContain
 import io.mockk.mockk
 import io.mockk.verify
 import io.mockk.verifySequence
-import no.nav.syfo.document.api.v1.dto.DocumentType
 import java.sql.PreparedStatement
 import java.sql.Timestamp
 import java.time.Instant
-import java.util.*
+import java.util.UUID
+import no.nav.syfo.document.api.v1.dto.DocumentType
 
 class SqlFilterBuilderTest : DescribeSpec({
 

@@ -6,12 +6,12 @@ import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.longs.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import java.time.Instant
+import java.util.UUID
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import no.nav.syfo.TestDB
 import no.nav.syfo.document.api.v1.dto.DocumentType
-import java.time.Instant
-import java.util.*
 
 class DocumentDbTest : DescribeSpec({
     val testDb = TestDB.database
