@@ -12,6 +12,7 @@ spec:
     - https://syfo-dokumentporten.ekstern.nav.no/api/v1/gui/documents
     - https://syfo-dokumentporten.ekstern.nav.no/swagger
     - https://syfo-dokumentporten.ekstern.nav.no/openapi
+    - https://syfo-dokumentporten.ekstern.nav.no/oauth2
   image: {{image}} #
   port: 8080
   liveness:

@@ -9,13 +9,16 @@ spec:
   ingresses:
     - https://arkivporten.intern.dev.nav.no
     - https://arkivporten.ekstern.dev.nav.no/api/v1/documents
+    - https://arkivporten.ekstern.dev.nav.no/api/v1/gui/documents
     - https://arkivporten.ekstern.dev.nav.no/swagger
     - https://arkivporten.ekstern.dev.nav.no/openapi
+    - https://arkivporten.ekstern.dev.nav.no/oauth2
     - https://syfo-dokumentporten.intern.dev.nav.no
     - https://syfo-dokumentporten.ekstern.dev.nav.no/api/v1/documents
     - https://syfo-dokumentporten.ekstern.dev.nav.no/api/v1/gui/documents
     - https://syfo-dokumentporten.ekstern.dev.nav.no/swagger
     - https://syfo-dokumentporten.ekstern.dev.nav.no/openapi
+    - https://syfo-dokumentporten.ekstern.dev.nav.no/oauth2
   image: {{image}} #
   port: 8080
   liveness:
