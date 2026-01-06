@@ -245,7 +245,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
                         )
 
                     builder.orderBy = orderBy
-                    builder.limit = pageSize
+                    builder.limit = limitInRange
                     builder.orderDirection = orderDirection
                     builder.offset = pageInRange * limitInRange
 
@@ -280,7 +280,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
                         page = page,
                         totalPages = ceil(totalCount.toDouble() / limitInRange).toInt(),
                         totalElements = totalCount,
-                        pageSize = limitInRange,
+                        pageSize = docs.size,
                         items = docs,
                     )
                 }
