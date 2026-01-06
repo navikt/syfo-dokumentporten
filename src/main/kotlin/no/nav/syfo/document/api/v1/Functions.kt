@@ -1,11 +1,13 @@
 package no.nav.syfo.document.api.v1
 
-import io.ktor.http.*
-import io.ktor.serialization.*
-import io.ktor.server.auth.*
-import io.ktor.server.plugins.*
-import io.ktor.server.request.*
-import io.ktor.server.routing.*
+
+import io.ktor.http.Parameters
+import io.ktor.serialization.JsonConvertException
+import io.ktor.server.auth.authentication
+import io.ktor.server.plugins.BadRequestException
+import io.ktor.server.plugins.ParameterConversionException
+import io.ktor.server.request.receive
+import io.ktor.server.routing.RoutingCall
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.JwtIssuer
 import no.nav.syfo.application.auth.Principal
@@ -17,7 +19,7 @@ import no.nav.syfo.document.api.v1.dto.DocumentType
 import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
-import java.util.*
+import java.util.UUID
 
 fun Parameters.extractAndValidateUUIDParameter(name: String): UUID {
     val parameter = get(name)
