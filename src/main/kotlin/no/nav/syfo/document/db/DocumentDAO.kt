@@ -5,12 +5,11 @@ import kotlinx.coroutines.withContext
 import java.sql.ResultSet
 import java.util.UUID
 import no.nav.syfo.application.database.DatabaseInterface
-import no.nav.syfo.document.api.v1.dto.DialogResponse
-import no.nav.syfo.document.api.v1.dto.DocumentResponse
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import java.sql.Timestamp
 import java.sql.Types
 import java.time.Instant
+import java.util.UUID
 import kotlin.math.ceil
 
 private const val COUNT_COLUMN_NAME = "total_count"
@@ -195,62 +194,66 @@ class DocumentDAO(private val database: DatabaseInterface) {
         pageSize: Int,
         page: Int,
         orgnumber: String? = null,
+        fnr: String? = null,
         type: DocumentType? = null,
         contentType: String? = null,
         status: DocumentStatus? = null,
-        isRead: Boolean = false,
+        isRead: Boolean? = null,
         transmissionId: String? = null,
         createdAfter: Instant? = null,
         updatedAfter: Instant? = null,
         createdBefore: Instant? = null,
         updatedBefore: Instant? = null,
-        dialogId: String? = null,
+        dialogId: UUID? = null,
         orderBy: Page.OrderBy = Page.OrderBy.CREATED,
         orderDirection: Page.OrderDirection = Page.OrderDirection.DESC,
-    ): Page<DocumentResponse> {
+    ): Page<PersistedDocumentEntity> {
         val limitInRange = pageSize.coerceIn(1, Page.MAX_PAGE_SIZE)
+        val pageInRange = page.coerceAtLeast(1)
 
         return withContext(Dispatchers.IO) {
             database.connection.use { connection ->
-                val preparedStatement = SqlFilterBuilder().run {
-                    filterParam("doc.is_read", isRead)
-                    filterParam("doc.type", type)
-                    filterParam("doc.content_type", contentType)
-                    filterParam("doc.status", status)
-                    filterParam("doc.transmission_id", transmissionId)
-                    filterParam("doc.dialog_id", dialogId)
-                    filterParam("dialog.org_number", orgnumber)
-                    filterParam(
-                        "doc.created",
-                        createdAfter,
-                        SqlFilterBuilder.ComparisonOperator.GREATER_THAN
-                    )
-                    filterParam(
-                        "doc.updated",
-                        updatedAfter,
-                        SqlFilterBuilder.ComparisonOperator.GREATER_THAN
-                    )
-                    filterParam(
-                        "doc.created",
-                        createdBefore,
-                        SqlFilterBuilder.ComparisonOperator.LESS_THAN
-                    )
-                    filterParam(
-                        "doc.updated",
-                        updatedBefore,
-                        SqlFilterBuilder.ComparisonOperator.LESS_THAN
-                    )
+                val preparedStatement = SqlFilterBuilder().let { builder ->
+                    builder
+                        .filterParam("doc.is_read", isRead)
+                        .filterParam("doc.type", type)
+                        .filterParam("doc.content_type", contentType)
+                        .filterParam("doc.status", status)
+                        .filterParam("doc.transmission_id", transmissionId)
+                        .filterParam("doc.dialog_id", dialogId)
+                        .filterParam("dialog.fnr", fnr)
+                        .filterParam("dialog.org_number", orgnumber)
+                        .filterParam(
+                            "doc.created",
+                            createdAfter,
+                            SqlFilterBuilder.ComparisonOperator.GREATER_THAN
+                        )
+                        .filterParam(
+                            "doc.updated",
+                            updatedAfter,
+                            SqlFilterBuilder.ComparisonOperator.GREATER_THAN
+                        )
+                        .filterParam(
+                            "doc.created",
+                            createdBefore,
+                            SqlFilterBuilder.ComparisonOperator.LESS_THAN
+                        )
+                        .filterParam(
+                            "doc.updated",
+                            updatedBefore,
+                            SqlFilterBuilder.ComparisonOperator.LESS_THAN
+                        )
 
-                    this.orderBy = orderBy
-                    this.limit = pageSize
-                    this.orderDirection = orderDirection
-                    this.offset = page * limitInRange
+                    builder.orderBy = orderBy
+                    builder.limit = pageSize
+                    builder.orderDirection = orderDirection
+                    builder.offset = pageInRange * limitInRange
 
-                    buildStatement(
+                    builder.buildStatement(
                         connection.prepareStatement(
                             """
                             ${selectDocWithDialogJoin(true)}
-                            ${buildFilterString()}
+                            ${builder.buildFilterString()}
                             """.trimIndent(),
                             ResultSet.TYPE_FORWARD_ONLY,
                             ResultSet.CONCUR_READ_ONLY
@@ -264,12 +267,11 @@ class DocumentDAO(private val database: DatabaseInterface) {
 
                     val docs = buildList {
                         if (resultSet.next()) {
-                            // Probably faster to "manually" get the first item to fetch the count, than to use a scrollable ResultSet
                             totalCount = resultSet.getLong(COUNT_COLUMN_NAME)
-                            add(resultSet.toDocumentResponse())
+                            add(resultSet.toDocumentEntity())
 
                             while (resultSet.next()) {
-                                add(resultSet.toDocumentResponse())
+                                add(resultSet.toDocumentEntity())
                             }
                         }
                     }
@@ -286,29 +288,6 @@ class DocumentDAO(private val database: DatabaseInterface) {
         }
     }
 }
-
-fun ResultSet.toDocumentResponse() = DocumentResponse(
-    documentId = getObject("document_id") as UUID,
-    type = DocumentType.valueOf(getString("type")),
-    contentType = getString("content_type"),
-    title = getString("title"),
-    summary = getString("summary"),
-    linkId = getObject("link_id") as UUID,
-    status = DocumentStatus.valueOf(getString("status")),
-    isRead = getBoolean("is_read"),
-    dialog = DialogResponse(
-        title = getString("dialog_title"),
-        summary = getString("dialog_summary"),
-        fnr = getString("fnr"),
-        orgNumber = getString("org_number"),
-        dialogportenUUID = getObject("dialog_uuid") as UUID?,
-        created = getTimestamp("dialog_created").toInstant(),
-        updated = getTimestamp("dialog_updated").toInstant(),
-    ),
-    transmissionId = getObject("transmission_id") as UUID?,
-    created = getTimestamp("created").toInstant(),
-    updated = getTimestamp("updated").toInstant(),
-)
 
 fun ResultSet.toDocumentEntity(withDialog: PersistedDialogEntity? = null): PersistedDocumentEntity =
     PersistedDocumentEntity(

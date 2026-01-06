@@ -132,15 +132,15 @@ data class PersistedDocumentEntity(
             documentId = documentId,
             type = type,
             contentType = contentType,
-            title = title,
-            summary = summary,
             linkId = linkId,
             status = status,
             isRead = isRead,
-            dialog = dialog.toDialogResponse(),
             transmissionId = transmissionId,
-            created = created,
+            dialogId = dialog.dialogportenUUID,
+            fnr = dialog.fnr,
+            orgNumber = dialog.orgNumber,
             updated = updated,
+            created = created,
         )
     }
 }

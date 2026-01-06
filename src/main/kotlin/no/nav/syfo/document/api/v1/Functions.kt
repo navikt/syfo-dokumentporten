@@ -62,11 +62,23 @@ fun RoutingCall.getPageSize(): Int? =
     this.queryParameters["pageSize"]
         ?.toIntOrNull()
 
+fun RoutingCall.getOrgNumber(): String =
+    queryParameters["orgNumber"] ?: throw BadRequestException("Missing parameter: orgNumber")
 
 fun RoutingCall.getPage(): Int? =
     this.queryParameters["page"]
         ?.toIntOrNull()
 
+fun RoutingCall.getCreatedBefore(): Instant? {
+    val createdBefore = this.queryParameters["createdBefore"] ?: return null
+    return try {
+        Instant.parse(createdBefore)
+    } catch (e: DateTimeParseException) {
+        throw ApiErrorException.BadRequestException(
+            "Invalid date format for createdBefore parameter. Expected ISO-8601 format."
+        )
+    }
+}
 
 suspend inline fun <reified T : Any> RoutingCall.tryReceive() = runCatching { receive<T>() }.getOrElse {
     when {

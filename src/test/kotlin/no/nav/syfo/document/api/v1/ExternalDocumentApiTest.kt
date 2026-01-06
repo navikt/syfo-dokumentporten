@@ -40,6 +40,7 @@ import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.Page
+import no.nav.syfo.document.db.PersistedDocumentEntity
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.FakeEregClient
@@ -401,9 +402,9 @@ class ExternalDocumentApiTest :
                     val orgNumber = "123456789"
                     val dialog = dialogEntity().copy(orgNumber = orgNumber)
                     val documents = listOf(
-                        documentEntity(dialog).toDocumentResponse(),
-                        documentEntity(dialog).toDocumentResponse(),
-                        documentEntity(dialog).toDocumentResponse()
+                        documentEntity(dialog),
+                        documentEntity(dialog),
+                        documentEntity(dialog)
                     )
                     val page = Page(
                         page = 0,
@@ -437,7 +438,7 @@ class ExternalDocumentApiTest :
                     val orgNumber = "123456789"
                     val dialog = dialogEntity().copy(orgNumber = orgNumber)
                     val documents =
-                        listOf(documentEntity(dialog).copy(type = DocumentType.DIALOGMOTE).toDocumentResponse())
+                        listOf(documentEntity(dialog).copy(type = DocumentType.DIALOGMOTE))
                     val page = Page(
                         page = 0,
                         totalPages = 1,
@@ -473,7 +474,7 @@ class ExternalDocumentApiTest :
                     // Arrange
                     val orgNumber = "123456789"
                     val dialog = dialogEntity().copy(orgNumber = orgNumber)
-                    val documents = listOf(documentEntity(dialog).toDocumentResponse())
+                    val documents = listOf(documentEntity(dialog))
                     val page = Page(
                         page = 2,
                         totalPages = 5,
@@ -507,7 +508,7 @@ class ExternalDocumentApiTest :
                 withTestApplication {
                     // Arrange
                     val orgNumber = "123456789"
-                    val page = Page<DocumentResponse>(
+                    val page = Page<PersistedDocumentEntity>(
                         page = 0,
                         totalPages = 0,
                         totalElements = 0,
@@ -626,7 +627,7 @@ class ExternalDocumentApiTest :
                 withTestApplication {
                     // Arrange
                     val orgNumber = "123456789"
-                    val emptyPage = Page<DocumentResponse>(
+                    val emptyPage = Page<PersistedDocumentEntity>(
                         page = 0,
                         totalPages = 0,
                         totalElements = 0,

@@ -5,21 +5,22 @@ import java.sql.PreparedStatement
 import java.sql.Timestamp
 import java.sql.Types
 import java.time.Instant
-import java.util.*
-import kotlin.math.absoluteValue
+import java.util.UUID
 
 /**
  * Example usage:
  *
  * ```
- * val preparedStatement = SqlFilterBuilder().run {
- *      filterParam("id", someId)
- *      filterParam("status", someStatus)
- *      filterParam("created", someCreatedAfter, ComparisonOperator.GREATER_THAN_OR_EQUAL_TO)
- *      limit = 50
- *      orderBy = Page.OrderBy.CREATED
- *      descending = Page.OrderDirection.DESC
- *      buildStatement(
+ * val preparedStatement = SqlFilterBuilder().let { builder ->
+ *      builder
+ *          .filterParam("id", someId)
+ *          .filterParam("status", someStatus)
+ *          .filterParam("created", someCreatedAfter, ComparisonOperator.GREATER_THAN_OR_EQUAL_TO)
+ *
+ *      builder.limit = 50
+ *      builder.orderBy = Page.OrderBy.CREATED
+ *      builder.orderDirection = Page.OrderDirection.DESC
+ *      builder.buildStatement(
  *          connection.prepareStatement("select * from table ${buildFilterString()}")
  *       )
  *     }
@@ -50,8 +51,8 @@ class SqlFilterBuilder {
             "WHERE ${filters.joinToString(" AND ") { "${it.name} ${it.operator} ?" }}"
         } else ""
         val orderClause = orderBy?.let { "ORDER BY ${it.columnName} ${orderDirection.name}" } ?: ""
-        val limitClause = limit?.absoluteValue?.let { "LIMIT $it" } ?: ""
-        val offsetClause = offset?.absoluteValue?.let { "OFFSET $it" } ?: ""
+        val limitClause = limit?.coerceAtLeast(1)?.let { "LIMIT $it" } ?: ""
+        val offsetClause = offset?.coerceAtLeast(1)?.let { "OFFSET $it" } ?: ""
 
         return listOf(whereClause, orderClause, limitClause, offsetClause)
             .filter { it.isNotBlank() }
