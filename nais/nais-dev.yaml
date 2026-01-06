@@ -130,6 +130,6 @@ spec:
     - name: PUBLIC_INGRESS_URL
       value: https://syfo-dokumentporten.ekstern.dev.nav.no
     - name: DIALOGPORTEN_API_ONLY
-      value: "false"
+      value: "true"
   envFrom:
     - secret: altinn-subscription-key
