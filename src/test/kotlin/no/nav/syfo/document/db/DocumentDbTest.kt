@@ -6,12 +6,12 @@ import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.longs.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
-import java.time.Instant
-import java.util.UUID
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import no.nav.syfo.TestDB
 import no.nav.syfo.document.api.v1.dto.DocumentType
+import java.time.Instant
+import java.util.UUID
 
 class DocumentDbTest : DescribeSpec({
     val testDb = TestDB.database
@@ -257,8 +257,8 @@ class DocumentDbTest : DescribeSpec({
 
             // Assert
             // values reflects the coerced values
-            resultLowLimit.pageSize shouldBe 1
-            resultHighLimit.pageSize shouldBe Page.MAX_PAGE_SIZE
+            resultLowLimit.limit shouldBe 1
+            resultHighLimit.limit shouldBe Page.MAX_PAGE_SIZE
         }
 
         it("should order results by created date descending by default") {

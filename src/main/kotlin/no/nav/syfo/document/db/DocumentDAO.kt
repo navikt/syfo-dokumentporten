@@ -280,7 +280,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
                         page = page,
                         totalPages = ceil(totalCount.toDouble() / limitInRange).toInt(),
                         totalElements = totalCount,
-                        pageSize = docs.size,
+                        limit = limitInRange,
                         items = docs,
                     )
                 }

@@ -396,7 +396,7 @@ class ExternalDocumentApiTest : DescribeSpec({
                         page = 0,
                         totalPages = 1,
                         totalElements = 3,
-                        pageSize = 50,
+                        limit = 50,
                         items = documents
                     )
                     coEvery {
@@ -429,7 +429,7 @@ class ExternalDocumentApiTest : DescribeSpec({
                         page = 0,
                         totalPages = 1,
                         totalElements = 1,
-                        pageSize = 50,
+                        limit = 50,
                         items = documents
                     )
                     coEvery {
@@ -465,7 +465,7 @@ class ExternalDocumentApiTest : DescribeSpec({
                         page = 2,
                         totalPages = 5,
                         totalElements = 25,
-                        pageSize = 5,
+                        limit = 5,
                         items = documents
                     )
                     coEvery {
@@ -498,7 +498,7 @@ class ExternalDocumentApiTest : DescribeSpec({
                         page = 0,
                         totalPages = 0,
                         totalElements = 0,
-                        pageSize = 50,
+                        limit = 50,
                         items = emptyList()
                     )
                     coEvery {
@@ -617,7 +617,7 @@ class ExternalDocumentApiTest : DescribeSpec({
                         page = 0,
                         totalPages = 0,
                         totalElements = 0,
-                        pageSize = 50,
+                        limit = 50,
                         items = emptyList()
                     )
                     coEvery {
