@@ -1,9 +1,9 @@
 package no.nav.syfo.document.db
 
-import java.time.Instant
-import java.util.UUID
 import no.nav.syfo.document.api.v1.dto.DocumentResponse
 import no.nav.syfo.document.api.v1.dto.DocumentType
+import java.time.Instant
+import java.util.UUID
 
 enum class DocumentStatus {
     RECEIVED,
@@ -132,15 +132,15 @@ data class PersistedDocumentEntity(
             documentId = documentId,
             type = type,
             contentType = contentType,
-            title = title,
-            summary = summary,
             linkId = linkId,
             status = status,
             isRead = isRead,
-            dialog = dialog.toDialogResponse(),
             transmissionId = transmissionId,
-            created = created,
+            dialogId = dialog.dialogportenUUID,
+            fnr = dialog.fnr,
+            orgNumber = dialog.orgNumber,
             updated = updated,
+            created = created,
         )
     }
 }

@@ -1,6 +1,8 @@
 package no.nav.syfo.document.db
 
-class Page<out T>(
+import no.nav.syfo.document.api.v1.dto.DocumentResponse
+
+data class Page<out T>(
     val page: Int,
     val totalPages: Int,
     val totalElements: Long,
@@ -22,4 +24,14 @@ class Page<out T>(
         ASC,
         DESC,
     }
+}
+
+fun Page<PersistedDocumentEntity>.toDocumentResponsePage(): Page<DocumentResponse> {
+    return Page(
+        items = this.items.map { it.toDocumentResponse() },
+        pageSize = this.pageSize,
+        page = this.page,
+        totalElements = this.totalElements,
+        totalPages = this.totalPages,
+    )
 }
