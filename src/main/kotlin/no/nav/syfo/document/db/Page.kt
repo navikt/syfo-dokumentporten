@@ -1,31 +1,11 @@
 package no.nav.syfo.document.db
 
-import com.fasterxml.jackson.annotation.JsonIgnore
 import no.nav.syfo.document.api.v1.dto.DocumentResponse
 
 data class Page<out T>(
-    @JsonIgnore
-    val page: Int,
-    @JsonIgnore
-    val totalPages: Int,
-    @JsonIgnore
-    val totalElements: Long,
-    @JsonIgnore
-    val limit: Int,
     val items: List<T>,
+    val meta: Meta,
 ) {
-    val meta = Meta(
-        size = items.size,
-        pageSize = limit,
-        hasMore = page < totalPages,
-        resultSize = totalElements,
-    )
-
-    enum class OrderBy(val columnName: String) {
-        CREATED("created"),
-        UPDATED("updated"),
-    }
-
     enum class OrderDirection {
         ASC,
         DESC,
@@ -48,9 +28,6 @@ data class Page<out T>(
 fun Page<PersistedDocumentEntity>.toDocumentResponsePage(): Page<DocumentResponse> {
     return Page(
         items = this.items.map { it.toDocumentResponse() },
-        limit = this.limit,
-        page = this.page,
-        totalElements = this.totalElements,
-        totalPages = this.totalPages,
+        meta = this.meta,
     )
 }

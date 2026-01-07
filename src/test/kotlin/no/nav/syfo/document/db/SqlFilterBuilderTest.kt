@@ -7,11 +7,11 @@ import io.kotest.matchers.string.shouldContain
 import io.mockk.mockk
 import io.mockk.verify
 import io.mockk.verifySequence
+import no.nav.syfo.document.api.v1.dto.DocumentType
 import java.sql.PreparedStatement
 import java.sql.Timestamp
 import java.time.Instant
 import java.util.UUID
-import no.nav.syfo.document.api.v1.dto.DocumentType
 
 class SqlFilterBuilderTest : DescribeSpec({
 
@@ -56,14 +56,14 @@ class SqlFilterBuilderTest : DescribeSpec({
 
         it("should include ORDER BY clause when orderBy is set") {
             val builder = SqlFilterBuilder()
-            builder.orderBy = Page.OrderBy.CREATED
+            builder.orderBy = SqlFilterBuilder.OrderBy.CREATED
 
             builder.buildFilterString() shouldBe "ORDER BY created DESC"
         }
 
         it("should use ASC when orderDirection is set to ASC") {
             val builder = SqlFilterBuilder()
-            builder.orderBy = Page.OrderBy.CREATED
+            builder.orderBy = SqlFilterBuilder.OrderBy.CREATED
             builder.orderDirection = Page.OrderDirection.ASC
 
             builder.buildFilterString() shouldBe "ORDER BY created ASC"
@@ -87,7 +87,7 @@ class SqlFilterBuilderTest : DescribeSpec({
             val builder = SqlFilterBuilder()
             builder.filterParam("status", "PENDING")
             builder.filterParam("is_read", false)
-            builder.orderBy = Page.OrderBy.CREATED
+            builder.orderBy = SqlFilterBuilder.OrderBy.CREATED
             builder.orderDirection = Page.OrderDirection.DESC
             builder.limit = 50
             builder.offset = 100
