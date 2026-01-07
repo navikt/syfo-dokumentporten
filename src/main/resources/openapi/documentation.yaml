@@ -34,7 +34,10 @@ paths:
     get:
       summary: Get paginated documents
       description: |
-        Fetch a paginated list of documents for an organization.
+        Fetch a paginated list of documents for an organization using cursor-based pagination.
+        
+        Use the `createdAfter` parameter for pagination - to get the next page, pass the `created` 
+        timestamp of the last item from the previous response.
         
         Requires authentication with Maskinporten or IDporten.
         The caller must have access to the specified organization and document type.
@@ -60,7 +63,10 @@ paths:
           required: true
         - in: query
           name: createdAfter
-          description: Filter documents created after this timestamp (ISO-8601 format)
+          description: |
+            Filter documents created after this timestamp (ISO-8601 format).
+            Used for cursor-based pagination - pass the `created` timestamp of the last item 
+            from the previous page to get the next page.
           schema:
             type: string
             format: date-time
@@ -68,18 +74,9 @@ paths:
           example: "2024-01-01T00:00:00Z"
         - in: query
           name: isRead
-          description: Filter by read status. Defaults to false (unread documents).
+          description: Filter by read status. If not provided, returns all documents regardless of read status.
           schema:
             type: boolean
-            default: false
-          required: false
-        - in: query
-          name: page
-          description: Page number (0-indexed). Defaults to 0.
-          schema:
-            type: integer
-            minimum: 0
-            default: 0
           required: false
         - in: query
           name: pageSize
@@ -260,36 +257,44 @@ components:
       additionalProperties: false
     DocumentPage:
       type: object
-      description: Paginated response containing documents
+      description: Paginated response containing documents with cursor-based pagination metadata
       properties:
-        page:
-          type: integer
-          description: Current page number (0-indexed)
-          example: 0
-        totalPages:
-          type: integer
-          description: Total number of pages available
-          example: 5
-        totalElements:
-          type: integer
-          format: int64
-          description: Total number of documents matching the query
-          example: 42
-        pageSize:
-          type: integer
-          description: Number of items per page
-          example: 50
         items:
           type: array
           description: List of documents on this page
           items:
             $ref: '#/components/schemas/DocumentListItem'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
       required:
-        - page
-        - totalPages
-        - totalElements
-        - pageSize
         - items
+        - meta
+    PageMeta:
+      type: object
+      description: Pagination metadata
+      properties:
+        size:
+          type: integer
+          description: Number of items returned in this page
+          example: 10
+        pageSize:
+          type: integer
+          description: Requested page size
+          example: 50
+        hasMore:
+          type: boolean
+          description: Whether there are more items available after this page
+          example: true
+        resultSize:
+          type: integer
+          format: int64
+          description: Total number of documents matching the query
+          example: 42
+      required:
+        - size
+        - pageSize
+        - hasMore
+        - resultSize
     DocumentListItem:
       type: object
       description: Document entity returned in list responses
@@ -306,13 +311,6 @@ components:
           type: string
           description: MIME type of the content
           example: application/pdf
-        title:
-          type: string
-          description: Document title
-        summary:
-          type: string
-          nullable: true
-          description: Document summary
         linkId:
           type: string
           format: uuid
@@ -324,6 +322,19 @@ components:
         isRead:
           type: boolean
           description: Whether the document has been marked as read
+        fnr:
+          type: string
+          description: Person identifier (fødselsnummer)
+          example: "12345678901"
+        orgNumber:
+          type: string
+          description: Organization number
+          example: "123456789"
+        dialogId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Dialogporten dialog UUID if assigned
         transmissionId:
           type: string
           format: uuid
@@ -337,59 +348,13 @@ components:
           type: string
           format: date-time
           description: Last update timestamp (UTC)
-        dialog:
-          $ref: '#/components/schemas/Dialog'
       required:
-        - id
         - documentId
         - type
         - contentType
-        - title
         - linkId
         - status
         - isRead
-        - created
-        - updated
-        - dialog
-    Dialog:
-      type: object
-      description: Dialog entity containing document metadata
-      properties:
-        id:
-          type: integer
-          format: int64
-          description: Internal database identifier
-        title:
-          type: string
-          description: Dialog title
-        summary:
-          type: string
-          nullable: true
-          description: Dialog summary
-        fnr:
-          type: string
-          description: Person identifier (fødselsnummer)
-          example: "12345678901"
-        orgNumber:
-          type: string
-          description: Organization number
-          example: "123456789"
-        dialogportenUUID:
-          type: string
-          format: uuid
-          nullable: true
-          description: Dialogporten dialog UUID if assigned
-        created:
-          type: string
-          format: date-time
-          description: Creation timestamp (UTC)
-        updated:
-          type: string
-          format: date-time
-          description: Last update timestamp (UTC)
-      required:
-        - id
-        - title
         - fnr
         - orgNumber
         - created
