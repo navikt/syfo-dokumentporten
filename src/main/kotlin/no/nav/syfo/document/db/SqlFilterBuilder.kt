@@ -31,7 +31,7 @@ class SqlFilterBuilder {
     private val filters = mutableListOf<Filter>()
 
     var limit: Int? = null
-    var orderBy: Page.OrderBy? = null
+    var orderBy: OrderBy? = null
     var orderDirection: Page.OrderDirection = Page.OrderDirection.DESC
     var offset: Int? = null
 
@@ -51,15 +51,21 @@ class SqlFilterBuilder {
             "WHERE ${filters.joinToString(" AND ") { "${it.name} ${it.operator} ?" }}"
         } else ""
         val orderClause = orderBy?.let { "ORDER BY ${it.columnName} ${orderDirection.name}" } ?: ""
-        val limitClause = limit?.coerceAtLeast(1)?.let { "LIMIT $it" } ?: ""
-        val offsetClause = offset?.coerceAtLeast(1)?.let { "OFFSET $it" } ?: ""
+        val limitClause = limit?.let {
+            require(it > 0) { "Limit must be at least 1" }
+            "LIMIT $it"
+        } ?: ""
+        val offsetClause = offset?.let {
+            require(it >= 0) { "Offset must be at least 0" }
+            "OFFSET $it"
+        } ?: ""
 
         return listOf(whereClause, orderClause, limitClause, offsetClause)
             .filter { it.isNotBlank() }
             .joinToString(" ")
     }
 
-    // Decided to let the user do the final composition of the SQL, to keep the static analysis of the SQL intact
+    // Decided to let the user of the class do the final composition of the SQL, to keep the static analysis of the SQL
     fun buildStatement(preparedStatement: PreparedStatement): PreparedStatement {
         filters.forEachIndexed { idx, filter ->
             val parameterIndex = idx + 1
@@ -75,6 +81,11 @@ class SqlFilterBuilder {
             }
         }
         return preparedStatement
+    }
+
+    enum class OrderBy(val columnName: String) {
+        CREATED("created"),
+        UPDATED("updated"),
     }
 
     private data class Filter(val name: String, val value: Any, val operator: String)

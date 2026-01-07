@@ -12,6 +12,7 @@ import no.nav.syfo.TestDB
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import java.time.Instant
 import java.util.UUID
+import kotlin.math.ceil
 
 class DocumentDbTest :
     DescribeSpec({
@@ -137,12 +138,11 @@ class DocumentDbTest :
         it("should return empty page when no documents exist") {
             val result = documentDAO.findDocumentsByParameters(
                 pageSize = 50,
-                page = 0
             )
 
             result.items shouldBe emptyList()
-            result.totalElements shouldBe 0
-            result.totalPages shouldBe 0
+            result.meta.resultSize shouldBe 0
+            result.meta.hasMore shouldBe false
         }
 
         it("should return documents filtered by type") {
@@ -163,7 +163,6 @@ class DocumentDbTest :
             val result = documentDAO.findDocumentsByParameters(
                 type = DocumentType.DIALOGMOTE,
                 pageSize = 50,
-                page = 0
             )
 
             // Assert
@@ -184,7 +183,6 @@ class DocumentDbTest :
             val result = documentDAO.findDocumentsByParameters(
                 orgnumber = orgNumber1,
                 pageSize = 50,
-                page = 0
             )
 
             // Assert
@@ -206,13 +204,11 @@ class DocumentDbTest :
                 createdAfter = pastDate,
                 createdBefore = futureDate,
                 pageSize = 50,
-                page = 0
             )
 
             val resultOutsideRange = documentDAO.findDocumentsByParameters(
                 createdAfter = futureDate,
                 pageSize = 50,
-                page = 0
             )
 
             // Assert
@@ -223,26 +219,36 @@ class DocumentDbTest :
         it("should paginate results correctly") {
             // Arrange
             val dialogEntity = dialogDAO.insertDialog(dialogEntity())
+            val documents = mutableListOf<PersistedDocumentEntity>()
             repeat(5) {
-                documentDAO.insert(document().toDocumentEntity(dialogEntity), "test".toByteArray())
+                val doc = document().toDocumentEntity(dialogEntity)
+                documents.add(documentDAO.insert(doc, "test".toByteArray()))
             }
 
-            // Act
-            val page0 = documentDAO.findDocumentsByParameters(pageSize = 2, page = 0)
-            val page1 = documentDAO.findDocumentsByParameters(pageSize = 2, page = 1)
-            val page2 = documentDAO.findDocumentsByParameters(pageSize = 2, page = 2)
+            // Act - First page has no cursor, subsequent pages use last item's created as cursor
+            val page0 =
+                documentDAO.findDocumentsByParameters(pageSize = 2, orderDirection = Page.OrderDirection.ASC)
+            val page1 =
+                documentDAO.findDocumentsByParameters(
+                    pageSize = 2,
+                    createdAfter = page0.items.last().created,
+                    orderDirection = Page.OrderDirection.ASC
+                )
+            val page2 =
+                documentDAO.findDocumentsByParameters(
+                    pageSize = 2,
+                    createdAfter = page1.items.last().created,
+                    orderDirection = Page.OrderDirection.ASC
+                )
 
             // Assert
+            ceil(page0.meta.resultSize * 1.0 / page0.meta.size) shouldBe 3
             page0.items.size shouldBe 2
-            page0.page shouldBe 0
-            page0.totalElements shouldBe 5
-            page0.totalPages shouldBe 3
+            page0.meta.size shouldBe 2
+            page0.meta.resultSize shouldBe 5
 
             page1.items.size shouldBe 2
-            page1.page shouldBe 1
-
             page2.items.size shouldBe 1
-            page2.page shouldBe 2
         }
 
         it("should respect row limit boundaries") {
@@ -251,18 +257,18 @@ class DocumentDbTest :
             documentDAO.insert(document().toDocumentEntity(dialogEntity), "test".toByteArray())
 
             // Act - limit too low should be coerced to 1
-            val resultLowLimit = documentDAO.findDocumentsByParameters(pageSize = 0, page = 0)
+            val resultLowLimit = documentDAO.findDocumentsByParameters(pageSize = 0)
 
             // Act - limit too high should be coerced to MAX_PAGE_SIZE
-            val resultHighLimit = documentDAO.findDocumentsByParameters(pageSize = 1000, page = 0)
+            val resultHighLimit = documentDAO.findDocumentsByParameters(pageSize = 1000)
 
             // Assert
             // values reflects the coerced values
-            resultLowLimit.limit shouldBe 1
-            resultHighLimit.limit shouldBe Page.MAX_PAGE_SIZE
+            resultLowLimit.meta.pageSize shouldBe 1
+            resultHighLimit.meta.pageSize shouldBe Page.MAX_PAGE_SIZE
         }
 
-        it("should order results by created date descending by default") {
+        it("should order results by created date ascending by default") {
             runTest {
                 // Arrange
                 val dialogEntity = dialogDAO.insertDialog(dialogEntity())
@@ -271,15 +277,15 @@ class DocumentDbTest :
                 val doc2 = documentDAO.insert(document().toDocumentEntity(dialogEntity), "test".toByteArray())
 
                 // Act
-                val result = documentDAO.findDocumentsByParameters(pageSize = 50, page = 0)
+                val result = documentDAO.findDocumentsByParameters(pageSize = 50)
 
                 // Assert - most recent first
-                result.items.first().documentId shouldBe doc2.documentId
-                result.items.last().documentId shouldBe doc1.documentId
+                result.items.first().documentId shouldBe doc1.documentId
+                result.items.last().documentId shouldBe doc2.documentId
             }
         }
 
-        it("should order results ascending when ASC is set") {
+        it("should order results descending when DESC is set") {
             runTest {
                 // Arrange
                 val dialogEntity = dialogDAO.insertDialog(dialogEntity())
@@ -290,37 +296,13 @@ class DocumentDbTest :
                 // Act
                 val result = documentDAO.findDocumentsByParameters(
                     pageSize = 50,
-                    page = 0,
-                    orderDirection = Page.OrderDirection.ASC
+                    orderDirection = Page.OrderDirection.DESC
                 )
 
-                // Assert - oldest first
-                result.items.first().documentId shouldBe doc1.documentId
-                result.items.last().documentId shouldBe doc2.documentId
+                // Assert - oldest last
+                result.items.first().documentId shouldBe doc2.documentId
+                result.items.last().documentId shouldBe doc1.documentId
             }
-        }
-
-        it("should filter by document status") {
-            // Arrange
-            val dialogEntity = dialogDAO.insertDialog(dialogEntity())
-            val doc = documentDAO.insert(document().toDocumentEntity(dialogEntity), "test".toByteArray())
-            documentDAO.update(doc.copy(status = DocumentStatus.COMPLETED, updated = Instant.now()))
-
-            // Act
-            val pendingResults = documentDAO.findDocumentsByParameters(
-                status = DocumentStatus.PENDING,
-                pageSize = 50,
-                page = 0
-            )
-            val completedResults = documentDAO.findDocumentsByParameters(
-                status = DocumentStatus.COMPLETED,
-                pageSize = 50,
-                page = 0
-            )
-
-            // Assert
-            pendingResults.items.size shouldBe 0
-            completedResults.items.size shouldBe 1
         }
 
         it("should combine multiple filters") {
@@ -344,7 +326,6 @@ class DocumentDbTest :
                 type =
                     DocumentType.DIALOGMOTE,
                 pageSize = 50,
-                page = 0
             )
 
             // Assert

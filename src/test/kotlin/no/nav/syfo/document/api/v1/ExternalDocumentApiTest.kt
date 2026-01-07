@@ -407,10 +407,12 @@ class ExternalDocumentApiTest :
                         documentEntity(dialog)
                     )
                     val page = Page(
-                        page = 0,
-                        totalPages = 1,
-                        totalElements = 3,
-                        limit = 50,
+                        meta = Page.Meta(
+                            size = 0,
+                            pageSize = 50,
+                            hasMore = false,
+                            resultSize = 0L
+                        ),
                         items = documents
                     )
                     coEvery {
@@ -440,10 +442,12 @@ class ExternalDocumentApiTest :
                     val documents =
                         listOf(documentEntity(dialog).copy(type = DocumentType.DIALOGMOTE))
                     val page = Page(
-                        page = 0,
-                        totalPages = 1,
-                        totalElements = 1,
-                        limit = 50,
+                        meta = Page.Meta(
+                            size = 1,
+                            pageSize = 50,
+                            hasMore = false,
+                            resultSize = 1L
+                        ),
                         items = documents
                     )
                     coEvery {
@@ -476,16 +480,17 @@ class ExternalDocumentApiTest :
                     val dialog = dialogEntity().copy(orgNumber = orgNumber)
                     val documents = listOf(documentEntity(dialog))
                     val page = Page(
-                        page = 2,
-                        totalPages = 5,
-                        totalElements = 25,
-                        limit = 5,
+                        meta = Page.Meta(
+                            size = 1,
+                            pageSize = 50,
+                            hasMore = true,
+                            resultSize = 25L
+                        ),
                         items = documents
                     )
                     coEvery {
                         documentDAO.findDocumentsByParameters(
                             pageSize = 5,
-                            page = 2
                         )
                     } returns page
                     texasHttpClientMock.defaultMocks(
@@ -509,10 +514,12 @@ class ExternalDocumentApiTest :
                     // Arrange
                     val orgNumber = "123456789"
                     val page = Page<PersistedDocumentEntity>(
-                        page = 0,
-                        totalPages = 0,
-                        totalElements = 0,
-                        limit = 50,
+                        meta = Page.Meta(
+                            size = 0,
+                            pageSize = 50,
+                            hasMore = false,
+                            resultSize = 0L
+                        ),
                         items = emptyList()
                     )
                     coEvery {
@@ -628,10 +635,12 @@ class ExternalDocumentApiTest :
                     // Arrange
                     val orgNumber = "123456789"
                     val emptyPage = Page<PersistedDocumentEntity>(
-                        page = 0,
-                        totalPages = 0,
-                        totalElements = 0,
-                        limit = 50,
+                        meta = Page.Meta(
+                            size = 0,
+                            pageSize = 50,
+                            hasMore = false,
+                            resultSize = 0L
+                        ),
                         items = emptyList()
                     )
                     coEvery {

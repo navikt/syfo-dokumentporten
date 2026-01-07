@@ -1,16 +1,18 @@
 package no.nav.syfo.document.db
 
+import io.ktor.client.utils.EmptyContent.contentType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.sql.ResultSet
 import java.util.UUID
 import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.document.api.v1.dto.DocumentType
+import no.nav.syfo.document.db.Page.Meta
+import java.sql.ResultSet
 import java.sql.Timestamp
 import java.sql.Types
 import java.time.Instant
 import java.util.UUID
-import kotlin.math.ceil
 
 private const val COUNT_COLUMN_NAME = "total_count"
 
@@ -192,24 +194,15 @@ class DocumentDAO(private val database: DatabaseInterface) {
 
     suspend fun findDocumentsByParameters(
         pageSize: Int,
-        page: Int,
         orgnumber: String? = null,
-        fnr: String? = null,
         type: DocumentType? = null,
-        contentType: String? = null,
-        status: DocumentStatus? = null,
         isRead: Boolean? = null,
-        transmissionId: String? = null,
         createdAfter: Instant? = null,
-        updatedAfter: Instant? = null,
         createdBefore: Instant? = null,
-        updatedBefore: Instant? = null,
-        dialogId: UUID? = null,
-        orderBy: Page.OrderBy = Page.OrderBy.CREATED,
-        orderDirection: Page.OrderDirection = Page.OrderDirection.DESC,
+        orderBy: SqlFilterBuilder.OrderBy = SqlFilterBuilder.OrderBy.CREATED,
+        orderDirection: Page.OrderDirection = Page.OrderDirection.ASC,
     ): Page<PersistedDocumentEntity> {
         val limitInRange = pageSize.coerceIn(1, Page.MAX_PAGE_SIZE)
-        val pageInRange = page.coerceAtLeast(1)
 
         return withContext(Dispatchers.IO) {
             database.connection.use { connection ->
@@ -218,10 +211,6 @@ class DocumentDAO(private val database: DatabaseInterface) {
                         .filterParam("doc.is_read", isRead)
                         .filterParam("doc.type", type)
                         .filterParam("doc.content_type", contentType)
-                        .filterParam("doc.status", status)
-                        .filterParam("doc.transmission_id", transmissionId)
-                        .filterParam("doc.dialog_id", dialogId)
-                        .filterParam("dialog.fnr", fnr)
                         .filterParam("dialog.org_number", orgnumber)
                         .filterParam(
                             "doc.created",
@@ -229,25 +218,14 @@ class DocumentDAO(private val database: DatabaseInterface) {
                             SqlFilterBuilder.ComparisonOperator.GREATER_THAN
                         )
                         .filterParam(
-                            "doc.updated",
-                            updatedAfter,
-                            SqlFilterBuilder.ComparisonOperator.GREATER_THAN
-                        )
-                        .filterParam(
                             "doc.created",
                             createdBefore,
-                            SqlFilterBuilder.ComparisonOperator.LESS_THAN
-                        )
-                        .filterParam(
-                            "doc.updated",
-                            updatedBefore,
                             SqlFilterBuilder.ComparisonOperator.LESS_THAN
                         )
 
                     builder.orderBy = orderBy
                     builder.limit = limitInRange
                     builder.orderDirection = orderDirection
-                    builder.offset = pageInRange * limitInRange
 
                     builder.buildStatement(
                         connection.prepareStatement(
@@ -277,10 +255,12 @@ class DocumentDAO(private val database: DatabaseInterface) {
                     }
 
                     Page(
-                        page = page,
-                        totalPages = ceil(totalCount.toDouble() / limitInRange).toInt(),
-                        totalElements = totalCount,
-                        limit = limitInRange,
+                        meta = Meta(
+                            size = docs.size,
+                            pageSize = limitInRange,
+                            hasMore = totalCount > docs.size,
+                            resultSize = totalCount,
+                        ),
                         items = docs,
                     )
                 }

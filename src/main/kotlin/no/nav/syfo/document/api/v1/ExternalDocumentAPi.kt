@@ -57,9 +57,7 @@ fun Route.registerExternalGetDocumentByIdApiV1(
             val isRead = call.queryParameters["isRead"]?.toBoolean()
             val documentType = call.queryParameters.extractDocumentTypeParameter("documentType")
             val pageSize = call.getPageSize()
-            val page = call.getPage()
             val createdAfter = call.getCreatedAfter()
-            val createdBefore = call.getCreatedBefore()
             val principal = call.getPrincipal()
 
             validationService.validateDocumentsOfTypeAccess(
@@ -74,7 +72,6 @@ fun Route.registerExternalGetDocumentByIdApiV1(
                 type = documentType,
                 pageSize = pageSize ?: Page.DEFAULT_PAGE_SIZE,
                 createdAfter = createdAfter,
-                page = page ?: Page.FIRST_PAGE
             )
             call.respond(documentPage.toDocumentResponsePage())
         }
