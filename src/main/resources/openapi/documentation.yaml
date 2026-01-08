@@ -322,10 +322,6 @@ components:
         isRead:
           type: boolean
           description: Whether the document has been marked as read
-        fnr:
-          type: string
-          description: Person identifier (fødselsnummer)
-          example: "12345678901"
         orgNumber:
           type: string
           description: Organization number
@@ -355,7 +351,6 @@ components:
         - linkId
         - status
         - isRead
-        - fnr
         - orgNumber
         - created
         - updated
