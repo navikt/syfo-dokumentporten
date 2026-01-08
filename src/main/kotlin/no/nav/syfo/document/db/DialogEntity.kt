@@ -1,8 +1,8 @@
 package no.nav.syfo.document.db
 
+import no.nav.syfo.document.api.v1.dto.DialogResponse
 import java.time.Instant
 import java.util.UUID
-import no.nav.syfo.document.api.v1.dto.DialogResponse
 
 open class DialogEntity(
     open val title: String,
@@ -32,7 +32,6 @@ data class PersistedDialogEntity(
         DialogResponse(
             title = title,
             summary = summary,
-            fnr = fnr,
             orgNumber = orgNumber,
             dialogportenUUID = dialogportenUUID,
             created = created,
