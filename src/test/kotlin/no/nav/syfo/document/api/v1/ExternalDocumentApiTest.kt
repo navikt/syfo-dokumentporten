@@ -30,6 +30,7 @@ import no.nav.syfo.TestDB
 import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.altinntilganger.client.FakeAltinnTilgangerClient
+import no.nav.syfo.application.LocalEnvironment
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
 import no.nav.syfo.document.db.DialogDAO
@@ -66,6 +67,7 @@ class ExternalDocumentApiTest :
         val validationServiceSpy = spyk(validationService)
         val tokenXIssuer = "https://tokenx.nav.no"
         val idportenIssuer = "https://test.idporten.no"
+        val env = LocalEnvironment()
 
         beforeTest {
             clearAllMocks()
@@ -94,7 +96,8 @@ class ExternalDocumentApiTest :
                             documentDAO = documentDAO,
                             documentContentDAO = documentContentDAO,
                             dialogDAO = dialogDAO,
-                            validationService = validationServiceSpy
+                            validationService = validationServiceSpy,
+                            env = env
                         )
                     }
                 }

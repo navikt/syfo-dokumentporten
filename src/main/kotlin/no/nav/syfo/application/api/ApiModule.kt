@@ -9,6 +9,7 @@ import io.ktor.server.routing.routing
 import no.nav.syfo.altinn.common.AltinnTokenProvider
 import no.nav.syfo.altinn.dialogporten.registerDialogportenTokenApi
 import no.nav.syfo.application.ApplicationState
+import no.nav.syfo.application.Environment
 import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.application.isProdEnv
 import no.nav.syfo.application.metric.registerMetricApi
@@ -29,6 +30,7 @@ fun Application.configureRouting() {
     val dialogDAO by inject<DialogDAO>()
     val validationService by inject<ValidationService>()
     val altinnTokenProvider by inject<AltinnTokenProvider>()
+    val env by inject<Environment>()
 
     installCallId()
     installContentNegotiation()
@@ -37,7 +39,7 @@ fun Application.configureRouting() {
     routing {
         registerPodApi(applicationState, database)
         registerMetricApi()
-        registerApiV1(texasClient, documentDAO, documentContentDAO, dialogDAO, validationService)
+        registerApiV1(texasClient, documentDAO, documentContentDAO, dialogDAO, validationService, env)
         // Static OpenAPI spec + Swagger UI only in non-prod
         staticResources("/openapi", "openapi")
         swaggerUI(path = "swagger", swaggerFile = "openapi/documentation.yaml")

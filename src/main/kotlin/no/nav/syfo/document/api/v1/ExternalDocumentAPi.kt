@@ -18,7 +18,6 @@ import no.nav.syfo.document.db.toDocumentResponsePage
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.texas.MaskinportenIdportenAndTokenXAuthPlugin
 import no.nav.syfo.util.logger
-import org.koin.ktor.ext.inject
 import org.slf4j.Logger
 import java.time.Instant
 
@@ -26,10 +25,10 @@ fun Route.registerExternalGetDocumentByIdApiV1(
     documentDAO: DocumentDAO,
     documentContentDAO: DocumentContentDAO,
     texasClient: TexasClient,
-    validationService: ValidationService
+    validationService: ValidationService,
+    env: Environment
 ) {
     val logger = logger("ExternalDocumentAPi")
-    val env by inject<Environment>()
 
     route("/{id}") {
         install(MaskinportenIdportenAndTokenXAuthPlugin) {

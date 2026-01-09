@@ -30,6 +30,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
 import no.nav.syfo.TestDB
+import no.nav.syfo.application.LocalEnvironment
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
 import no.nav.syfo.document.db.DialogDAO
@@ -72,7 +73,8 @@ class InternalDocumentApiTest :
                             documentDAOMock,
                             documentContentDAOMock,
                             dialogDAOMock,
-                            validationService = mockk<ValidationService>()
+                            validationService = mockk<ValidationService>(),
+                            env = LocalEnvironment()
                         )
                     }
                 }
