@@ -11,7 +11,7 @@ data class DocumentResponse(
     val linkId: UUID,
     val status: DocumentStatus,
     val isRead: Boolean = false,
-    val fnr: String,
+    val nationalIdentificationNumber: String,
     val orgNumber: String,
     val dialogId: UUID?,
     val transmissionId: UUID? = null,
