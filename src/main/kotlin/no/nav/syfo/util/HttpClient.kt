@@ -20,6 +20,7 @@ fun httpClientDefault(httpClient: HttpClient = HttpClient(Apache)): HttpClient {
                 registerModule(JavaTimeModule())
                 configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
                 configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
             }
         }
         install(HttpRequestRetry) {

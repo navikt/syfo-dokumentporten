@@ -9,6 +9,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import java.time.Instant
 import no.nav.syfo.application.auth.BrukerPrincipal
+import no.nav.syfo.application.auth.Principal
 import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
@@ -18,17 +19,14 @@ import no.nav.syfo.texas.client.TexasHttpClient
 import no.nav.syfo.util.logger
 import org.slf4j.Logger
 
-const val DOCUMENT_API_PATH = "/documents"
-
-fun Route.registerExternalDocumentsApiV1(
+fun Route.registerExternalGetDocumentByIdApiV1(
     documentDAO: DocumentDAO,
     documentContentDAO: DocumentContentDAO,
     texasHttpClient: TexasHttpClient,
     validationService: ValidationService
 ) {
     val logger = logger("ExternalDocumentAPi")
-    route("$DOCUMENT_API_PATH/{id}") {
-
+    route("/{id}") {
         install(MaskinportenIdportenAndTokenXAuthPlugin) {
             client = texasHttpClient
         }
@@ -48,12 +46,11 @@ fun Route.registerExternalDocumentsApiV1(
             call.response.status(HttpStatusCode.OK)
         }
     }
-
 }
 
 fun countRead(
     logger: Logger,
-    principal: no.nav.syfo.application.auth.Principal,
+    principal: Principal,
     isRead: Boolean,
     orgNumber: String,
 ) {

@@ -129,7 +129,7 @@ private fun servicesModule() = module {
     single { EregService(get()) }
     single { ValidationService(get(), get(), get()) }
     single { LeaderElection(get(), env().clientProperties.electorPath) }
-    single { DialogportenService(get(), get(), env().publicIngressUrl) }
+    single { DialogportenService(get(), get(), env().publicIngressUrl, env().dialogportenIsApiOnly) }
     single { SendDialogTask(get(),get()) }
 }
 

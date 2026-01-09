@@ -30,7 +30,7 @@ data class TexasIntrospectionResponse(
     val error: String? = null,
     val pid: String? = null,
     val acr: String? = null,
-    val aud: String? = null,
+    val aud: List<String>? = null,
     val azp: String? = null,
     val exp: Long? = null,
     val iat: Long? = null,

@@ -329,7 +329,7 @@ class ExternalDocumentApiTest : DescribeSpec({
                     val document = documentEntity(dialogEntity())
                     val callerPid = "11223344556"
                     texasHttpClientMock.defaultMocks(
-                        acr = "Level4",
+                        acr = "idporten-loa-high",
                         pid = callerPid
                     )
                     fakeAltinnTilgangerClient.usersWithAccess.add(callerPid to document.dialog.orgNumber)

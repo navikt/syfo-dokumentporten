@@ -27,7 +27,8 @@ class DialogportenServiceTest : DescribeSpec({
     val dialogportenService = DialogportenService(
         dialogportenClient = dialogportenClient,
         documentDAO = documentDAO,
-        publicIngressUrl = publicIngressUrl
+        publicIngressUrl = publicIngressUrl,
+        dialogportenIsApiOnly = true
     )
 
     beforeTest {

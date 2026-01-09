@@ -9,8 +9,10 @@ spec:
   ingresses:
     - https://syfo-dokumentporten.intern.nav.no
     - https://syfo-dokumentporten.ekstern.nav.no/api/v1/documents
+    - https://syfo-dokumentporten.ekstern.nav.no/api/v1/gui/documents
     - https://syfo-dokumentporten.ekstern.nav.no/swagger
     - https://syfo-dokumentporten.ekstern.nav.no/openapi
+    - https://syfo-dokumentporten.ekstern.nav.no/oauth2
   image: {{image}} #
   port: 8080
   liveness:
@@ -54,6 +56,12 @@ spec:
           - name: syfo-dokumentporten-db
             envVarPrefix: SYFO_DOKUMENTPORTEN_DB
         diskAutoresize: true
+  idporten:
+    enabled: true
+    sidecar:
+      enabled: true
+      autoLogin: false
+      level: Level4
   tokenx:
     enabled: true
   maskinporten:
@@ -106,5 +114,7 @@ spec:
       value: "https://platform.altinn.no"
     - name: PUBLIC_INGRESS_URL
       value: https://syfo-dokumentporten.ekstern.nav.no
+    - name: DIALOGPORTEN_API_ONLY
+      value: "true"
   envFrom:
     - secret: altinn-subscription-key

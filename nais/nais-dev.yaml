@@ -13,8 +13,10 @@ spec:
     - https://arkivporten.ekstern.dev.nav.no/openapi
     - https://syfo-dokumentporten.intern.dev.nav.no
     - https://syfo-dokumentporten.ekstern.dev.nav.no/api/v1/documents
+    - https://syfo-dokumentporten.ekstern.dev.nav.no/api/v1/gui/documents
     - https://syfo-dokumentporten.ekstern.dev.nav.no/swagger
     - https://syfo-dokumentporten.ekstern.dev.nav.no/openapi
+    - https://syfo-dokumentporten.ekstern.dev.nav.no/oauth2
   image: {{image}} #
   port: 8080
   liveness:
@@ -58,6 +60,12 @@ spec:
           - name: syfo-dokumentporten-db
             envVarPrefix: SYFO_DOKUMENTPORTEN_DB
         diskAutoresize: true
+  idporten:
+    enabled: true
+    sidecar:
+      enabled: true
+      autoLogin: false
+      level: Level4
   tokenx:
     enabled: true
   maskinporten:
@@ -121,5 +129,7 @@ spec:
       value: "https://platform.tt02.altinn.no"
     - name: PUBLIC_INGRESS_URL
       value: https://syfo-dokumentporten.ekstern.dev.nav.no
+    - name: DIALOGPORTEN_API_ONLY
+      value: "false"
   envFrom:
     - secret: altinn-subscription-key

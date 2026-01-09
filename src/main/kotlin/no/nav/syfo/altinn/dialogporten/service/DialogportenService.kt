@@ -2,6 +2,8 @@ package no.nav.syfo.altinn.dialogporten.service
 
 import com.fasterxml.uuid.Generators
 import no.nav.syfo.API_V1_PATH
+import no.nav.syfo.DOCUMENT_API_PATH
+import no.nav.syfo.GUI_DOCUMENT_API_PATH
 import no.nav.syfo.altinn.dialogporten.client.IDialogportenClient
 import no.nav.syfo.altinn.dialogporten.domain.Attachment
 import no.nav.syfo.altinn.dialogporten.domain.AttachmentUrlConsumerType
@@ -11,7 +13,6 @@ import no.nav.syfo.altinn.dialogporten.domain.Dialog
 import no.nav.syfo.altinn.dialogporten.domain.Transmission
 import no.nav.syfo.altinn.dialogporten.domain.Url
 import no.nav.syfo.altinn.dialogporten.domain.create
-import no.nav.syfo.document.api.v1.DOCUMENT_API_PATH
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentEntity
 import no.nav.syfo.document.db.DocumentStatus
@@ -30,7 +31,8 @@ const val DIALOG_RESSURS = "nav_syfo_dialog"
 class DialogportenService(
     private val dialogportenClient: IDialogportenClient,
     private val documentDAO: DocumentDAO,
-    private val publicIngressUrl: String
+    private val publicIngressUrl: String,
+    private val dialogportenIsApiOnly: Boolean
 ) {
     private val logger = logger()
 
@@ -67,7 +69,7 @@ class DialogportenService(
                 updated = Instant.now()
             )
         )
-        val fullDocumentLink = createDocumentLink(document.linkId.toString())
+        val fullDocumentLink = createApiDocumentLink(document.linkId.toString())
         COUNT_DIALOGPORTEN_TRANSMISSIONS_CREATED.increment()
         logger.info("Added transmission $transmissionId for document ${document.id}, dialogportenId $dialogportenId, with link $fullDocumentLink and content type ${document.contentType}")
     }
@@ -87,7 +89,7 @@ class DialogportenService(
                 ),
             )
         )
-        val fullDocumentLink = createDocumentLink(document.linkId.toString())
+        val fullDocumentLink = createApiDocumentLink(document.linkId.toString())
         COUNT_DIALOGPORTEN_DIALOGS_CREATED.increment()
         COUNT_DIALOGPORTEN_TRANSMISSIONS_CREATED.increment()
         logger.info("Create dialog $dialogId, with transmission $transmissionId for document ${document.id}, with link $fullDocumentLink and content type ${document.contentType}")
@@ -96,8 +98,11 @@ class DialogportenService(
 
     private suspend fun getDocumentsToSend() = documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED)
 
-    private fun createDocumentLink(linkId: String): String =
+    private fun createApiDocumentLink(linkId: String): String =
         "$publicIngressUrl$API_V1_PATH$DOCUMENT_API_PATH/$linkId"
+
+    private fun createGuiDocumentLink(linkId: String): String =
+        "$publicIngressUrl$API_V1_PATH$GUI_DOCUMENT_API_PATH/$linkId"
 
     private fun getDocumentDisplayName(document: DocumentEntity): String {
         val fileType = when (document.contentType) {
@@ -117,7 +122,7 @@ class DialogportenService(
                 title = dialog.title,
                 summary = dialog.summary,
             ),
-            isApiOnly = true,
+            isApiOnly = dialogportenIsApiOnly,
             transmissions = listOf(
                 toTransmission(transmissionId)
             )
@@ -145,9 +150,14 @@ class DialogportenService(
                     ),
                     urls = listOf(
                         Url(
-                            url = createDocumentLink(linkId.toString()),
+                            url = createApiDocumentLink(linkId.toString()),
                             mediaType = contentType,
                             consumerType = AttachmentUrlConsumerType.Api,
+                        ),
+                        Url(
+                            url = createGuiDocumentLink(linkId.toString()),
+                            mediaType = contentType,
+                            consumerType = AttachmentUrlConsumerType.Gui,
                         ),
                     ),
                     expiresAt = instantStartOfFollowingDay4MonthsAhead()

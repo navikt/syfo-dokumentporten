@@ -3,7 +3,8 @@ package no.nav.syfo
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.route
 import no.nav.syfo.application.auth.AddTokenIssuerPlugin
-import no.nav.syfo.document.api.v1.registerExternalDocumentsApiV1
+import no.nav.syfo.application.auth.AddTokenIssuerPluginWithRedirect
+import no.nav.syfo.document.api.v1.registerExternalGetDocumentByIdApiV1
 import no.nav.syfo.document.api.v1.registerInternalDocumentsApiV1
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
@@ -13,6 +14,8 @@ import no.nav.syfo.texas.TexasAzureADAuthPlugin
 import no.nav.syfo.texas.client.TexasHttpClient
 
 const val API_V1_PATH = "/api/v1"
+const val DOCUMENT_API_PATH = "/documents"
+const val GUI_DOCUMENT_API_PATH = "/gui/documents"
 
 @Suppress("LongParameterList")
 fun Route.registerApiV1(
@@ -29,8 +32,24 @@ fun Route.registerApiV1(
         registerInternalDocumentsApiV1(documentDAO, dialogDAO)
     }
     route(API_V1_PATH) {
-        install(AddTokenIssuerPlugin)
-        registerExternalDocumentsApiV1(documentDAO, documentContentDAO, texasHttpClient, validationService)
+        route(DOCUMENT_API_PATH) {
+            install(AddTokenIssuerPlugin)
+            registerExternalGetDocumentByIdApiV1(
+                documentDAO = documentDAO,
+                documentContentDAO = documentContentDAO,
+                texasHttpClient = texasHttpClient,
+                validationService = validationService
+            )
+        }
+        route(GUI_DOCUMENT_API_PATH) {
+            install(AddTokenIssuerPluginWithRedirect)
+            registerExternalGetDocumentByIdApiV1(
+                documentDAO = documentDAO,
+                documentContentDAO = documentContentDAO,
+                texasHttpClient = texasHttpClient,
+                validationService = validationService
+            )
+        }
     }
 
 }

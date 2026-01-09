@@ -8,6 +8,7 @@ interface Environment {
     val texas: TexasEnvironment
     val clientProperties: ClientProperties
     val publicIngressUrl: String
+    val dialogportenIsApiOnly: Boolean
 }
 
 const val NAIS_DATABASE_ENV_PREFIX = "SYFO_DOKUMENTPORTEN_DB"
@@ -17,6 +18,7 @@ data class NaisEnvironment(
     override val texas: TexasEnvironment = TexasEnvironment.createFromEnvVars(),
     override val clientProperties: ClientProperties = ClientProperties.createFromEnvVars(),
     override val publicIngressUrl: String = getEnvVar("PUBLIC_INGRESS_URL"),
+    override val dialogportenIsApiOnly: Boolean = getEnvVar("DIALOGPORTEN_API_ONLY").toBoolean(),
 
     ) : Environment
 
@@ -34,4 +36,5 @@ data class LocalEnvironment(
     override val texas: TexasEnvironment = TexasEnvironment.createForLocal(),
     override val clientProperties: ClientProperties = ClientProperties.createForLocal(),
     override val publicIngressUrl: String = "http://localhost:8080",
+    override val dialogportenIsApiOnly: Boolean = true,
 ) : Environment
