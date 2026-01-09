@@ -119,6 +119,8 @@ spec:
         - host: "platform.tt02.altinn.no"
 
   env:
+    - name: DOCUMENT_COLLECTION_ENABLED
+      value: "true"
     - name: EREG_BASE_URL
       value: "https://ereg-services-q1.dev-fss-pub.nais.io"
     - name: ALTINN_TILGANGER_BASE_URL

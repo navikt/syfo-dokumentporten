@@ -1,6 +1,5 @@
 package no.nav.syfo.document.db
 
-import no.nav.syfo.document.api.v1.dto.DialogResponse
 import java.time.Instant
 import java.util.UUID
 
@@ -27,14 +26,4 @@ data class PersistedDialogEntity(
     fnr = fnr,
     orgNumber = orgNumber,
     dialogportenUUID = dialogportenUUID,
-) {
-    fun toDialogResponse() =
-        DialogResponse(
-            title = title,
-            summary = summary,
-            orgNumber = orgNumber,
-            dialogportenUUID = dialogportenUUID,
-            created = created,
-            updated = updated,
-        )
-}
+)

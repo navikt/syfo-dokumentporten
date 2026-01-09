@@ -7,6 +7,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
+import no.nav.syfo.application.Environment
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.Principal
 import no.nav.syfo.application.auth.SystemPrincipal
@@ -17,6 +18,7 @@ import no.nav.syfo.document.db.toDocumentResponsePage
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.texas.MaskinportenIdportenAndTokenXAuthPlugin
 import no.nav.syfo.util.logger
+import org.koin.ktor.ext.inject
 import org.slf4j.Logger
 import java.time.Instant
 
@@ -27,6 +29,8 @@ fun Route.registerExternalGetDocumentByIdApiV1(
     validationService: ValidationService
 ) {
     val logger = logger("ExternalDocumentAPi")
+    val env by inject<Environment>()
+
     route("/{id}") {
         install(MaskinportenIdportenAndTokenXAuthPlugin) {
             client = texasClient
@@ -48,32 +52,34 @@ fun Route.registerExternalGetDocumentByIdApiV1(
         }
     }
 
-    route(DOCUMENT_API_PATH) {
-        install(MaskinportenIdportenAndTokenXAuthPlugin) {
-            client = texasHttpClient
-        }
-        get() {
-            val orgNumber = call.getOrgNumber()
-            val isRead = call.queryParameters["isRead"]?.toBoolean()
-            val documentType = call.queryParameters.extractDocumentTypeParameter("documentType")
-            val pageSize = call.getPageSize()
-            val createdAfter = call.getCreatedAfter()
-            val principal = call.getPrincipal()
+    if (env.documentCollectionEnabled) {
+        route(DOCUMENT_API_PATH) {
+            install(MaskinportenIdportenAndTokenXAuthPlugin) {
+                client = texasHttpClient
+            }
+            get() {
+                val orgNumber = call.getOrgNumber()
+                val isRead = call.queryParameters["isRead"]?.toBoolean()
+                val documentType = call.queryParameters.extractDocumentTypeParameter("documentType")
+                val pageSize = call.getPageSize()
+                val createdAfter = call.getCreatedAfter()
+                val principal = call.getPrincipal()
 
-            validationService.validateDocumentsOfTypeAccess(
-                principal = principal,
-                requestedOrgNumber = orgNumber,
-                documentType = documentType,
-            )
+                validationService.validateDocumentsOfTypeAccess(
+                    principal = principal,
+                    requestedOrgNumber = orgNumber,
+                    documentType = documentType,
+                )
 
-            val documentPage = documentDAO.findDocumentsByParameters(
-                orgnumber = orgNumber,
-                isRead = isRead,
-                type = documentType,
-                pageSize = pageSize ?: Page.DEFAULT_PAGE_SIZE,
-                createdAfter = createdAfter,
-            )
-            call.respond(documentPage.toDocumentResponsePage())
+                val documentPage = documentDAO.findDocumentsByParameters(
+                    orgnumber = orgNumber,
+                    isRead = isRead,
+                    type = documentType,
+                    pageSize = pageSize ?: Page.DEFAULT_PAGE_SIZE,
+                    createdAfter = createdAfter,
+                )
+                call.respond(documentPage.toDocumentResponsePage())
+            }
         }
     }
 }

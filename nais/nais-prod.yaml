@@ -104,6 +104,8 @@ spec:
         - host: "platform.altinn.no"
 
   env:
+    - name: DOCUMENT_COLLECTION_ENABLED
+      value: "false"
     - name: EREG_BASE_URL
       value: "https://ereg-services.prod-fss-pub.nais.io"
     - name: ALTINN_TILGANGER_BASE_URL

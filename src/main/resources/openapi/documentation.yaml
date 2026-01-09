@@ -30,78 +30,78 @@ tags:
   - name: Internal
     description: Internal operations (requires Azure AD)
 paths:
-  /api/v1/documents:
-    get:
-      summary: Get paginated documents
-      description: |
-        Fetch a paginated list of documents for an organization using cursor-based pagination.
-        
-        Use the `createdAfter` parameter for pagination - to get the next page, pass the `created` 
-        timestamp of the last item from the previous response.
-        
-        Requires authentication with Maskinporten or IDporten.
-        The caller must have access to the specified organization and document type.
-      tags: [ Documents ]
-      security:
-        - maskinporten_jwt: [ ]
-        - tokenx_jwt: [ ]
-      parameters:
-        - in: query
-          name: orgNumber
-          description: Organization number to fetch documents for
-          schema:
-            type: string
-            pattern: '^\d{9}$'
-          required: true
-          example: "123456789"
-        - in: query
-          name: documentType
-          description: Type of documents to fetch
-          schema:
-            type: string
-            enum: [ DIALOGMOTE, OPPFOLGINGSPLAN ]
-          required: true
-        - in: query
-          name: createdAfter
-          description: |
-            Filter documents created after this timestamp (ISO-8601 format).
-            Used for cursor-based pagination - pass the `created` timestamp of the last item 
-            from the previous page to get the next page.
-          schema:
-            type: string
-            format: date-time
-          required: true
-          example: "2024-01-01T00:00:00Z"
-        - in: query
-          name: isRead
-          description: Filter by read status. If not provided, returns all documents regardless of read status.
-          schema:
-            type: boolean
-          required: false
-        - in: query
-          name: pageSize
-          description: Number of items per page. Defaults to 50, max 200.
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 200
-            default: 50
-          required: false
-      responses:
-        '200':
-          description: Paginated list of documents
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DocumentPage'
-        '400':
-          description: Bad Request - Missing or invalid parameters
-        '401':
-          description: Unauthorized - Invalid or missing token
-        '403':
-          description: Forbidden - Caller does not have access to the organization or document type
-        '500':
-          description: Internal server error
+  #  /api/v1/documents:
+  #    get:
+  #      summary: Get paginated documents
+  #      description: |
+  #        Fetch a paginated list of documents for an organization using cursor-based pagination.
+  #
+  #        Use the `createdAfter` parameter for pagination - to get the next page, pass the `created`
+  #        timestamp of the last item from the previous response.
+  #
+  #        Requires authentication with Maskinporten or IDporten.
+  #        The caller must have access to the specified organization and document type.
+  #      tags: [ Documents ]
+  #      security:
+  #        - maskinporten_jwt: [ ]
+  #        - tokenx_jwt: [ ]
+  #      parameters:
+  #        - in: query
+  #          name: orgNumber
+  #          description: Organization number to fetch documents for
+  #          schema:
+  #            type: string
+  #            pattern: '^\d{9}$'
+  #          required: true
+  #          example: "123456789"
+  #        - in: query
+  #          name: documentType
+  #          description: Type of documents to fetch
+  #          schema:
+  #            type: string
+  #            enum: [ DIALOGMOTE, OPPFOLGINGSPLAN ]
+  #          required: true
+  #        - in: query
+  #          name: createdAfter
+  #          description: |
+  #            Filter documents created after this timestamp (ISO-8601 format).
+  #            Used for cursor-based pagination - pass the `created` timestamp of the last item
+  #            from the previous page to get the next page.
+  #          schema:
+  #            type: string
+  #            format: date-time
+  #          required: true
+  #          example: "2024-01-01T00:00:00Z"
+  #        - in: query
+  #          name: isRead
+  #          description: Filter by read status. If not provided, returns all documents regardless of read status.
+  #          schema:
+  #            type: boolean
+  #          required: false
+  #        - in: query
+  #          name: pageSize
+  #          description: Number of items per page. Defaults to 50, max 200.
+  #          schema:
+  #            type: integer
+  #            minimum: 1
+  #            maximum: 200
+  #            default: 50
+  #          required: false
+  #      responses:
+  #        '200':
+  #          description: Paginated list of documents
+  #          content:
+  #            application/json:
+  #              schema:
+  #                $ref: '#/components/schemas/DocumentPage'
+  #        '400':
+  #          description: Bad Request - Missing or invalid parameters
+  #        '401':
+  #          description: Unauthorized - Invalid or missing token
+  #        '403':
+  #          description: Forbidden - Caller does not have access to the organization or document type
+  #        '500':
+  #          description: Internal server error
   /api/v1/documents/{id}:
     get:
       summary: Get a document by id
@@ -255,102 +255,106 @@ components:
         - linkId
         - status
       additionalProperties: false
-    DocumentPage:
-      type: object
-      description: Paginated response containing documents with cursor-based pagination metadata
-      properties:
-        items:
-          type: array
-          description: List of documents on this page
-          items:
-            $ref: '#/components/schemas/DocumentListItem'
-        meta:
-          $ref: '#/components/schemas/PageMeta'
-      required:
-        - items
-        - meta
-    PageMeta:
-      type: object
-      description: Pagination metadata
-      properties:
-        size:
-          type: integer
-          description: Number of items returned in this page
-          example: 10
-        pageSize:
-          type: integer
-          description: Requested page size
-          example: 50
-        hasMore:
-          type: boolean
-          description: Whether there are more items available after this page
-          example: true
-        resultSize:
-          type: integer
-          format: int64
-          description: Total number of documents matching the query
-          example: 42
-      required:
-        - size
-        - pageSize
-        - hasMore
-        - resultSize
-    DocumentListItem:
-      type: object
-      description: Document entity returned in list responses
-      properties:
-        documentId:
-          type: string
-          format: uuid
-          description: Unique document UUID
-        type:
-          type: string
-          description: Document type
-          enum: [ DIALOGMOTE, OPPFOLGINGSPLAN, UNDEFINED ]
-        contentType:
-          type: string
-          description: MIME type of the content
-          example: application/pdf
-        linkId:
-          type: string
-          format: uuid
-          description: Public link UUID used for external retrieval
-        status:
-          type: string
-          description: Processing status
-          enum: [ RECEIVED, PENDING, COMPLETED, ERROR ]
-        isRead:
-          type: boolean
-          description: Whether the document has been marked as read
-        orgNumber:
-          type: string
-          description: Organization number
-          example: "123456789"
-        dialogId:
-          type: string
-          format: uuid
-          nullable: true
-          description: Dialogporten dialog UUID if assigned
-        transmissionId:
-          type: string
-          format: uuid
-          nullable: true
-          description: Dialogporten transmission ID if assigned
-        created:
-          type: string
-          format: date-time
-          description: Creation timestamp (UTC)
-        updated:
-          type: string
-          format: date-time
-          description: Last update timestamp (UTC)
-      required:
-        - documentId
-        - type
-        - contentType
-        - linkId
-        - status
-        - isRead
-        - orgNumber
-        - created
-        - updated
+#    DocumentPage:
+#      type: object
+#      description: Paginated response containing documents with cursor-based pagination metadata
+#      properties:
+#        items:
+#          type: array
+#          description: List of documents on this page
+#          items:
+#            $ref: '#/components/schemas/DocumentListItem'
+#        meta:
+#          $ref: '#/components/schemas/PageMeta'
+#      required:
+#        - items
+#        - meta
+#    PageMeta:
+#      type: object
+#      description: Pagination metadata
+#      properties:
+#        size:
+#          type: integer
+#          description: Number of items returned in this page
+#          example: 10
+#        pageSize:
+#          type: integer
+#          description: Requested page size
+#          example: 50
+#        hasMore:
+#          type: boolean
+#          description: Whether there are more items available after this page
+#          example: true
+#        resultSize:
+#          type: integer
+#          format: int64
+#          description: Total number of documents matching the query
+#          example: 42
+#      required:
+#        - size
+#        - pageSize
+#        - hasMore
+#        - resultSize
+#    DocumentListItem:
+#      type: object
+#      description: Document entity returned in list responses
+#      properties:
+#        nationalIdentificationNumber:
+#          type: string
+#          description: Person identifier
+#        documentId:
+#          type: string
+#          format: uuid
+#          description: Unique document UUID
+#        type:
+#          type: string
+#          description: Document type
+#          enum: [ DIALOGMOTE, OPPFOLGINGSPLAN, UNDEFINED ]
+#        contentType:
+#          type: string
+#          description: MIME type of the content
+#          example: application/pdf
+#        linkId:
+#          type: string
+#          format: uuid
+#          description: Public link UUID used for external retrieval
+#        status:
+#          type: string
+#          description: Processing status
+#          enum: [ RECEIVED, PENDING, COMPLETED, ERROR ]
+#        isRead:
+#          type: boolean
+#          description: Whether the document has been marked as read
+#        orgNumber:
+#          type: string
+#          description: Organization number
+#          example: "123456789"
+#        dialogId:
+#          type: string
+#          format: uuid
+#          nullable: true
+#          description: Dialogporten dialog UUID if assigned
+#        transmissionId:
+#          type: string
+#          format: uuid
+#          nullable: true
+#          description: Dialogporten transmission ID if assigned
+#        created:
+#          type: string
+#          format: date-time
+#          description: Creation timestamp (UTC)
+#        updated:
+#          type: string
+#          format: date-time
+#          description: Last update timestamp (UTC)
+#      required:
+#        - nationalIdentificationNumber
+#        - documentId
+#        - type
+#        - contentType
+#        - linkId
+#        - status
+#        - isRead
+#        - orgNumber
+#        - created
+#        - updated

@@ -23,7 +23,7 @@ fun Route.registerApiV1(
     documentDAO: DocumentDAO,
     documentContentDAO: DocumentContentDAO,
     dialogDAO: DialogDAO,
-    validationService: ValidationService,
+    validationService: ValidationService
 ) {
     route("/internal$API_V1_PATH") {
         install(TexasAzureADAuthPlugin) {
