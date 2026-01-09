@@ -3,7 +3,9 @@ package no.nav.syfo.texas
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.auth.authentication
+import io.ktor.server.request.path
 import io.ktor.server.response.respondNullable
+import io.ktor.server.response.respondRedirect
 import io.ktor.util.AttributeKey
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.JwtIssuer
@@ -78,8 +80,8 @@ val MaskinportenIdportenAndTokenXAuthPlugin = createRouteScopedPlugin(
 
                 JwtIssuer.IDPORTEN -> {
                     if (!introspectionResponse.acr.equals("idporten-loa-high", ignoreCase = true)) {
-                        call.application.environment.log.warn("User does not have Level4 access: ${introspectionResponse.acr}")
-                        call.respondNullable(HttpStatusCode.Forbidden)
+                        call.application.environment.log.warn("User does not have Level4 access: ${introspectionResponse.acr}. Redirecting to /oauth2/login")
+                        call.respondRedirect("/oauth2/login?redirect=${call.request.path()}")
                         return@onCall
                     }
 
