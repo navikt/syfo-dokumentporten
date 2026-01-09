@@ -30,6 +30,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
 import no.nav.syfo.TestDB
+import no.nav.syfo.application.LocalEnvironment
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
 import no.nav.syfo.document.db.DialogDAO
@@ -73,7 +74,8 @@ class InternalDocumentApiTest : DescribeSpec({
                         documentDAOMock,
                         documentContentDAOMock,
                         dialogDAOMock,
-                        validationService = mockk<ValidationService>()
+                        validationService = mockk<ValidationService>(),
+                        env = LocalEnvironment()
                     )
                 }
             }
@@ -87,7 +89,12 @@ class InternalDocumentApiTest : DescribeSpec({
                 val capturedSlot = slot<DocumentEntity>()
                 val capturedContent = slot<ByteArray>()
                 coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
-                coEvery { documentDAOMock.insert(capture(capturedSlot), capture(capturedContent)) } returns documentEntity(dialogEntity())
+                coEvery {
+                    documentDAOMock.insert(
+                        capture(capturedSlot),
+                        capture(capturedContent)
+                    )
+                } returns documentEntity(dialogEntity())
                 texasHttpClientMock.defaultMocks()
                 val document = document()
                 // Act

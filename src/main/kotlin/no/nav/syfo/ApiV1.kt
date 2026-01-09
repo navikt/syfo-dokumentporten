@@ -2,6 +2,7 @@ package no.nav.syfo
 
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.route
+import no.nav.syfo.application.Environment
 import no.nav.syfo.application.auth.AddTokenIssuerPlugin
 import no.nav.syfo.document.api.v1.registerExternalDocumentsApiV1
 import no.nav.syfo.document.api.v1.registerInternalDocumentsApiV1
@@ -20,7 +21,8 @@ fun Route.registerApiV1(
     documentDAO: DocumentDAO,
     documentContentDAO: DocumentContentDAO,
     dialogDAO: DialogDAO,
-    validationService: ValidationService
+    validationService: ValidationService,
+    env: Environment
 ) {
     route("/internal$API_V1_PATH") {
         install(TexasAzureADAuthPlugin) {
@@ -30,7 +32,7 @@ fun Route.registerApiV1(
     }
     route(API_V1_PATH) {
         install(AddTokenIssuerPlugin)
-        registerExternalDocumentsApiV1(documentDAO, documentContentDAO, texasHttpClient, validationService)
+        registerExternalDocumentsApiV1(documentDAO, documentContentDAO, texasHttpClient, validationService, env)
     }
 
 }

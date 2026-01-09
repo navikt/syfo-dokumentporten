@@ -1,17 +1,18 @@
 package no.nav.syfo.application.api
 
 import io.ktor.server.application.Application
-import io.ktor.server.routing.get
-import io.ktor.server.routing.routing
 import io.ktor.server.http.content.staticResources
 import io.ktor.server.plugins.swagger.swaggerUI
 import io.ktor.server.response.respondRedirect
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
 import no.nav.syfo.altinn.common.AltinnTokenProvider
+import no.nav.syfo.altinn.dialogporten.registerDialogportenTokenApi
 import no.nav.syfo.application.ApplicationState
+import no.nav.syfo.application.Environment
 import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.application.isProdEnv
 import no.nav.syfo.application.metric.registerMetricApi
-import no.nav.syfo.altinn.dialogporten.registerDialogportenTokenApi
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
@@ -29,6 +30,7 @@ fun Application.configureRouting() {
     val dialogDAO by inject<DialogDAO>()
     val validationService by inject<ValidationService>()
     val altinnTokenProvider by inject<AltinnTokenProvider>()
+    val env by inject<Environment>()
 
     installCallId()
     installContentNegotiation()
@@ -37,7 +39,7 @@ fun Application.configureRouting() {
     routing {
         registerPodApi(applicationState, database)
         registerMetricApi()
-        registerApiV1(texasHttpClient, documentDAO, documentContentDAO, dialogDAO, validationService)
+        registerApiV1(texasHttpClient, documentDAO, documentContentDAO, dialogDAO, validationService, env)
         // Static OpenAPI spec + Swagger UI only in non-prod
         staticResources("/openapi", "openapi")
         swaggerUI(path = "swagger", swaggerFile = "openapi/documentation.yaml")
