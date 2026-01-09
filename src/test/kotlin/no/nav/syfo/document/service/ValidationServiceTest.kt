@@ -9,12 +9,12 @@ import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.application.exception.ApiErrorException
 import no.nav.syfo.ereg.EregService
-import no.nav.syfo.altinn.pdp.service.PdpService
 import organisasjon
 
 class ValidationServiceTest : DescribeSpec({
@@ -95,10 +95,14 @@ class ValidationServiceTest : DescribeSpec({
                         "0192:systemOwner",
                         "systemUserId"
 
-                        )
+                    )
 
                     // Act & Assert - should not throw exception
-                    validationService.validateMaskinportenTilgang(systemPrincipal, documentEntity)
+                    validationService.validateMaskinportenTilgang(
+                        systemPrincipal,
+                        documentEntity.dialog.orgNumber,
+                        documentEntity.type
+                    )
                     coVerify(exactly = 0) {
                         eregService.getOrganization(any())
                     }
@@ -156,7 +160,8 @@ class ValidationServiceTest : DescribeSpec({
                         // Act & Assert - should not throw exception
                         validationService.validateMaskinportenTilgang(
                             systemPrincipal,
-                            entity,
+                            entity.dialog.orgNumber,
+                            entity.type
                         )
 
                         coVerify(exactly = 1) {
@@ -189,7 +194,9 @@ class ValidationServiceTest : DescribeSpec({
                         // Act & Assert
                         shouldThrow<ApiErrorException.ForbiddenException> {
                             validationService.validateMaskinportenTilgang(
-                                systemPrincipal, entity
+                                systemPrincipal,
+                                entity.dialog.orgNumber,
+                                entity.type,
                             )
                         }
                         coVerify { eregService.getOrganization(entity.dialog.orgNumber) }
@@ -217,7 +224,9 @@ class ValidationServiceTest : DescribeSpec({
                         // Act & Assert
                         val exception = shouldThrow<ApiErrorException.ForbiddenException> {
                             validationService.validateMaskinportenTilgang(
-                                systemPrincipal, entity
+                                systemPrincipal,
+                                entity.dialog.orgNumber,
+                                entity.type,
                             )
                         }
                         exception.message shouldBe "Access denied. Invalid organization."

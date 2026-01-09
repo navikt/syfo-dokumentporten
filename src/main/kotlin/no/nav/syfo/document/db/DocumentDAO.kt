@@ -1,17 +1,22 @@
 package no.nav.syfo.document.db
 
+import io.ktor.client.utils.EmptyContent.contentType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.sql.ResultSet
-import java.util.UUID
 import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.document.api.v1.dto.DocumentType
+import no.nav.syfo.document.db.Page.Meta
+import java.sql.ResultSet
 import java.sql.Timestamp
 import java.sql.Types
+import java.time.Instant
+import java.util.UUID
 
-private const val SELECT_DOC_WITH_DIALOG_JOIN =
+private const val COUNT_COLUMN_NAME = "total_count"
+
+private fun selectDocWithDialogJoin(useCount: Boolean = false) =
     """
-    SELECT doc.*, 
+    SELECT${if (useCount) " COUNT(*) OVER() as $COUNT_COLUMN_NAME," else ""} doc.*, 
     dialog.id as dialog_pk_id, dialog.title as dialog_title, dialog.summary as dialog_summary, 
     dialog.dialogporten_uuid as dialog_uuid, dialog.fnr, dialog.org_number, dialog.created as dialog_created, 
     dialog.updated as dialog_updated
@@ -126,7 +131,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
             database.connection.use { connection ->
                 connection.prepareStatement(
                     """
-                        $SELECT_DOC_WITH_DIALOG_JOIN
+                        ${selectDocWithDialogJoin()}
                         WHERE doc.id = ?
                         """.trimIndent()
                 ).use { preparedStatement ->
@@ -147,7 +152,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
             database.connection.use { connection ->
                 connection.prepareStatement(
                     """
-                        $SELECT_DOC_WITH_DIALOG_JOIN
+                        ${selectDocWithDialogJoin()}
                         WHERE doc.link_id = ?
                         """.trimIndent()
                 ).use { preparedStatement ->
@@ -168,10 +173,10 @@ class DocumentDAO(private val database: DatabaseInterface) {
             database.connection.use { connection ->
                 connection.prepareStatement(
                     """
-                        $SELECT_DOC_WITH_DIALOG_JOIN
-                        WHERE doc.status = ?
-                        order by doc.created
-                        LIMIT 100
+                        ${selectDocWithDialogJoin()} 
+                        WHERE doc.status = ? 
+                        order by doc.created 
+                        LIMIT 100 
                         """.trimIndent()
                 ).use { preparedStatement ->
                     preparedStatement.setObject(1, status, Types.OTHER)
@@ -181,6 +186,82 @@ class DocumentDAO(private val database: DatabaseInterface) {
                         documents.add(resultSet.toDocumentEntity())
                     }
                     documents
+                }
+            }
+        }
+    }
+
+    suspend fun findDocumentsByParameters(
+        pageSize: Int,
+        orgnumber: String? = null,
+        type: DocumentType? = null,
+        isRead: Boolean? = null,
+        createdAfter: Instant? = null,
+        createdBefore: Instant? = null,
+        orderBy: SqlFilterBuilder.OrderBy = SqlFilterBuilder.OrderBy.CREATED,
+        orderDirection: Page.OrderDirection = Page.OrderDirection.ASC,
+    ): Page<PersistedDocumentEntity> {
+        val limitInRange = pageSize.coerceIn(1, Page.MAX_PAGE_SIZE)
+
+        return withContext(Dispatchers.IO) {
+            database.connection.use { connection ->
+                val preparedStatement = SqlFilterBuilder().let { builder ->
+                    builder
+                        .filterParam("doc.is_read", isRead)
+                        .filterParam("doc.type", type)
+                        .filterParam("doc.content_type", contentType)
+                        .filterParam("dialog.org_number", orgnumber)
+                        .filterParam(
+                            "doc.created",
+                            createdAfter,
+                            SqlFilterBuilder.ComparisonOperator.GREATER_THAN
+                        )
+                        .filterParam(
+                            "doc.created",
+                            createdBefore,
+                            SqlFilterBuilder.ComparisonOperator.LESS_THAN
+                        )
+
+                    builder.orderBy = orderBy
+                    builder.limit = limitInRange
+                    builder.orderDirection = orderDirection
+
+                    builder.buildStatement(
+                        connection.prepareStatement(
+                            """
+                            ${selectDocWithDialogJoin(true)}
+                            ${builder.buildFilterString()}
+                            """.trimIndent(),
+                            ResultSet.TYPE_FORWARD_ONLY,
+                            ResultSet.CONCUR_READ_ONLY
+                        )
+                    )
+                }
+
+                preparedStatement.use {
+                    val resultSet = it.executeQuery()
+                    var totalCount = 0L
+
+                    val docs = buildList {
+                        if (resultSet.next()) {
+                            totalCount = resultSet.getLong(COUNT_COLUMN_NAME)
+                            add(resultSet.toDocumentEntity())
+
+                            while (resultSet.next()) {
+                                add(resultSet.toDocumentEntity())
+                            }
+                        }
+                    }
+
+                    Page(
+                        meta = Meta(
+                            size = docs.size,
+                            pageSize = limitInRange,
+                            hasMore = totalCount > docs.size,
+                            resultSize = totalCount,
+                        ),
+                        items = docs,
+                    )
                 }
             }
         }

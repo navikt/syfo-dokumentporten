@@ -1,5 +1,6 @@
 package no.nav.syfo.document.api.v1
 
+
 import io.ktor.http.Parameters
 import io.ktor.serialization.JsonConvertException
 import io.ktor.server.auth.authentication
@@ -7,15 +8,18 @@ import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.ParameterConversionException
 import io.ktor.server.request.receive
 import io.ktor.server.routing.RoutingCall
-import java.util.UUID
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.JwtIssuer
-import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.application.auth.Principal
+import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.application.auth.TOKEN_ISSUER
+import no.nav.syfo.application.exception.ApiErrorException
 import no.nav.syfo.application.exceptions.UnauthorizedException
+import no.nav.syfo.document.api.v1.dto.DocumentType
+import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
+import java.util.UUID
 
 fun Parameters.extractAndValidateUUIDParameter(name: String): UUID {
     val parameter = get(name)
@@ -29,12 +33,50 @@ fun Parameters.extractAndValidateUUIDParameter(name: String): UUID {
         throw ParameterConversionException("uuid", "UUID", e)
     }
 }
+
+fun Parameters.extractDocumentTypeParameter(name: String): DocumentType {
+    val parameter = get(name) ?: throw BadRequestException("Missing parameter: $name")
+
+    return try {
+        DocumentType.valueOf(parameter)
+    } catch (e: IllegalArgumentException) {
+        throw ParameterConversionException("documentType", "DocumentType", e)
+    }
+}
+
+fun RoutingCall.getRequiredQueryParameter(name: String): String {
+    return this.queryParameters[name] ?: throw ApiErrorException.BadRequestException("Missing $name parameter")
+}
+
+fun RoutingCall.getCreatedAfter(): Instant {
+    val createdAfter = getRequiredQueryParameter("createdAfter")
+    try {
+        return Instant.parse(createdAfter)
+    } catch (e: DateTimeParseException) {
+        throw ApiErrorException.BadRequestException(
+            "Invalid date format for createdAfter parameter. Expected ISO-8601 format."
+        )
+    }
+}
+
+fun RoutingCall.getPageSize(): Int? =
+    this.queryParameters["pageSize"]
+        ?.toIntOrNull()
+
+fun RoutingCall.getOrgNumber(): String =
+    queryParameters["orgNumber"] ?: throw BadRequestException("Missing parameter: orgNumber")
+
+fun RoutingCall.getPage(): Int? =
+    this.queryParameters["page"]
+        ?.toIntOrNull()
+
 suspend inline fun <reified T : Any> RoutingCall.tryReceive() = runCatching { receive<T>() }.getOrElse {
     when {
         it is JsonConvertException -> throw BadRequestException("Invalid payload in request: ${it.message}", it)
         else -> throw it
     }
 }
+
 fun RoutingCall.getPrincipal(): Principal =
     when (attributes[TOKEN_ISSUER]) {
         JwtIssuer.MASKINPORTEN -> {
