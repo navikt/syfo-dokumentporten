@@ -1,6 +1,7 @@
 package no.nav.syfo.altinn.dialogporten.service
 
 import com.fasterxml.uuid.Generators
+import io.ktor.http.HttpStatusCode
 import no.nav.syfo.API_V1_PATH
 import no.nav.syfo.DOCUMENT_API_PATH
 import no.nav.syfo.GUI_DOCUMENT_API_PATH
@@ -58,6 +59,27 @@ class DialogportenService(
         }
     }
 
+    suspend fun deleteDialogsInDialogporten() {
+        val documentsToDelete = getDocumentsToDelete()
+        logger.info("Found ${documentsToDelete.size} documents to delete from to dialogporten")
+
+        for (document in documentsToDelete) {
+
+            document.dialog.dialogportenUUID?.let { uuid ->
+                val status = dialogportenClient.deleteDialog(document.dialog.dialogportenUUID)
+                if (status == HttpStatusCode.NoContent) {
+                   documentDAO.update(document.copy(
+                        status = DocumentStatus.RECEIVED,
+                        isRead = document.isRead,
+                        updated = Instant.now(),
+                        transmissionId = null
+                   ))
+                    documentDAO.updateDialogportenId(document.dialog.copy(dialogportenUUID = null))
+                }
+            }
+        }
+    }
+
     private suspend fun addToExistingDialog(document: PersistedDocumentEntity, dialogportenId: UUID) {
         val transmissionId = Generators.timeBasedEpochGenerator().generate()
         val transmission = document.toTransmission(transmissionId = transmissionId)
@@ -96,7 +118,8 @@ class DialogportenService(
         return dialogId
     }
 
-    private suspend fun getDocumentsToSend() = documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED)
+    private suspend fun getDocumentsToSend() = documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED, 100)
+    private suspend fun getDocumentsToDelete() = documentDAO.getDocumentsByStatus(DocumentStatus.COMPLETED, 2)
 
     private fun createApiDocumentLink(linkId: String): String =
         "$publicIngressUrl$API_V1_PATH$DOCUMENT_API_PATH/$linkId"
