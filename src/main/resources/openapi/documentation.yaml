@@ -11,9 +11,9 @@ info:
     scope `nav:syfo/dokumentporten` and Altinn resources `nav_syfo_oppfolgingsplan` and `nav_syfo_dialogmote`. We will continue to support `nav:syfo/arkivporten` scope for backward compatibility in dev environment for a while.
     But we will not support it in production, and we recommend users to use the new scope `nav:syfo/dokumentporten`.
 servers:
-  - url: https://syfo-dokumentporten.ekstern.nav.no
+  - url: https://syfo-dokumentporten.nav.no
     description: Prod environment
-  - url: https://syfo-dokumentporten.ekstern.dev.nav.no
+  - url: https://syfo-dokumentporten.dev.nav.no
     description: Dev environment
   - url: https://arkivporten.ekstern.dev.nav.no
     description: Dev environment(OLD)
