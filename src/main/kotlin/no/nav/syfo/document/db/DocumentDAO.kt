@@ -163,7 +163,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
         }
     }
 
-    suspend fun getDocumentsByStatus(status: DocumentStatus, limit: Int): List<PersistedDocumentEntity> {
+    suspend fun getDocumentsByStatus(status: DocumentStatus, limit: Int = 100): List<PersistedDocumentEntity> {
         return withContext(Dispatchers.IO) {
             database.connection.use { connection ->
                 connection.prepareStatement(
