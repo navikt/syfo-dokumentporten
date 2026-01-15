@@ -40,7 +40,7 @@ class DialogportenService(
     private val dialogDAO: DialogDAO,
 ) {
     private val logger = logger()
-    private val deleteDialogLimit = 3
+    private val deleteDialogLimit = 100
     suspend fun sendDocumentsToDialogporten() {
         val documentsToSend = getDocumentsToSend()
         logger.info("Found ${documentsToSend.size} documents to send to dialogporten")
@@ -142,7 +142,6 @@ class DialogportenService(
 
     private suspend fun getDocumentsToSend() = documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED, 100)
     private suspend fun getDocumentsToDelete() =
-        //dialogDAO.getDialogByDocumentStatus(status = DocumentStatus.COMPLETED, limit = deleteDialogLimit)
         dialogDAO.getDialogAwaitingDeletionInDialogporten(limit = deleteDialogLimit)
 
     private fun createApiDocumentLink(linkId: String): String =
