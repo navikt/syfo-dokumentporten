@@ -89,7 +89,7 @@ class DialogportenService(
                     throw ex
                 }
             }
-            delay(1000L) // small delay to avoid hammering dialogporten
+            delay(5000L) // small delay to avoid hammering dialogporten
         } while (dialogsToDeleteInDialogporten.size == deleteDialogLimit)
     }
 
@@ -133,7 +133,8 @@ class DialogportenService(
 
     private suspend fun getDocumentsToSend() = documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED, 100)
     private suspend fun getDocumentsToDelete() =
-        dialogDAO.getDialogByDocumentStatus(status = DocumentStatus.COMPLETED, limit = deleteDialogLimit)
+        //dialogDAO.getDialogByDocumentStatus(status = DocumentStatus.COMPLETED, limit = deleteDialogLimit)
+        dialogDAO.getDialogAwaitingDeletionInDialogporten(limit = deleteDialogLimit)
 
     private fun createApiDocumentLink(linkId: String): String =
         "$publicIngressUrl$API_V1_PATH$DOCUMENT_API_PATH/$linkId"

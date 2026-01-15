@@ -44,6 +44,31 @@ class DialogDAO(private val database: DatabaseInterface) {
         }
     }
 
+
+    suspend fun getDialogAwaitingDeletionInDialogporten(limit: Int): List<PersistedDialogEntity> {
+        val selectStatement =
+            """
+                SELECT dialog.*
+                FROM dialog
+                WHERE delete_performed is null
+                LIMIT ?
+            """.trimIndent()
+        return withContext(Dispatchers.IO) {
+            database.connection.use { conn ->
+                conn.prepareStatement(selectStatement).use { ps ->
+                    ps.setInt(1, limit)
+                    val resultSet = ps.executeQuery()
+                    val dialogs = mutableListOf<PersistedDialogEntity>()
+                    while (resultSet.next()) {
+                        dialogs.add(resultSet.toDialog())
+                    }
+                    dialogs
+                }
+            }
+        }
+    }
+
+    /* Started with this functions to get delete candidates. It was then relaced by the function below. Leave is as commend for discussion in review
     suspend fun getDialogByDocumentStatus(status: DocumentStatus, limit: Int): List<PersistedDialogEntity> {
         val selectStatement =
             """
@@ -68,6 +93,7 @@ class DialogDAO(private val database: DatabaseInterface) {
             }
         }
     }
+     */
 
     suspend fun updateDialogportenAfterDelete(entity: PersistedDialogEntity) {
         withContext(Dispatchers.IO) {
