@@ -8,11 +8,11 @@ metadata:
 spec:
   ingresses:
     - https://syfo-dokumentporten.intern.nav.no
-    - https://syfo-dokumentporten.ekstern.nav.no/api/v1/documents
-    - https://syfo-dokumentporten.ekstern.nav.no/api/v1/gui/documents
-    - https://syfo-dokumentporten.ekstern.nav.no/swagger
-    - https://syfo-dokumentporten.ekstern.nav.no/openapi
-    - https://syfo-dokumentporten.ekstern.nav.no/oauth2
+    - https://syfo-dokumentporten.nav.no/api/v1/documents
+    - https://syfo-dokumentporten.nav.no/api/v1/gui/documents
+    - https://syfo-dokumentporten.nav.no/swagger
+    - https://syfo-dokumentporten.nav.no/openapi
+    - https://syfo-dokumentporten.nav.no/oauth2
   image: {{image}} #
   port: 8080
   liveness:
@@ -113,7 +113,7 @@ spec:
     - name: ALTINN_3_BASE_URL
       value: "https://platform.altinn.no"
     - name: PUBLIC_INGRESS_URL
-      value: https://syfo-dokumentporten.ekstern.nav.no
+      value: https://syfo-dokumentporten.nav.no
     - name: DIALOGPORTEN_API_ONLY
       value: "true"
   envFrom:
