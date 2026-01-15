@@ -98,18 +98,20 @@ class DialogDAO(private val database: DatabaseInterface) {
     suspend fun updateDialogportenAfterDelete(entity: PersistedDialogEntity) {
         withContext(Dispatchers.IO) {
             database.connection.use { conn ->
-                conn.prepareStatement(
-                    """
+                if (entity.dialogportenUUID == null) {
+                    conn.prepareStatement(
+                        """
                         UPDATE document
                         SET transmission_id = ?,
                             status          = ?
                         WHERE dialog_id = ?
                         """.trimIndent()
-                ).use { ps ->
-                    ps.setObject(1, null)
-                    ps.setObject(2, DocumentStatus.RECEIVED, Types.OTHER)
-                    ps.setLong(3, entity.id)
-                    ps.executeUpdate()
+                    ).use { ps ->
+                        ps.setObject(1, null)
+                        ps.setObject(2, DocumentStatus.RECEIVED, Types.OTHER)
+                        ps.setLong(3, entity.id)
+                        ps.executeUpdate()
+                    }
                 }
                 conn.prepareStatement(
                     """

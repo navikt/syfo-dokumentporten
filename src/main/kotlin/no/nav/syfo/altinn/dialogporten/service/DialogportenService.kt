@@ -2,6 +2,7 @@ package no.nav.syfo.altinn.dialogporten.service
 
 import com.fasterxml.uuid.Generators
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.isSuccess
 import no.nav.syfo.API_V1_PATH
 import no.nav.syfo.DOCUMENT_API_PATH
 import no.nav.syfo.GUI_DOCUMENT_API_PATH
@@ -39,7 +40,7 @@ class DialogportenService(
     private val dialogDAO: DialogDAO,
 ) {
     private val logger = logger()
-    private val deleteDialogLimit = 100
+    private val deleteDialogLimit = 3
     suspend fun sendDocumentsToDialogporten() {
         val documentsToSend = getDocumentsToSend()
         logger.info("Found ${documentsToSend.size} documents to send to dialogporten")
@@ -72,10 +73,18 @@ class DialogportenService(
 
                     dialog.dialogportenUUID?.let { uuid ->
                         val status = dialogportenClient.deleteDialog(uuid)
-                        if (status == HttpStatusCode.NoContent) {
+                        if (status.isSuccess()) {
                             dialogDAO.updateDialogportenAfterDelete(
                                 dialog.copy(
                                     dialogportenUUID = null,
+                                    updated = Instant.now()
+                                )
+                            )
+                        } else if (
+                            status == HttpStatusCode.Gone) {
+                            logger.info("Skipping setting properties to null, dialog ${dialog.id} with dialogportenUUID $uuid already deleted in dialogporten")
+                            dialogDAO.updateDialogportenAfterDelete(
+                                dialog.copy(
                                     updated = Instant.now()
                                 )
                             )
