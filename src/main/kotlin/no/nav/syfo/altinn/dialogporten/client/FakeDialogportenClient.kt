@@ -1,9 +1,11 @@
 package no.nav.syfo.altinn.dialogporten.client
 
+import io.ktor.http.BadContentTypeFormatException
 import io.ktor.http.HttpStatusCode
 import no.nav.syfo.altinn.dialogporten.domain.Dialog
 import no.nav.syfo.altinn.dialogporten.domain.Transmission
 import java.util.UUID
+import no.nav.syfo.application.exception.ApiErrorException
 import no.nav.syfo.util.logger
 
 class FakeDialogportenClient() : IDialogportenClient {

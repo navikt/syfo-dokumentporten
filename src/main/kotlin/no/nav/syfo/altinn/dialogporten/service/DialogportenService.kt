@@ -24,6 +24,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
+import kotlinx.coroutines.delay
 import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_DIALOGS_CREATED
 import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSIONS_CREATED
 import no.nav.syfo.document.db.DialogDAO
@@ -38,7 +39,7 @@ class DialogportenService(
     private val dialogDAO: DialogDAO,
 ) {
     private val logger = logger()
-    private val deleteDialogLimit = 2
+    private val deleteDialogLimit = 100
     suspend fun sendDocumentsToDialogporten() {
         val documentsToSend = getDocumentsToSend()
         logger.info("Found ${documentsToSend.size} documents to send to dialogporten")
@@ -62,23 +63,34 @@ class DialogportenService(
     }
 
     suspend fun deleteDialogsInDialogporten() {
-        val dialogsToDeleteInDialogporten = getDocumentsToDelete()
-        logger.info("Found ${dialogsToDeleteInDialogporten.size} documents to delete from to dialogporten")
+        do {
+            val dialogsToDeleteInDialogporten = getDocumentsToDelete()
+            logger.info("Found ${dialogsToDeleteInDialogporten.size} documents to delete from to dialogporten")
 
-        for (dialog in dialogsToDeleteInDialogporten) {
+            for (dialog in dialogsToDeleteInDialogporten) {
+                try {
 
-            dialog.dialogportenUUID?.let { uuid ->
-                val status = dialogportenClient.deleteDialog(dialog.dialogportenUUID)
-                if (status == HttpStatusCode.NoContent) {
-                    dialogDAO.updateDialogportenAfterDelete(
-                        dialog.copy(
-                            dialogportenUUID = null,
-                            updated = Instant.now()
-                        )
-                    )
+                    dialog.dialogportenUUID?.let { uuid ->
+                        val status = dialogportenClient.deleteDialog(uuid)
+                        if (status == HttpStatusCode.NoContent) {
+                            dialogDAO.updateDialogportenAfterDelete(
+                                dialog.copy(
+                                    dialogportenUUID = null,
+                                    updated = Instant.now()
+                                )
+                            )
+                        } else {
+                            logger.error("Failed to delete dialog ${dialog.id} with dialogportenUUID $uuid from dialogporten, received status $status")
+                            throw RuntimeException("Failed to delete dialog ${dialog.id} with dialogportenUUID $uuid")
+                        }
+                    }
+                } catch (ex: Exception) {
+                    logger.error("Failed to delete dialog ${dialog.id} from dialogporten", ex)
+                    throw ex
                 }
             }
-        }
+            delay(1000L) // small delay to avoid hammering dialogporten
+        } while (dialogsToDeleteInDialogporten.size == deleteDialogLimit)
     }
 
     private suspend fun addToExistingDialog(document: PersistedDocumentEntity, dialogportenId: UUID) {
