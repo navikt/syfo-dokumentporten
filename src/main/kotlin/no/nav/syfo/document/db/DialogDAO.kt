@@ -68,33 +68,6 @@ class DialogDAO(private val database: DatabaseInterface) {
         }
     }
 
-    /* Started with this functions to get delete candidates. It was then relaced by the function below. Leave is as commend for discussion in review
-    suspend fun getDialogByDocumentStatus(status: DocumentStatus, limit: Int): List<PersistedDialogEntity> {
-        val selectStatement =
-            """
-                SELECT dialog.*
-                FROM dialog
-                LEFT JOIN document ON document.dialog_id = dialog.id
-                WHERE document.status = ?
-                LIMIT ?
-            """.trimIndent()
-        return withContext(Dispatchers.IO) {
-            database.connection.use { conn ->
-                conn.prepareStatement(selectStatement).use { ps ->
-                    ps.setObject(1, status, Types.OTHER)
-                    ps.setInt(2, limit)
-                    val resultSet = ps.executeQuery()
-                    val dialogs = mutableListOf<PersistedDialogEntity>()
-                    while (resultSet.next()) {
-                        dialogs.add(resultSet.toDialog())
-                    }
-                    dialogs
-                }
-            }
-        }
-    }
-     */
-
     suspend fun updateDialogportenAfterDelete(entity: PersistedDialogEntity) {
         withContext(Dispatchers.IO) {
             database.connection.use { conn ->
