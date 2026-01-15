@@ -121,30 +121,6 @@ class DocumentDAO(private val database: DatabaseInterface) {
         }
     }
 
-    suspend fun updateDialogportenId(entity: PersistedDialogEntity) {
-        withContext(Dispatchers.IO) {
-            database.connection.use { connection ->
-                connection.prepareStatement(
-                    """
-                        UPDATE dialog
-                        SET dialogporten_uuid = ?,
-                            updated   = ?
-                        WHERE id = ?
-                        """.trimIndent()
-                ).use { preparedStatement ->
-                    with(entity) {
-                        preparedStatement.setObject(1, dialogportenUUID)
-                        preparedStatement.setTimestamp(2, Timestamp.from(updated))
-                        preparedStatement.setLong(3, id)
-                    }
-                    preparedStatement.executeUpdate()
-                }
-                connection.commit()
-            }
-
-        }
-    }
-
     suspend fun getById(id: Long): PersistedDocumentEntity? {
         return withContext(Dispatchers.IO) {
             database.connection.use { connection ->
@@ -188,30 +164,6 @@ class DocumentDAO(private val database: DatabaseInterface) {
     }
 
     suspend fun getDocumentsByStatus(status: DocumentStatus, limit: Int): List<PersistedDocumentEntity> {
-        return withContext(Dispatchers.IO) {
-            database.connection.use { connection ->
-                connection.prepareStatement(
-                    """
-                        $SELECT_DOC_WITH_DIALOG_JOIN
-                        WHERE doc.status = ?
-                        order by doc.created
-                        LIMIT ?
-                        """.trimIndent()
-                ).use { preparedStatement ->
-                    preparedStatement.setObject(1, status, Types.OTHER)
-                    preparedStatement.setInt(2, limit)
-                    val resultSet = preparedStatement.executeQuery()
-                    val documents = mutableListOf<PersistedDocumentEntity>()
-                    while (resultSet.next()) {
-                        documents.add(resultSet.toDocumentEntity())
-                    }
-                    documents
-                }
-            }
-        }
-    }
-
-    suspend fun getDocumentsToDeleteByStatus(status: DocumentStatus, limit: Int): List<PersistedDocumentEntity> {
         return withContext(Dispatchers.IO) {
             database.connection.use { connection ->
                 connection.prepareStatement(

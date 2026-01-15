@@ -4,6 +4,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import no.nav.syfo.application.database.DatabaseInterface
 import java.sql.ResultSet
+import java.sql.Timestamp
+import java.sql.Types
+import java.time.Instant
+import no.nav.syfo.altinn.dialogporten.domain.DialogStatus
 
 class DialogDAO(private val database: DatabaseInterface) {
     suspend fun insertDialog(dialogEntity: DialogEntity): PersistedDialogEntity {
@@ -36,6 +40,69 @@ class DialogDAO(private val database: DatabaseInterface) {
                 }.also {
                     conn.commit()
                 }
+            }
+        }
+    }
+
+    suspend fun getDialogByDocumentStatus(status: DocumentStatus, limit: Int): List<PersistedDialogEntity> {
+        val selectStatement =
+            """
+                SELECT dialog.*
+                FROM dialog
+                LEFT JOIN document ON document.dialog_id = dialog.id
+                WHERE document.status = ?
+                LIMIT ?
+            """.trimIndent()
+        return withContext(Dispatchers.IO) {
+            database.connection.use { conn ->
+                conn.prepareStatement(selectStatement).use { ps ->
+                    ps.setObject(1, status, Types.OTHER)
+                    ps.setInt(2, limit)
+                    val resultSet = ps.executeQuery()
+                    val dialogs = mutableListOf<PersistedDialogEntity>()
+                    while (resultSet.next()) {
+                        dialogs.add(resultSet.toDialog())
+                    }
+                    dialogs
+                }
+            }
+        }
+    }
+
+    suspend fun updateDialogportenAfterDelete(entity: PersistedDialogEntity) {
+        withContext(Dispatchers.IO) {
+            database.connection.use { conn ->
+                conn.prepareStatement(
+                    """
+                        UPDATE document
+                        SET transmission_id = ?,
+                            status          = ?
+                        WHERE dialog_id = ?
+                        """.trimIndent()
+                ).use { ps ->
+                    ps.setObject(1, null)
+                    ps.setObject(2, DocumentStatus.RECEIVED, Types.OTHER)
+                    ps.setLong(3, entity.id)
+                    ps.executeUpdate()
+                }
+                conn.prepareStatement(
+                    """
+                        UPDATE dialog
+                        SET dialogporten_uuid = ?,
+                            updated           = ?,
+                            delete_performed  = ?
+                        WHERE id = ?
+                        """.trimIndent()
+                ).use { ps ->
+                    with(entity) {
+                        ps.setObject(1, dialogportenUUID)
+                        ps.setTimestamp(2, Timestamp.from(updated))
+                        ps.setTimestamp(3, Timestamp.from(Instant.now()))
+                        ps.setLong(4, id)
+                    }
+                    ps.executeUpdate()
+                }
+                conn.commit()
             }
         }
     }

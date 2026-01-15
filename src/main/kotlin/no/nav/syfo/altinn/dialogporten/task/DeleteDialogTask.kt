@@ -20,7 +20,7 @@ class DeleteDialogTask(
             while (isActive) {
                 if (leaderElection.isLeader() && !isProdEnv()) {
                     try {
-                        logger.info("Starting task for sending documents to dialogporten")
+                        logger.info("Starting task for deleting documents in dialogporten")
                         dialogportenService.deleteDialogsInDialogporten()
                     } catch (ex: Exception) {
                         logger.error("Could not delete dialogs in dialogporten", ex)

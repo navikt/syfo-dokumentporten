@@ -26,6 +26,7 @@ import java.time.ZoneId
 import java.util.UUID
 import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_DIALOGS_CREATED
 import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSIONS_CREATED
+import no.nav.syfo.document.db.DialogDAO
 
 const val DIALOG_RESSURS = "nav_syfo_dialog"
 
@@ -33,10 +34,11 @@ class DialogportenService(
     private val dialogportenClient: IDialogportenClient,
     private val documentDAO: DocumentDAO,
     private val publicIngressUrl: String,
-    private val dialogportenIsApiOnly: Boolean
+    private val dialogportenIsApiOnly: Boolean,
+    private val dialogDAO: DialogDAO,
 ) {
     private val logger = logger()
-
+    private val deleteDialogLimit = 2
     suspend fun sendDocumentsToDialogporten() {
         val documentsToSend = getDocumentsToSend()
         logger.info("Found ${documentsToSend.size} documents to send to dialogporten")
@@ -60,21 +62,20 @@ class DialogportenService(
     }
 
     suspend fun deleteDialogsInDialogporten() {
-        val documentsToDelete = getDocumentsToDelete()
-        logger.info("Found ${documentsToDelete.size} documents to delete from to dialogporten")
+        val dialogsToDeleteInDialogporten = getDocumentsToDelete()
+        logger.info("Found ${dialogsToDeleteInDialogporten.size} documents to delete from to dialogporten")
 
-        for (document in documentsToDelete) {
+        for (dialog in dialogsToDeleteInDialogporten) {
 
-            document.dialog.dialogportenUUID?.let { uuid ->
-                val status = dialogportenClient.deleteDialog(document.dialog.dialogportenUUID)
+            dialog.dialogportenUUID?.let { uuid ->
+                val status = dialogportenClient.deleteDialog(dialog.dialogportenUUID)
                 if (status == HttpStatusCode.NoContent) {
-                   documentDAO.update(document.copy(
-                        status = DocumentStatus.RECEIVED,
-                        isRead = document.isRead,
-                        updated = Instant.now(),
-                        transmissionId = null
-                   ))
-                    documentDAO.updateDialogportenId(document.dialog.copy(dialogportenUUID = null))
+                    dialogDAO.updateDialogportenAfterDelete(
+                        dialog.copy(
+                            dialogportenUUID = null,
+                            updated = Instant.now()
+                        )
+                    )
                 }
             }
         }
@@ -119,7 +120,8 @@ class DialogportenService(
     }
 
     private suspend fun getDocumentsToSend() = documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED, 100)
-    private suspend fun getDocumentsToDelete() = documentDAO.getDocumentsByStatus(DocumentStatus.COMPLETED, 2)
+    private suspend fun getDocumentsToDelete() =
+        dialogDAO.getDialogByDocumentStatus(status = DocumentStatus.COMPLETED, limit = deleteDialogLimit)
 
     private fun createApiDocumentLink(linkId: String): String =
         "$publicIngressUrl$API_V1_PATH$DOCUMENT_API_PATH/$linkId"
@@ -189,7 +191,7 @@ class DialogportenService(
         )
     }
 
-     private fun instantStartOfFollowingDay4MonthsAhead(): Instant {
+    private fun instantStartOfFollowingDay4MonthsAhead(): Instant {
         return LocalDate.now()
             .plusMonths(4)
             .plusDays(1)
