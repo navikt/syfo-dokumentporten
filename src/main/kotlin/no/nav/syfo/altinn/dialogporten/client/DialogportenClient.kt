@@ -79,7 +79,7 @@ class DialogportenClient(
         return runCatching<DialogportenClient, HttpStatusCode> {
                 httpClient
                     .delete("$dialogportenUrl/$dialogId") {
-                        header(HttpHeaders.ContentType, ContentType.Application.Json)
+                        header(HttpHeaders.Accept, ContentType.Application.Json)
                         bearerAuth(token)
                     }.status
         }.getOrElse { e ->
