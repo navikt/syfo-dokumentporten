@@ -18,7 +18,7 @@ class SendDialogTask(
     suspend fun runTask() = coroutineScope {
         try {
             while (isActive) {
-                if (leaderElection.isLeader() && !isProdEnv() && false) { // Disabled Send to Dialogporten while we repair dialogs with incorrect urls
+                if (leaderElection.isLeader() && !isProdEnv()) { // Disabled Send to Dialogporten while we repair dialogs with incorrect urls
                     try {
                         logger.info("Starting task for sending documents to dialogporten")
                         dialogportenService.sendDocumentsToDialogporten()
