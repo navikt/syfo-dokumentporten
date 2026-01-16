@@ -26,8 +26,8 @@ class FakeDialogportenClient() : IDialogportenClient {
 
     override suspend fun deleteDialog(dialogId: UUID): HttpStatusCode {
         logger.info("Deleting dialog with id: $dialogId")
-        return if (dialogId == UUID.fromString("6d7172cc-2703-4605-9203-9371442755d8")) {
-            HttpStatusCode.Gone
+        return if (dialogId == UUID.fromString("5411e06d-36e7-46b2-984f-6c6405e57160")) {
+            HttpStatusCode.NotFound
         } else HttpStatusCode.NoContent
     }
 }
