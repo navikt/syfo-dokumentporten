@@ -18,7 +18,7 @@ class DeleteDialogTask(
     suspend fun runTask() = coroutineScope {
         try {
             while (isActive) {
-                if (leaderElection.isLeader() && !isProdEnv()) {
+                if (leaderElection.isLeader()) {
                     try {
                         logger.info("Starting task for deleting documents in dialogporten")
                         dialogportenService.deleteDialogsInDialogporten()
