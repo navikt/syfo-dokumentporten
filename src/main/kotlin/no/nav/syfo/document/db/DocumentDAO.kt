@@ -163,7 +163,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
         }
     }
 
-    suspend fun getDocumentsByStatus(status: DocumentStatus): List<PersistedDocumentEntity> {
+    suspend fun getDocumentsByStatus(status: DocumentStatus, limit: Int = 100): List<PersistedDocumentEntity> {
         return withContext(Dispatchers.IO) {
             database.connection.use { connection ->
                 connection.prepareStatement(
@@ -171,10 +171,11 @@ class DocumentDAO(private val database: DatabaseInterface) {
                         $SELECT_DOC_WITH_DIALOG_JOIN
                         WHERE doc.status = ?
                         order by doc.created
-                        LIMIT 100
+                        LIMIT ?
                         """.trimIndent()
                 ).use { preparedStatement ->
                     preparedStatement.setObject(1, status, Types.OTHER)
+                    preparedStatement.setInt(2, limit)
                     val resultSet = preparedStatement.executeQuery()
                     val documents = mutableListOf<PersistedDocumentEntity>()
                     while (resultSet.next()) {

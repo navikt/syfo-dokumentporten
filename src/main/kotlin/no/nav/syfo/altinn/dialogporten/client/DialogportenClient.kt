@@ -8,6 +8,7 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import no.nav.syfo.altinn.common.AltinnTokenProvider
 import no.nav.syfo.altinn.dialogporten.domain.Dialog
 import no.nav.syfo.altinn.dialogporten.domain.Transmission
@@ -16,6 +17,7 @@ import java.util.UUID
 
 interface IDialogportenClient {
     suspend fun createDialog(dialog: Dialog): UUID
+    suspend fun deleteDialog(dialogId: UUID): HttpStatusCode
     suspend fun addTransmission(transmission: Transmission, dialogId: UUID): UUID
 }
 
@@ -66,6 +68,38 @@ class DialogportenClient(
         }.getOrElse { e ->
             logger.error("Feil ved kall til Dialogporten for å opprette transmission", e)
             throw DialogportenClientException(e.message ?: "Feil ved kall til Dialogporten: add transmission")
+        }
+    }
+
+//    override suspend fun softDeleteDialog(dialogId: UUID): HttpStatusCode {
+//        val token = altinnTokenProvider.token(AltinnTokenProvider.DIALOGPORTEN_TARGET_SCOPE)
+//            .accessToken
+//
+//        return runCatching<DialogportenClient, HttpStatusCode> {
+//                httpClient
+//                    .delete("$dialogportenUrl/$dialogId") {
+//                        header(HttpHeaders.Accept, ContentType.Application.Json)
+//                        bearerAuth(token)
+//                    }.status
+//        }.getOrElse { e ->
+//            logger.error("Feil ved kall til Dialogporten for å opprette dialog", e)
+//            throw DialogportenClientException(e.message ?: "Feil ved kall til Dialogporten: create dialog")
+//        }
+//    }
+
+    override suspend fun deleteDialog(dialogId: UUID): HttpStatusCode {
+        val token = altinnTokenProvider.token(AltinnTokenProvider.DIALOGPORTEN_TARGET_SCOPE)
+            .accessToken
+
+        return runCatching<DialogportenClient, HttpStatusCode> {
+            httpClient
+                .post("$dialogportenUrl/$dialogId/actions/purge") {
+                    header(HttpHeaders.Accept, ContentType.Application.Json)
+                    bearerAuth(token)
+                }.status
+        }.getOrElse { e ->
+            logger.error("Feil ved kall til Dialogporten for å opprette dialog", e)
+            throw DialogportenClientException(e.message ?: "Feil ved kall til Dialogporten: create dialog")
         }
     }
 }
