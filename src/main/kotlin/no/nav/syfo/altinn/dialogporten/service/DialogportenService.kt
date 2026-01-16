@@ -41,26 +41,30 @@ class DialogportenService(
 ) {
     private val logger = logger()
     private val deleteDialogLimit = 100
+    private val sendDialogLimit = 100
     suspend fun sendDocumentsToDialogporten() {
-        val documentsToSend = getDocumentsToSend()
-        logger.info("Found ${documentsToSend.size} documents to send to dialogporten")
+        do {
+            val documentsToSend = getDocumentsToSend()
+            logger.info("Found ${documentsToSend.size} documents to send to dialogporten")
 
-        val newDialogs = mutableMapOf<Long, UUID>()
-        for (document in documentsToSend) {
-            try {
-                val dialogportenId = document.dialog.dialogportenUUID
-                    ?: newDialogs[document.dialog.id]
+            val newDialogs = mutableMapOf<Long, UUID>()
+            for (document in documentsToSend) {
+                try {
+                    val dialogportenId = document.dialog.dialogportenUUID
+                        ?: newDialogs[document.dialog.id]
 
-                if (dialogportenId != null) {
-                    addToExistingDialog(document, dialogportenId)
-                } else {
-                    val dialogportenId = addToNewDialog(document)
-                    newDialogs[document.dialog.id] = dialogportenId
+                    if (dialogportenId != null) {
+                        addToExistingDialog(document, dialogportenId)
+                    } else {
+                        val dialogportenId = addToNewDialog(document)
+                        newDialogs[document.dialog.id] = dialogportenId
+                    }
+                } catch (ex: Exception) {
+                    logger.error("Failed to send document ${document.id} to dialogporten", ex)
                 }
-            } catch (ex: Exception) {
-                logger.error("Failed to send document ${document.id} to dialogporten", ex)
             }
-        }
+            delay(5000L) // small delay to avoid hammering dialogporten
+        } while (documentsToSend.size >= sendDialogLimit)
     }
 
     suspend fun deleteDialogsInDialogporten() {
@@ -99,7 +103,7 @@ class DialogportenService(
                 }
             }
             delay(5000L) // small delay to avoid hammering dialogporten
-        } while (dialogsToDeleteInDialogporten.size == deleteDialogLimit)
+        } while (dialogsToDeleteInDialogporten.size >= deleteDialogLimit)
     }
 
     private suspend fun addToExistingDialog(document: PersistedDocumentEntity, dialogportenId: UUID) {
