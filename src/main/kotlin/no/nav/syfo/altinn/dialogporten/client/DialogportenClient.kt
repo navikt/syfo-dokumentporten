@@ -3,7 +3,6 @@ package no.nav.syfo.altinn.dialogporten.client
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.bearerAuth
-import io.ktor.client.request.delete
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -72,16 +71,32 @@ class DialogportenClient(
         }
     }
 
+//    override suspend fun softDeleteDialog(dialogId: UUID): HttpStatusCode {
+//        val token = altinnTokenProvider.token(AltinnTokenProvider.DIALOGPORTEN_TARGET_SCOPE)
+//            .accessToken
+//
+//        return runCatching<DialogportenClient, HttpStatusCode> {
+//                httpClient
+//                    .delete("$dialogportenUrl/$dialogId") {
+//                        header(HttpHeaders.Accept, ContentType.Application.Json)
+//                        bearerAuth(token)
+//                    }.status
+//        }.getOrElse { e ->
+//            logger.error("Feil ved kall til Dialogporten for å opprette dialog", e)
+//            throw DialogportenClientException(e.message ?: "Feil ved kall til Dialogporten: create dialog")
+//        }
+//    }
+
     override suspend fun deleteDialog(dialogId: UUID): HttpStatusCode {
         val token = altinnTokenProvider.token(AltinnTokenProvider.DIALOGPORTEN_TARGET_SCOPE)
             .accessToken
 
         return runCatching<DialogportenClient, HttpStatusCode> {
-                httpClient
-                    .delete("$dialogportenUrl/$dialogId") {
-                        header(HttpHeaders.Accept, ContentType.Application.Json)
-                        bearerAuth(token)
-                    }.status
+            httpClient
+                .post("$dialogportenUrl/$dialogId/actions/purge") {
+                    header(HttpHeaders.Accept, ContentType.Application.Json)
+                    bearerAuth(token)
+                }.status
         }.getOrElse { e ->
             logger.error("Feil ved kall til Dialogporten for å opprette dialog", e)
             throw DialogportenClientException(e.message ?: "Feil ved kall til Dialogporten: create dialog")
