@@ -51,6 +51,7 @@ class DialogDAO(private val database: DatabaseInterface) {
                 SELECT dialog.*
                 FROM dialog
                 WHERE delete_performed is null
+                AND dialogporten_uuid IS NOT NULL
                 LIMIT ?
             """.trimIndent()
         return withContext(Dispatchers.IO) {
