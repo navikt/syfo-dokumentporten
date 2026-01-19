@@ -23,12 +23,14 @@ class DialogportenServiceTest : DescribeSpec({
     val dialogportenClient = mockk<IDialogportenClient>()
     val documentDAO = mockk<DocumentDAO>()
     val publicIngressUrl = "https://test.nav.no"
+    val dialogDao = mockk<no.nav.syfo.document.db.DialogDAO>()
 
     val dialogportenService = DialogportenService(
         dialogportenClient = dialogportenClient,
         documentDAO = documentDAO,
         publicIngressUrl = publicIngressUrl,
-        dialogportenIsApiOnly = true
+        dialogportenIsApiOnly = true,
+        dialogDAO = dialogDao,
     )
 
     beforeTest {

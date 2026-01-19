@@ -6,10 +6,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import no.nav.syfo.application.leaderelection.LeaderElection
 import no.nav.syfo.altinn.dialogporten.service.DialogportenService
-import no.nav.syfo.application.isProdEnv
 import no.nav.syfo.util.logger
 
-class SendDialogTask(
+class DeleteDialogTask(
     private val leaderElection: LeaderElection,
     private val dialogportenService: DialogportenService
 ) {
@@ -18,19 +17,19 @@ class SendDialogTask(
     suspend fun runTask() = coroutineScope {
         try {
             while (isActive) {
-                if (leaderElection.isLeader() && false) { // Disabled Send to Dialogporten while we repair dialogs with incorrect urls
+                if (leaderElection.isLeader()) {
                     try {
-                        logger.info("Starting task for sending documents to dialogporten")
-                        dialogportenService.sendDocumentsToDialogporten()
+                        logger.info("Starting task for deleting documents in dialogporten")
+                        dialogportenService.deleteDialogsInDialogporten()
                     } catch (ex: Exception) {
-                        logger.error("Could not send dialogs to dialogporten", ex)
+                        logger.error("Could not delete dialogs in dialogporten", ex)
                     }
                 }
                 // delay for  5 minutes before checking again
                 delay(5 * 60 * 1000)
             }
         } catch (ex: CancellationException) {
-            logger.info("Cancelled SendDialogTask", ex)
+            logger.info("Cancelled DeleteDialogTask", ex)
         }
     }
 }
