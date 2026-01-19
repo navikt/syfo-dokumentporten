@@ -6,7 +6,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import no.nav.syfo.application.leaderelection.LeaderElection
 import no.nav.syfo.altinn.dialogporten.service.DialogportenService
-import no.nav.syfo.application.isProdEnv
 import no.nav.syfo.util.logger
 
 class DeleteDialogTask(
