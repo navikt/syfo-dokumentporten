@@ -43,9 +43,14 @@ class DialogportenService(
     private val deleteDialogLimit = 100
     private val sendDialogLimit = 100
     suspend fun sendDocumentsToDialogporten() {
+        var batchNum = 0
         do {
             val documentsToSend = getDocumentsToSend()
-            logger.info("Found ${documentsToSend.size} documents to send to dialogporten")
+            batchNum += 1
+            val firstCreatedTimestamp = if (!documentsToSend.isEmpty()) {
+                documentsToSend.first().created
+            } else null
+            logger.info("Batch: ${batchNum}: Found ${documentsToSend.size} documents to send to dialogporten. First created at ${firstCreatedTimestamp ?: "N/A"}")
 
             val newDialogs = mutableMapOf<Long, UUID>()
             for (document in documentsToSend) {
@@ -68,9 +73,14 @@ class DialogportenService(
     }
 
     suspend fun deleteDialogsInDialogporten() {
+        var batchNum = 0
         do {
             val dialogsToDeleteInDialogporten = getDocumentsToDelete()
-            logger.info("Found ${dialogsToDeleteInDialogporten.size} documents to delete from to dialogporten")
+            batchNum += 1
+            val firstCreatedTimestamp = if (!dialogsToDeleteInDialogporten.isEmpty()) {
+                dialogsToDeleteInDialogporten.first().created
+            } else null
+            logger.info("Batch: ${batchNum}: Found ${dialogsToDeleteInDialogporten.size} documents to delete from dialogporten. First created at ${firstCreatedTimestamp ?: "N/A"}")
 
             for (dialog in dialogsToDeleteInDialogporten) {
                 try {
