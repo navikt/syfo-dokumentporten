@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.ktor)
+    id("org.jlleitschuh.gradle.ktlint") version "14.0.1"
 }
 
 group = "no.nav.syfo"
@@ -78,5 +79,8 @@ tasks {
 
     test {
         useJUnitPlatform()
+    }
+    named("check") {
+        dependsOn("ktlintCheck")
     }
 }
