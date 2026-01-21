@@ -1,0 +1,57 @@
+@startuml
+'This file is exported as PlantUML from intelliJ IDEA's database tool
+'theme and skinparam is added manually for better visualization
+
+!theme cerulean
+skinparam defaultTextAlignment center
+skinparam backgroundColor white
+top to bottom direction
+skinparam linetype ortho
+
+class dialog {
+   title: varchar(255)
+   summary: text
+   fnr: varchar(11)
+   org_number: varchar(9)
+   dialogporten_uuid: uuid
+   created: timestamp with time zone
+   updated: timestamp with time zone
+   delete_performed: timestamp with time zone
+   id: bigint
+}
+class document {
+   document_id: uuid
+   type: document_type
+   content_type: varchar(100)
+   title: varchar(255)
+   summary: text
+   link_id: uuid
+   created: timestamp with time zone
+   updated: timestamp with time zone
+   status: document_status
+   is_read: boolean
+   dialog_id: bigint
+   transmission_id: uuid
+   id: bigint
+}
+class document_content {
+   content: bytea
+   id: bigint
+}
+class flyway_schema_history {
+   version: varchar(50)
+   description: varchar(200)
+   type: varchar(20)
+   script: varchar(1000)
+   checksum: integer
+   installed_by: varchar(100)
+   installed_on: timestamp
+   execution_time: integer
+   success: boolean
+   installed_rank: integer
+}
+
+document               -[#595959,plain]-^  dialog                : "dialog_id:id"
+document               -[#595959,plain]-^  document              : "document_id:id"
+document_content       -[#595959,plain]-^  document              : "id"
+@enduml
