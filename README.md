@@ -1,23 +1,22 @@
 # Syfo-dokumentporten
 
-This project was created using the [Ktor Project Generator](https://start.ktor.io).
+This is the repository for Syfo-dokumentporten, a service that provides document storage and retrieval for followupplans and dialog meetings.
+It will create dialogs in Altinn Dialogporten and add transmissions with links to documents stored in Dokumentporten,
+so that external organizations can retrieve documents pertaining to their own employees, for archival purposes.
+It requires authentication with a [Maskinporten token for a systemuser](https://samarbeid.digdir.no/altinn/systembruker/2542).
 
-Here are some useful links to get you started:
+## Request flow from LPS perspective
+![image](documentation/lps-request-diagram.png)
 
-- [Ktor Documentation](https://ktor.io/docs/home.html)
-- [Ktor GitHub page](https://github.com/ktorio/ktor)
-- The [Ktor Slack chat](https://app.slack.com/client/T09229ZC6/C0A974TJ9). You'll need
-  to [request an invite](https://surveys.jetbrains.com/s3/kotlin-slack-sign-up) to join.
+## Database diagram
+![image](documentation/database-erd.png)
 
-## Features
+## Wiki
+We have a [wiki](https://github.io/navikt/syfo-dokumentporten/wiki) for this project, 
+with more detailed information about how external integrations partners can get started including how to set set up organizations from Test norge and test users with Dolly.
 
-Here's a list of features included in this project:
-
-| Name                                               | Description                                                 |
-|----------------------------------------------------|-------------------------------------------------------------|
-| [Routing](https://start.ktor.io/p/routing-default) | Allows to define structured routes and associated handlers. |
-
-## Building & Running
+## OpenAPI
+The OpenAPI specification for the API is available at https://syfo-dokumentporten.nav.no/swagger
 
 To build or run the project, use one of the following tasks:
 
@@ -28,8 +27,6 @@ To build or run the project, use one of the following tasks:
 | `buildFatJar`                 | Build an executable JAR of the server with all dependencies included |
 | `buildImage`                  | Build the docker image to use with the fat JAR                       |
 | `publishImageToLocalRegistry` | Publish the docker image locally                                     |
-| `run`                         | Run the server                                                       |
-| `runDocker`                   | Run using the local docker image                                     |
 
 If the server starts successfully, you'll see the following output:
 
@@ -38,19 +35,22 @@ If the server starts successfully, you'll see the following output:
 2024-12-04 14:32:45.682 [main] INFO  Application - Responding at http://0.0.0.0:8080
 ```
 
-## Docker compose
-
-### Size of container platform
-
-Suggestion for Colima
-
+## Running tasks with mise
+We use [mise](https://mise.jdx.dev/) to simplify running common tasks.
+To run a task, use the command
 ```bash
-colima start --arch aarch64 
+mise <task-name>
+````
+
+To get a list of available tasks, run
+```bash
+mise tasks
 ```
 
+## Docker compose
 We have a docker-compose.yml file to run a postgresql database, texas and a fake authserver.
-Start it using
 
+Start it using
 ```bash
 docker-compose \
   -f docker-compose.yml \
@@ -58,7 +58,6 @@ docker-compose \
 ```
 
 Stop them all again
-
 ```bash
 docker-compose \
   -f docker-compose.yml \
