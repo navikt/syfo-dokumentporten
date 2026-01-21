@@ -8,13 +8,10 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import no.nav.syfo.application.texas.TexasEnvironment
 
-class TexasHttpClient(
-    val client: HttpClient,
-    val environment: TexasEnvironment
-) {
+class TexasClient(val client: HttpClient, val environment: TexasEnvironment) {
 
-    suspend fun introspectToken(identityProvider: String, token: String): TexasIntrospectionResponse {
-        return client.post(environment.tokenIntrospectionEndpoint) {
+    suspend fun introspectToken(identityProvider: String, token: String): TexasIntrospectionResponse =
+        client.post(environment.tokenIntrospectionEndpoint) {
             contentType(ContentType.Application.Json)
             setBody(
                 TexasIntrospectionRequest(
@@ -23,10 +20,9 @@ class TexasHttpClient(
                 )
             )
         }.body<TexasIntrospectionResponse>()
-    }
 
-    suspend fun systemToken(identityProvider: String, target: String): TexasResponse {
-        return client.post(environment.tokenEndpoint) {
+    suspend fun systemToken(identityProvider: String, target: String): TexasResponse =
+        client.post(environment.tokenEndpoint) {
             contentType(ContentType.Application.Json)
             setBody(
                 TexasTokenRequest(
@@ -35,10 +31,9 @@ class TexasHttpClient(
                 )
             )
         }.body<TexasResponse>()
-    }
 
-    private suspend fun exchangeToken(identityProvider: String, target: String, token: String): TexasResponse {
-        return client.post(environment.tokenExchangeEndpoint) {
+    private suspend fun exchangeToken(identityProvider: String, target: String, token: String): TexasResponse =
+        client.post(environment.tokenExchangeEndpoint) {
             contentType(ContentType.Application.Json)
             setBody(
                 TexasExchangeRequest(
@@ -48,14 +43,11 @@ class TexasHttpClient(
                 )
             )
         }.body<TexasResponse>()
-    }
-    suspend fun exchangeTokenForIsAltinnTilganger(token: String): TexasResponse {
-        return exchangeToken(
-            IDENTITY_PROVIDER_TOKENX,
-            environment.exchangeTargetIsAltinnTilganger,
-            token
-        )
-    }
+    suspend fun exchangeTokenForIsAltinnTilganger(token: String): TexasResponse = exchangeToken(
+        IDENTITY_PROVIDER_TOKENX,
+        environment.exchangeTargetIsAltinnTilganger,
+        token
+    )
     companion object {
         fun getTarget(scope: String) = "api://$scope/.default"
         const val IDENTITY_PROVIDER_TOKENX = "tokenx"

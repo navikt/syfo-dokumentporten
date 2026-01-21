@@ -11,23 +11,21 @@ import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.jackson.jackson
 
-fun httpClientDefault(httpClient: HttpClient = HttpClient(Apache)): HttpClient {
-    return httpClient.config {
-        expectSuccess = true
-        install(ContentNegotiation) {
-            jackson {
-                registerKotlinModule()
-                registerModule(JavaTimeModule())
-                configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
-                configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
-            }
+fun httpClientDefault(httpClient: HttpClient = HttpClient(Apache)): HttpClient = httpClient.config {
+    expectSuccess = true
+    install(ContentNegotiation) {
+        jackson {
+            registerKotlinModule()
+            registerModule(JavaTimeModule())
+            configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+            configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
         }
-        install(HttpRequestRetry) {
-            retryOnExceptionIf(2) { _, cause ->
-                cause !is ClientRequestException
-            }
-            constantDelay(500L)
+    }
+    install(HttpRequestRetry) {
+        retryOnExceptionIf(2) { _, cause ->
+            cause !is ClientRequestException
         }
+        constantDelay(500L)
     }
 }

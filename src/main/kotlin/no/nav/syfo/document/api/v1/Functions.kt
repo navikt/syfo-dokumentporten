@@ -7,15 +7,15 @@ import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.ParameterConversionException
 import io.ktor.server.request.receive
 import io.ktor.server.routing.RoutingCall
-import java.util.UUID
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.JwtIssuer
-import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.application.auth.Principal
+import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.application.auth.TOKEN_ISSUER
 import no.nav.syfo.application.exceptions.UnauthorizedException
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
+import java.util.UUID
 
 fun Parameters.extractAndValidateUUIDParameter(name: String): UUID {
     val parameter = get(name)
@@ -35,22 +35,21 @@ suspend inline fun <reified T : Any> RoutingCall.tryReceive() = runCatching { re
         else -> throw it
     }
 }
-fun RoutingCall.getPrincipal(): Principal =
-    when (attributes[TOKEN_ISSUER]) {
-        JwtIssuer.MASKINPORTEN -> {
-            authentication.principal<SystemPrincipal>() ?: throw UnauthorizedException()
-        }
-
-        JwtIssuer.TOKEN_X -> {
-            authentication.principal<BrukerPrincipal>() ?: throw UnauthorizedException()
-        }
-
-        JwtIssuer.IDPORTEN -> {
-            authentication.principal<BrukerPrincipal>() ?: throw UnauthorizedException()
-        }
-
-        else -> throw UnauthorizedException()
+fun RoutingCall.getPrincipal(): Principal = when (attributes[TOKEN_ISSUER]) {
+    JwtIssuer.MASKINPORTEN -> {
+        authentication.principal<SystemPrincipal>() ?: throw UnauthorizedException()
     }
+
+    JwtIssuer.TOKEN_X -> {
+        authentication.principal<BrukerPrincipal>() ?: throw UnauthorizedException()
+    }
+
+    JwtIssuer.IDPORTEN -> {
+        authentication.principal<BrukerPrincipal>() ?: throw UnauthorizedException()
+    }
+
+    else -> throw UnauthorizedException()
+}
 
 fun fnrToBirthDate(fnr: String): LocalDate? {
     try {
@@ -61,5 +60,4 @@ fun fnrToBirthDate(fnr: String): LocalDate? {
     } catch (e: DateTimeParseException) {
         return null
     }
-
 }

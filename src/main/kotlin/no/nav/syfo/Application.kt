@@ -4,15 +4,14 @@ import io.ktor.server.application.Application
 import io.ktor.server.engine.connector
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import java.util.concurrent.*
 import no.nav.syfo.application.api.configureRouting
 import no.nav.syfo.plugins.configureBackgroundTasks
 import no.nav.syfo.plugins.configureDependencies
 import no.nav.syfo.plugins.configureLifecycleHooks
 import org.koin.ktor.ext.get
+import java.util.concurrent.*
 
 fun main() {
-
     val server = embeddedServer(
         Netty,
         configure = {

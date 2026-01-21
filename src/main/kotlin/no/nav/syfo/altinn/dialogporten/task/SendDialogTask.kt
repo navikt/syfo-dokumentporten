@@ -4,21 +4,17 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import no.nav.syfo.application.leaderelection.LeaderElection
 import no.nav.syfo.altinn.dialogporten.service.DialogportenService
-import no.nav.syfo.application.isProdEnv
+import no.nav.syfo.application.leaderelection.LeaderElection
 import no.nav.syfo.util.logger
 
-class SendDialogTask(
-    private val leaderElection: LeaderElection,
-    private val dialogportenService: DialogportenService
-) {
+class SendDialogTask(private val leaderElection: LeaderElection, private val dialogportenService: DialogportenService) {
     private val logger = logger()
 
     suspend fun runTask() = coroutineScope {
         try {
             while (isActive) {
-                if (leaderElection.isLeader()) { // Disabled Send to Dialogporten while we repair dialogs with incorrect urls
+                if (leaderElection.isLeader()) {
                     try {
                         logger.info("Starting task for sending documents to dialogporten")
                         dialogportenService.sendDocumentsToDialogporten()

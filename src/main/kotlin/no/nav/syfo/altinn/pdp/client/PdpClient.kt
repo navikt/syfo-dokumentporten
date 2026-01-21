@@ -11,11 +11,7 @@ import no.nav.syfo.altinn.common.AltinnTokenProvider
 import no.nav.syfo.application.exception.UpstreamRequestException
 
 interface IPdpClient {
-    suspend fun authorize(
-        bruker: Bruker,
-        orgnrSet: Set<String>,
-        ressurs: String
-    ): PdpResponse
+    suspend fun authorize(bruker: Bruker, orgnrSet: Set<String>, ressurs: String): PdpResponse
 }
 
 class PdpClient(
@@ -23,12 +19,8 @@ class PdpClient(
     private val httpClient: HttpClient,
     private val altinnTokenProvider: AltinnTokenProvider,
     private val subscriptionKey: String,
-): IPdpClient {
-    override suspend fun authorize(
-        bruker: Bruker,
-        orgnrSet: Set<String>,
-        ressurs: String
-    ): PdpResponse {
+) : IPdpClient {
+    override suspend fun authorize(bruker: Bruker, orgnrSet: Set<String>, ressurs: String): PdpResponse {
         val request = lagPdpRequest(bruker, orgnrSet, ressurs)
         val response = try {
             val token = altinnTokenProvider.token(AltinnTokenProvider.PDP_TARGET_SCOPE)

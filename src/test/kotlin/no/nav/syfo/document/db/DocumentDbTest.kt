@@ -6,129 +6,130 @@ import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.longs.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
-import java.util.UUID
 import no.nav.syfo.TestDB
 import java.time.Instant
+import java.util.UUID
 
-class DocumentDbTest : DescribeSpec({
-    val testDb = TestDB.database
-    val documentDAO = DocumentDAO(testDb)
-    val documentContentDAO = DocumentContentDAO(testDb)
-    val dialogDAO = DialogDAO(testDb)
-    beforeTest {
-        TestDB.clearAllData()
-    }
-
-    describe("DocumentDb -> insert") {
-        it("should return a generated id") {
-            // Arrange
-            val dialogEntity = dialogDAO.insertDialog(dialogEntity())
-            val documentEntity = document().toDocumentEntity(dialogEntity)
-            // Act
-            val id = documentDAO.insert(documentEntity, "test".toByteArray()).id
-            // Assert
-            id shouldNotBe null
-            id shouldBeGreaterThan 0L
+class DocumentDbTest :
+    DescribeSpec({
+        val testDb = TestDB.database
+        val documentDAO = DocumentDAO(testDb)
+        val documentContentDAO = DocumentContentDAO(testDb)
+        val dialogDAO = DialogDAO(testDb)
+        beforeTest {
+            TestDB.clearAllData()
         }
 
-        it("should persist the document with the correct fields") {
-            // Arrange
-            val dialogEntity = dialogDAO.insertDialog(dialogEntity())
-            val documentEntity = document().toDocumentEntity(dialogEntity)
-            // Act
-            val id = documentDAO.insert(documentEntity, "test".toByteArray()).id
-            // Assert
-            val retrievedDocument = documentDAO.getById(id)
-            retrievedDocument shouldNotBe null
-            retrievedDocument?.assertExpected(documentEntity, id)
+        describe("DocumentDb -> insert") {
+            it("should return a generated id") {
+                // Arrange
+                val dialogEntity = dialogDAO.insertDialog(dialogEntity())
+                val documentEntity = document().toDocumentEntity(dialogEntity)
+                // Act
+                val id = documentDAO.insert(documentEntity, "test".toByteArray()).id
+                // Assert
+                id shouldNotBe null
+                id shouldBeGreaterThan 0L
+            }
+
+            it("should persist the document with the correct fields") {
+                // Arrange
+                val dialogEntity = dialogDAO.insertDialog(dialogEntity())
+                val documentEntity = document().toDocumentEntity(dialogEntity)
+                // Act
+                val id = documentDAO.insert(documentEntity, "test".toByteArray()).id
+                // Assert
+                val retrievedDocument = documentDAO.getById(id)
+                retrievedDocument shouldNotBe null
+                retrievedDocument?.assertExpected(documentEntity, id)
+            }
+
+            it("should persist and retrieve document content correctly") {
+                // Arrange
+                val dialogEntity = dialogDAO.insertDialog(dialogEntity())
+                val documentEntity = document().toDocumentEntity(dialogEntity)
+                val contentBytes = "This is a test document content.".toByteArray()
+                // Act
+                val id = documentDAO.insert(documentEntity, contentBytes).id
+                val retrievedContent = documentContentDAO.getDocumentContentById(id)
+                // Assert
+                retrievedContent shouldNotBe null
+                retrievedContent shouldBe contentBytes
+            }
+        }
+        describe("DocumentDb -> update") {
+            it("should return a generated id") {
+                // Arrange
+                val dialogEntity = dialogDAO.insertDialog(dialogEntity())
+                val documentEntity = documentDAO.insert(
+                    document().toDocumentEntity(dialogEntity),
+                    "test".toByteArray()
+                )
+                // Act
+                val updatedDocumentEntity = documentEntity.copy(
+                    status = DocumentStatus.COMPLETED,
+                    isRead = true,
+                    transmissionId = UUID.randomUUID(),
+                    updated = Instant.now(),
+                    dialog = documentEntity.dialog.copy(
+                        dialogportenUUID = UUID.randomUUID(),
+                        updated = Instant.now()
+                    )
+                )
+                documentDAO.update(updatedDocumentEntity)
+                val retrievedDocument = documentDAO.getById(documentEntity.id)
+                // Assert
+                retrievedDocument shouldNotBe null
+                retrievedDocument?.assertExpected(updatedDocumentEntity, documentEntity.id)
+            }
         }
 
-        it("should persist and retrieve document content correctly") {
-            // Arrange
-            val dialogEntity = dialogDAO.insertDialog(dialogEntity())
-            val documentEntity = document().toDocumentEntity(dialogEntity)
-            val contentBytes = "This is a test document content.".toByteArray()
-            // Act
-            val id = documentDAO.insert(documentEntity, contentBytes).id
-            val retrievedContent = documentContentDAO.getDocumentContentById(id)
-            // Assert
-            retrievedContent shouldNotBe null
-            retrievedContent shouldBe contentBytes
+        describe("DocumentDb -> getById") {
+            it("should return a documentEntity for the id") {
+                // Arrange
+                val dialogEntity = dialogDAO.insertDialog(dialogEntity())
+                val documentEntity = document().toDocumentEntity(dialogEntity)
+                // Act
+                val id = documentDAO.insert(documentEntity, "test".toByteArray()).id
+                val retrievedDocument = documentDAO.getById(id)
+                // Assert
+                retrievedDocument shouldNotBe null
+                retrievedDocument?.assertExpected(documentEntity, id)
+            }
         }
-    }
-    describe("DocumentDb -> update") {
-        it("should return a generated id") {
+
+        describe("DocumentDb -> getByLinkId") {
+            it("should return a documentEntity for the linkId") {
+                // Arrange
+                val dialogEntity = dialogDAO.insertDialog(dialogEntity())
+                val documentEntity = document().toDocumentEntity(dialogEntity)
+                // Act
+                val id = documentDAO.insert(documentEntity, "test".toByteArray()).id
+                val retrievedDocument = documentDAO.getByLinkId(documentEntity.linkId)
+                // Assert
+                retrievedDocument shouldNotBe null
+                retrievedDocument?.assertExpected(documentEntity, id)
+            }
+        }
+
+        describe("Should add document to existing dialog") {
             // Arrange
-            val dialogEntity = dialogDAO.insertDialog(dialogEntity())
-            val documentEntity = documentDAO.insert(
-                document().toDocumentEntity(dialogEntity),
+            val document = document()
+            dialogDAO.insertDialog(document.toDialogEntity())
+            val existingDialog = dialogDAO.getByFnrAndOrgNumber(document.fnr, document.orgNumber)
+
+            existingDialog shouldNotBe null
+            existingDialog?.fnr shouldBe document.fnr
+            // Act
+            val persistedDocument = documentDAO.insert(
+                document.toDocumentEntity(existingDialog!!),
                 "test".toByteArray()
             )
-            // Act
-            val updatedDocumentEntity = documentEntity.copy(
-                status = DocumentStatus.COMPLETED,
-                isRead = true,
-                transmissionId = UUID.randomUUID(),
-                updated = Instant.now(),
-                dialog = documentEntity.dialog.copy(
-                    dialogportenUUID = UUID.randomUUID(),
-                    updated = Instant.now()
-                )
-            )
-            documentDAO.update(updatedDocumentEntity)
-            val retrievedDocument = documentDAO.getById(documentEntity.id)
+
             // Assert
-            retrievedDocument shouldNotBe null
-            retrievedDocument?.assertExpected(updatedDocumentEntity, documentEntity.id)
+            persistedDocument.dialog.id shouldBe existingDialog.id
         }
-    }
-
-    describe("DocumentDb -> getById") {
-        it("should return a documentEntity for the id") {
-            // Arrange
-            val dialogEntity = dialogDAO.insertDialog(dialogEntity())
-            val documentEntity = document().toDocumentEntity(dialogEntity)
-            // Act
-            val id = documentDAO.insert(documentEntity, "test".toByteArray()).id
-            val retrievedDocument = documentDAO.getById(id)
-            // Assert
-            retrievedDocument shouldNotBe null
-            retrievedDocument?.assertExpected(documentEntity, id)
-        }
-    }
-
-    describe("DocumentDb -> getByLinkId") {
-        it("should return a documentEntity for the linkId") {
-            // Arrange
-            val dialogEntity = dialogDAO.insertDialog(dialogEntity())
-            val documentEntity = document().toDocumentEntity(dialogEntity)
-            // Act
-            val id = documentDAO.insert(documentEntity, "test".toByteArray()).id
-            val retrievedDocument = documentDAO.getByLinkId(documentEntity.linkId)
-            // Assert
-            retrievedDocument shouldNotBe null
-            retrievedDocument?.assertExpected(documentEntity, id)
-        }
-    }
-
-    describe("Should add document to existing dialog") {
-        // Arrange
-        val document = document()
-        dialogDAO.insertDialog(document.toDialogEntity())
-        val existingDialog = dialogDAO.getByFnrAndOrgNumber(document.fnr, document.orgNumber)
-
-        existingDialog shouldNotBe null
-        existingDialog?.fnr shouldBe document.fnr
-        // Act
-        val persistedDocument = documentDAO.insert(
-            document.toDocumentEntity(existingDialog!!),
-            "test".toByteArray()
-        )
-
-        // Assert
-        persistedDocument.dialog.id shouldBe existingDialog.id
-    }
-})
+    })
 
 fun PersistedDocumentEntity.assertExpected(expected: DocumentEntity, id: Long) {
     this.id shouldBe id

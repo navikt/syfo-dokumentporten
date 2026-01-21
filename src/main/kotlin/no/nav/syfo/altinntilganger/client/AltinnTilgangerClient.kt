@@ -5,25 +5,21 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
-import java.util.*
 import net.datafaker.Faker
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.exception.UpstreamRequestException
-import no.nav.syfo.texas.client.TexasHttpClient
+import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.logger
+import java.util.*
 
 interface IAltinnTilgangerClient {
-    suspend fun hentTilganger(
-        bruker: BrukerPrincipal,
-    ): AltinnTilgangerResponse?
+    suspend fun hentTilganger(bruker: BrukerPrincipal,): AltinnTilgangerResponse?
 }
 
 class FakeAltinnTilgangerClient : IAltinnTilgangerClient {
     val usersWithAccess = hasAccess.toMutableList()
-    override suspend fun hentTilganger(
-        bruker: BrukerPrincipal,
-    ): AltinnTilgangerResponse {
+    override suspend fun hentTilganger(bruker: BrukerPrincipal,): AltinnTilgangerResponse {
         val faker = Faker(Random(bruker.ident.toLong()))
         val accessPair = usersWithAccess.find { it.first == bruker.ident }
         val organisasjonsnummer = accessPair?.second ?: faker.numerify("#########")
@@ -52,13 +48,11 @@ class FakeAltinnTilgangerClient : IAltinnTilgangerClient {
 }
 
 class AltinnTilgangerClient(
-    private val texasClient: TexasHttpClient,
+    private val texasClient: TexasClient,
     private val httpClient: HttpClient,
     private val baseUrl: String,
 ) : IAltinnTilgangerClient {
-    override suspend fun hentTilganger(
-        bruker: BrukerPrincipal,
-    ): AltinnTilgangerResponse? {
+    override suspend fun hentTilganger(bruker: BrukerPrincipal,): AltinnTilgangerResponse? {
         val oboToken = texasClient.exchangeTokenForIsAltinnTilganger(bruker.token).accessToken
         try {
             val response = httpClient.post("$baseUrl/altinn-tilganger") {

@@ -1,0 +1,8 @@
+[*.{kt,kts}]
+ktlint_code_style = intellij_idea
+indent_size = 4
+max_line_length = 120
+ktlint_standard_no-wildcard-imports = disabled
+ktlint_standard_trailing-comma-on-call-site = disabled
+ktlint_standard_trailing-comma-on-declaration-site = disabled
+insert_final_newline = true

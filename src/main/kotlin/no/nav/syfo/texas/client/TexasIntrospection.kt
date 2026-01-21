@@ -2,17 +2,13 @@ package no.nav.syfo.texas.client
 
 import com.fasterxml.jackson.annotation.JsonProperty
 
-
 data class TexasIntrospectionRequest(
     @get:JsonProperty("identity_provider")
     val identityProvider: String,
     val token: String,
 )
 
-data class OrganizationId(
-    val authority: String,
-    val ID: String,
-)
+data class OrganizationId(val authority: String, val ID: String,)
 
 data class AuthorizationDetail(
     val type: String,
@@ -47,7 +43,8 @@ data class TexasIntrospectionResponse(
     val scope: String? = null,
 )
 
-fun TexasIntrospectionResponse.isAltinnSystemUser() = this.authorizationDetails?.first()?.type == "urn:altinn:systemuser"
+fun TexasIntrospectionResponse.isAltinnSystemUser() =
+    this.authorizationDetails?.first()?.type == "urn:altinn:systemuser"
 
 fun TexasIntrospectionResponse.getSystemUserOrganization(): String? {
     if (this.isAltinnSystemUser()) {

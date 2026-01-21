@@ -12,26 +12,27 @@ import io.ktor.server.plugins.swagger.swaggerUI
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 
-class SwaggerAvailabilityTest : StringSpec({
-    "openapi yaml should be served" {
-        testApplication {
-            application { minimalSwaggerRouting() }
-            val response = client.get("/openapi/documentation.yaml")
-            response.status.value shouldBe 200
-            response.bodyAsText().contains("openapi: 3.0.3") shouldBe true
+class SwaggerAvailabilityTest :
+    StringSpec({
+        "openapi yaml should be served" {
+            testApplication {
+                application { minimalSwaggerRouting() }
+                val response = client.get("/openapi/documentation.yaml")
+                response.status.value shouldBe 200
+                response.bodyAsText().contains("openapi: 3.0.3") shouldBe true
+            }
         }
-    }
-    "swagger UI should be served" {
-        testApplication {
-            application { minimalSwaggerRouting() }
-            val response = client.get("/swagger")
-            response.status.value shouldBe 200
-            // Swagger UI returns HTML
-            response.contentType()?.match(ContentType.Text.Html) shouldBe true
-            response.bodyAsText().contains("Swagger UI") shouldBe true
+        "swagger UI should be served" {
+            testApplication {
+                application { minimalSwaggerRouting() }
+                val response = client.get("/swagger")
+                response.status.value shouldBe 200
+                // Swagger UI returns HTML
+                response.contentType()?.match(ContentType.Text.Html) shouldBe true
+                response.bodyAsText().contains("Swagger UI") shouldBe true
+            }
         }
-    }
-})
+    })
 
 internal fun Application.minimalSwaggerRouting() {
     routing {

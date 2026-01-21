@@ -3,10 +3,10 @@ package no.nav.syfo.document.api.v1.dto
 import com.fasterxml.jackson.annotation.JsonEnumDefaultValue
 import no.nav.syfo.document.api.v1.fnrToBirthDate
 import no.nav.syfo.document.db.DialogEntity
-import java.util.UUID
 import no.nav.syfo.document.db.DocumentEntity
 import no.nav.syfo.document.db.PersistedDialogEntity
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 
 data class Document(
     val documentId: UUID,
@@ -19,17 +19,15 @@ data class Document(
     val title: String,
     val summary: String?,
 ) {
-    fun toDocumentEntity(dialog: PersistedDialogEntity): DocumentEntity {
-        return DocumentEntity(
-            documentId = documentId,
-            type = type,
-            contentType = contentType,
-            title = title,
-            summary = summary,
-            linkId = UUID.randomUUID(),
-            dialog = dialog,
-        )
-    }
+    fun toDocumentEntity(dialog: PersistedDialogEntity): DocumentEntity = DocumentEntity(
+        documentId = documentId,
+        type = type,
+        contentType = contentType,
+        title = title,
+        summary = summary,
+        linkId = UUID.randomUUID(),
+        dialog = dialog,
+    )
 
     fun toDialogEntity(): DialogEntity {
         val nameOrFnr = fullName ?: fnr
@@ -81,7 +79,6 @@ data class Document(
         result = 31 * result + (summary?.hashCode() ?: 0)
         return result
     }
-
 }
 
 enum class DocumentType(val displayName: String) {

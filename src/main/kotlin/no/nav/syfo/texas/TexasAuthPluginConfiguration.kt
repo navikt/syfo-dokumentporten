@@ -1,7 +1,5 @@
 package no.nav.syfo.texas
 
-import no.nav.syfo.texas.client.TexasHttpClient
+import no.nav.syfo.texas.client.TexasClient
 
-class TexasAuthPluginConfiguration(
-    var client: TexasHttpClient? = null,
-)
+class TexasAuthPluginConfiguration(var client: TexasClient? = null,)

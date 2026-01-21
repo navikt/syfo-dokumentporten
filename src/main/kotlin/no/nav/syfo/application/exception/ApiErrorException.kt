@@ -4,14 +4,11 @@ import io.ktor.http.HttpStatusCode
 import no.nav.syfo.application.api.ApiError
 import no.nav.syfo.application.api.ErrorType
 
-
 sealed class ApiErrorException(message: String, cause: Throwable?) : RuntimeException(message, cause) {
     abstract fun toApiError(path: String): ApiError
 
-    class ForbiddenException(
-        val errorMessage: String = "Forbidden",
-        cause: Throwable? = null,
-    ) : ApiErrorException(errorMessage, cause) {
+    class ForbiddenException(val errorMessage: String = "Forbidden", cause: Throwable? = null,) :
+        ApiErrorException(errorMessage, cause) {
         override fun toApiError(path: String) = ApiError(
             path = path,
             status = HttpStatusCode.Forbidden,
@@ -20,10 +17,8 @@ sealed class ApiErrorException(message: String, cause: Throwable?) : RuntimeExce
         )
     }
 
-    class InternalServerErrorException(
-        val errorMessage: String = "Internal Server Error",
-        cause: Throwable? = null,
-    ) : ApiErrorException(errorMessage, cause) {
+    class InternalServerErrorException(val errorMessage: String = "Internal Server Error", cause: Throwable? = null,) :
+        ApiErrorException(errorMessage, cause) {
         override fun toApiError(path: String) = ApiError(
             path = path,
             status = HttpStatusCode.InternalServerError,
@@ -32,10 +27,8 @@ sealed class ApiErrorException(message: String, cause: Throwable?) : RuntimeExce
         )
     }
 
-    class UnauthorizedException(
-        val errorMessage: String = "Unauthorized",
-        cause: Throwable? = null,
-    ) : ApiErrorException(errorMessage, cause) {
+    class UnauthorizedException(val errorMessage: String = "Unauthorized", cause: Throwable? = null,) :
+        ApiErrorException(errorMessage, cause) {
         override fun toApiError(path: String): ApiError = ApiError(
             path = path,
             status = HttpStatusCode.Unauthorized,
@@ -44,10 +37,8 @@ sealed class ApiErrorException(message: String, cause: Throwable?) : RuntimeExce
         )
     }
 
-    class BadRequestException(
-        val errorMessage: String = "Bad Request",
-        cause: Throwable? = null,
-    ) : ApiErrorException(errorMessage, cause) {
+    class BadRequestException(val errorMessage: String = "Bad Request", cause: Throwable? = null,) :
+        ApiErrorException(errorMessage, cause) {
         override fun toApiError(path: String): ApiError = ApiError(
             path = path,
             status = HttpStatusCode.BadRequest,

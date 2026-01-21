@@ -27,336 +27,84 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.spyk
 import no.nav.syfo.TestDB
+import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.altinntilganger.client.FakeAltinnTilgangerClient
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
+import no.nav.syfo.document.db.DialogDAO
+import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.FakeEregClient
-import no.nav.syfo.altinn.pdp.service.PdpService
-import no.nav.syfo.document.db.DialogDAO
-import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.registerApiV1
 import no.nav.syfo.texas.MASKINPORTEN_ARKIVPORTEN_SCOPE
 import no.nav.syfo.texas.MASKINPORTEN_SYFO_DOKUMENTPORTEN_SCOPE
-import no.nav.syfo.texas.client.TexasHttpClient
+import no.nav.syfo.texas.client.TexasClient
 import organisasjon
 
-class ExternalDocumentApiTest : DescribeSpec({
-    val texasHttpClientMock = mockk<TexasHttpClient>()
-    val documentDAO = mockk<DocumentDAO>(relaxed = true)
-    val documentContentDAO = mockk<DocumentContentDAO>(relaxed = true)
-    val dialogDAO = mockk<DialogDAO>()
-    val fakeAltinnTilgangerClient = FakeAltinnTilgangerClient()
-    val fakeEregClient = FakeEregClient()
-    val eregService = EregService(fakeEregClient)
-    val eregServiceSpy = spyk(eregService)
-    val pdpServiceMock = mockk<PdpService>()
-    val validationService =
-        ValidationService(AltinnTilgangerService(fakeAltinnTilgangerClient), eregServiceSpy, pdpServiceMock)
-    val validationServiceSpy = spyk(validationService)
-    val tokenXIssuer = "https://tokenx.nav.no"
-    val idportenIssuer = "https://test.idporten.no"
+class ExternalDocumentApiTest :
+    DescribeSpec({
+        val texasClientMock = mockk<TexasClient>()
+        val documentDAO = mockk<DocumentDAO>(relaxed = true)
+        val documentContentDAO = mockk<DocumentContentDAO>(relaxed = true)
+        val dialogDAO = mockk<DialogDAO>()
+        val fakeAltinnTilgangerClient = FakeAltinnTilgangerClient()
+        val fakeEregClient = FakeEregClient()
+        val eregService = EregService(fakeEregClient)
+        val eregServiceSpy = spyk(eregService)
+        val pdpServiceMock = mockk<PdpService>()
+        val validationService =
+            ValidationService(AltinnTilgangerService(fakeAltinnTilgangerClient), eregServiceSpy, pdpServiceMock)
+        val validationServiceSpy = spyk(validationService)
+        val tokenXIssuer = "https://tokenx.nav.no"
+        val idportenIssuer = "https://test.idporten.no"
 
-    beforeTest {
-        clearAllMocks()
-        TestDB.clearAllData()
-        coEvery { pdpServiceMock.hasAccessToResource(any(), any(), any()) } returns true
-    }
-
-    fun withTestApplication(
-        fn: suspend ApplicationTestBuilder.() -> Unit
-    ) {
-        testApplication {
-            this.client = createClient {
-                install(ContentNegotiation) {
-                    jackson {
-                        registerKotlinModule()
-                        registerModule(JavaTimeModule())
-                        configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
-                        configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                    }
-                }
-            }
-            application {
-                installContentNegotiation()
-                installStatusPages()
-                routing {
-                    registerApiV1(
-                        texasHttpClient = texasHttpClientMock,
-                        documentDAO = documentDAO,
-                        documentContentDAO = documentContentDAO,
-                        dialogDAO = dialogDAO,
-                        validationService = validationServiceSpy
-                    )
-                }
-            }
-            fn(this)
-        }
-    }
-    describe("GET /documents") {
-        describe("Maskinporten token") {
-            it("should return 200 OK for authorized token") {
-                withTestApplication {
-                    // Arrange
-                    val document = documentEntity(dialogEntity())
-                    coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
-                    coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
-                    texasHttpClientMock.defaultMocks(
-                        systemBrukerOrganisasjon = DefaultOrganization.copy(
-                            ID = "0192:${document.dialog.orgNumber}"
-                        ),
-                        scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
-                    )
-                    // Act
-                    val response = client.get("api/v1/documents/${document.linkId}") {
-                        bearerAuth(createMockToken(ident = document.dialog.orgNumber))
-                    }
-
-                    // Assert
-                    response.status shouldBe HttpStatusCode.OK
-                    response.headers["Content-Type"] shouldBe document.contentType
-                    coVerify(exactly = 1) {
-                        validationServiceSpy.validateDocumentAccess(any(), eq(document))
-                    }
-                    coVerify(exactly = 1) {
-                        documentDAO.update(match {
-                            it.isRead == true
-                        })
-                    }
-                }
-            }
-            it("should return 200 OK for authorized token for the new scope") {
-                withTestApplication {
-                    // Arrange
-                    val document = documentEntity(dialogEntity())
-                    coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
-                    coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
-                    texasHttpClientMock.defaultMocks(
-                        systemBrukerOrganisasjon = DefaultOrganization.copy(
-                            ID = "0192:${document.dialog.orgNumber}"
-                        ),
-                        scope = MASKINPORTEN_SYFO_DOKUMENTPORTEN_SCOPE,
-                    )
-                    // Act
-                    val response = client.get("api/v1/documents/${document.linkId}") {
-                        bearerAuth(createMockToken(ident = document.dialog.orgNumber))
-                    }
-
-                    // Assert
-                    response.status shouldBe HttpStatusCode.OK
-                    response.headers["Content-Type"] shouldBe document.contentType
-                    coVerify(exactly = 1) {
-                        validationServiceSpy.validateDocumentAccess(any(), eq(document))
-                    }
-                }
-            }
-
-            it("should return 200 OK for authorized token from parent org unit") {
-                withTestApplication {
-                    // Arrange
-                    val organization = organisasjon()
-                    val document = documentEntity(dialogEntity().copy(orgNumber = organization.organisasjonsnummer))
-                    coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
-                    coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
-                    texasHttpClientMock.defaultMocks(
-                        systemBrukerOrganisasjon = DefaultOrganization.copy(
-                            ID = "0192:${organization.inngaarIJuridiskEnheter!!.first().organisasjonsnummer}"
-                        ),
-                        scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
-                    )
-                    fakeEregClient.organisasjoner[document.dialog.orgNumber] = organization
-                    // Act
-                    val response = client.get("api/v1/documents/${document.linkId}") {
-                        bearerAuth(createMockToken(ident = organization.inngaarIJuridiskEnheter.first().organisasjonsnummer))
-                    }
-
-                    // Assert
-                    response.status shouldBe HttpStatusCode.OK
-                    response.headers["Content-Type"] shouldBe document.contentType
-                    coVerify(exactly = 1) {
-                        validationServiceSpy.validateDocumentAccess(any(), eq(document))
-                    }
-                    coVerify(exactly = 1) {
-                        documentDAO.update(match {
-                            it.isRead == true
-                        })
-                    }
-                }
-            }
-
-            it("should return 200 OK for authorized token from parent org unit with new name") {
-                withTestApplication {
-                    // Arrange
-                    val organization = organisasjon()
-                    val document = documentEntity(dialogEntity().copy(orgNumber = organization.organisasjonsnummer))
-                    coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
-                    coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
-                    texasHttpClientMock.defaultMocks(
-                        systemBrukerOrganisasjon = DefaultOrganization.copy(
-                            ID = "0192:${organization.inngaarIJuridiskEnheter!!.first().organisasjonsnummer}"
-                        ),
-                        scope = MASKINPORTEN_SYFO_DOKUMENTPORTEN_SCOPE,
-                    )
-                    fakeEregClient.organisasjoner[document.dialog.orgNumber] = organization
-                    // Act
-                    val response = client.get("api/v1/documents/${document.linkId}") {
-                        bearerAuth(createMockToken(ident = organization.inngaarIJuridiskEnheter.first().organisasjonsnummer))
-                    }
-
-                    // Assert
-                    response.status shouldBe HttpStatusCode.OK
-                    response.headers["Content-Type"] shouldBe document.contentType
-                    coVerify(exactly = 1) {
-                        validationServiceSpy.validateDocumentAccess(any(), eq(document))
-                    }
-                }
-            }
-
-            it("should return 403 Forbidden for unauthorized token") {
-                withTestApplication {
-                    // Arrange
-                    val nonMatchingOrgNumber = "999999999"
-                    val organization = organisasjon()
-                    val document = documentEntity(dialogEntity().copy(orgNumber = organization.organisasjonsnummer))
-                    coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
-                    texasHttpClientMock.defaultMocks(
-                        systemBrukerOrganisasjon = DefaultOrganization.copy(
-                            ID = "0192:$nonMatchingOrgNumber" // Different orgnumber
-                        ),
-                        scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
-                    )
-                    fakeEregClient.organisasjoner[document.dialog.orgNumber] = organization
-                    // Act
-                    val response = client.get("api/v1/documents/${document.linkId}") {
-                        bearerAuth(createMockToken(ident = nonMatchingOrgNumber))
-                    }
-
-                    // Assert
-                    response.status shouldBe HttpStatusCode.Forbidden
-                    coVerify(exactly = 1) {
-                        validationServiceSpy.validateDocumentAccess(any(), eq(document))
-                    }
-                    coVerify(exactly = 0) {
-                        documentDAO.update(any())
-                    }
-                }
-            }
+        beforeTest {
+            clearAllMocks()
+            TestDB.clearAllData()
+            coEvery { pdpServiceMock.hasAccessToResource(any(), any(), any()) } returns true
         }
 
-        describe("TokenX token") {
-            it("should return 200 OK for authorized token") {
-                withTestApplication {
-                    // Arrange
-                    val document = documentEntity(dialogEntity())
-                    val callerPid = "11223344556"
-                    texasHttpClientMock.defaultMocks(
-                        acr = "Level4",
-                        pid = callerPid
-                    )
-                    fakeAltinnTilgangerClient.usersWithAccess.add(callerPid to document.dialog.orgNumber)
-                    coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
-                    coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
-                    // Act
-                    val response = client.get("api/v1/documents/${document.linkId}") {
-                        bearerAuth(createMockToken(callerPid, issuer = tokenXIssuer))
-                    }
-
-                    // Assert
-                    response.status shouldBe HttpStatusCode.OK
-                    response.headers["Content-Type"] shouldBe document.contentType
-                    coVerify(exactly = 1) {
-                        validationServiceSpy.validateDocumentAccess(any(), eq(document))
+        fun withTestApplication(fn: suspend ApplicationTestBuilder.() -> Unit) {
+            testApplication {
+                this.client = createClient {
+                    install(ContentNegotiation) {
+                        jackson {
+                            registerKotlinModule()
+                            registerModule(JavaTimeModule())
+                            configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+                            configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                        }
                     }
                 }
-            }
-
-            it("should return 403 Forbidden if token lacks Level4") {
-                withTestApplication {
-                    // Arrange
-                    val document = documentEntity(dialogEntity())
-                    val callerPid = "11223344556"
-                    texasHttpClientMock.defaultMocks(
-                        acr = "Level3",
-                        pid = callerPid
-                    )
-                    fakeAltinnTilgangerClient.usersWithAccess.add(callerPid to document.dialog.orgNumber)
-                    coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
-                    // Act
-                    val response = client.get("api/v1/documents/${document.linkId}") {
-                        bearerAuth(createMockToken(callerPid, issuer = tokenXIssuer))
-                    }
-
-                    // Assert
-                    response.status shouldBe HttpStatusCode.Forbidden
-                    coVerify(exactly = 0) {
-                        validationServiceSpy.validateDocumentAccess(any(), eq(document))
+                application {
+                    installContentNegotiation()
+                    installStatusPages()
+                    routing {
+                        registerApiV1(
+                            texasClient = texasClientMock,
+                            documentDAO = documentDAO,
+                            documentContentDAO = documentContentDAO,
+                            dialogDAO = dialogDAO,
+                            validationService = validationServiceSpy
+                        )
                     }
                 }
-            }
-
-            it("should return 403 Forbidden when token user lacks altinn resource") {
-                withTestApplication {
-                    // Arrange
-                    val document = documentEntity(dialogEntity())
-                    val callerPid = "11223344556"
-                    texasHttpClientMock.defaultMocks(
-                        acr = "Level4",
-                        pid = callerPid
-                    )
-                    fakeAltinnTilgangerClient.usersWithAccess.clear()
-                    coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
-                    // Act
-                    val response = client.get("api/v1/documents/${document.linkId}") {
-                        bearerAuth(createMockToken(callerPid, issuer = tokenXIssuer))
-                    }
-
-                    // Assert
-                    response.status shouldBe HttpStatusCode.Forbidden
-                    coVerify(exactly = 1) {
-                        validationServiceSpy.validateDocumentAccess(any(), eq(document))
-                    }
-                }
+                fn(this)
             }
         }
-
-        describe("Idporten token") {
-            it("should return 200 OK for authorized token") {
-                withTestApplication {
-                    // Arrange
-                    val document = documentEntity(dialogEntity())
-                    val callerPid = "11223344556"
-                    texasHttpClientMock.defaultMocks(
-                        acr = "idporten-loa-high",
-                        pid = callerPid
-                    )
-                    fakeAltinnTilgangerClient.usersWithAccess.add(callerPid to document.dialog.orgNumber)
-                    coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
-                    coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
-                    // Act
-                    val response = client.get("api/v1/documents/${document.linkId}") {
-                        bearerAuth(createMockToken(callerPid, issuer = idportenIssuer))
-                    }
-
-                    // Assert
-                    response.status shouldBe HttpStatusCode.OK
-                    response.headers["Content-Type"] shouldBe document.contentType
-                    coVerify(exactly = 1) {
-                        validationServiceSpy.validateDocumentAccess(any(), eq(document))
-                    }
-                }
-            }
-
-            describe("Not Found") {
-                it("should return 404 Not found for unknown id") {
+        describe("GET /documents") {
+            describe("Maskinporten token") {
+                it("should return 200 OK for authorized token") {
                     withTestApplication {
                         // Arrange
-                        val document = document().toDocumentEntity(dialogEntity())
-                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns null
-                        texasHttpClientMock.defaultMocks(
-                            consumer = DefaultOrganization.copy(
+                        val document = documentEntity(dialogEntity())
+                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
+                        coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
+                        texasClientMock.defaultMocks(
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(
                                 ID = "0192:${document.dialog.orgNumber}"
                             ),
                             scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
@@ -367,13 +115,276 @@ class ExternalDocumentApiTest : DescribeSpec({
                         }
 
                         // Assert
-                        response.status shouldBe HttpStatusCode.NotFound
+                        response.status shouldBe HttpStatusCode.OK
+                        response.headers["Content-Type"] shouldBe document.contentType
+                        coVerify(exactly = 1) {
+                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
+                        }
+                        coVerify(exactly = 1) {
+                            documentDAO.update(
+                                match {
+                                    it.isRead == true
+                                }
+                            )
+                        }
+                    }
+                }
+                it("should return 200 OK for authorized token for the new scope") {
+                    withTestApplication {
+                        // Arrange
+                        val document = documentEntity(dialogEntity())
+                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
+                        coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
+                        texasClientMock.defaultMocks(
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(
+                                ID = "0192:${document.dialog.orgNumber}"
+                            ),
+                            scope = MASKINPORTEN_SYFO_DOKUMENTPORTEN_SCOPE,
+                        )
+                        // Act
+                        val response = client.get("api/v1/documents/${document.linkId}") {
+                            bearerAuth(createMockToken(ident = document.dialog.orgNumber))
+                        }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.OK
+                        response.headers["Content-Type"] shouldBe document.contentType
+                        coVerify(exactly = 1) {
+                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
+                        }
+                    }
+                }
+
+                it("should return 200 OK for authorized token from parent org unit") {
+                    withTestApplication {
+                        // Arrange
+                        val organization = organisasjon()
+                        val document = documentEntity(dialogEntity().copy(orgNumber = organization.organisasjonsnummer))
+                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
+                        coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
+                        texasClientMock.defaultMocks(
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(
+                                ID = "0192:${organization.inngaarIJuridiskEnheter!!.first().organisasjonsnummer}"
+                            ),
+                            scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                        )
+                        fakeEregClient.organisasjoner[document.dialog.orgNumber] = organization
+                        // Act
+                        val response = client.get("api/v1/documents/${document.linkId}") {
+                            bearerAuth(
+                                createMockToken(
+                                    ident = organization.inngaarIJuridiskEnheter.first().organisasjonsnummer
+                                )
+                            )
+                        }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.OK
+                        response.headers["Content-Type"] shouldBe document.contentType
+                        coVerify(exactly = 1) {
+                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
+                        }
+                        coVerify(exactly = 1) {
+                            documentDAO.update(
+                                match {
+                                    it.isRead == true
+                                }
+                            )
+                        }
+                    }
+                }
+
+                it("should return 200 OK for authorized token from parent org unit with new name") {
+                    withTestApplication {
+                        // Arrange
+                        val organization = organisasjon()
+                        val document = documentEntity(dialogEntity().copy(orgNumber = organization.organisasjonsnummer))
+                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
+                        coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
+                        texasClientMock.defaultMocks(
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(
+                                ID = "0192:${organization.inngaarIJuridiskEnheter!!.first().organisasjonsnummer}"
+                            ),
+                            scope = MASKINPORTEN_SYFO_DOKUMENTPORTEN_SCOPE,
+                        )
+                        fakeEregClient.organisasjoner[document.dialog.orgNumber] = organization
+                        // Act
+                        val response = client.get("api/v1/documents/${document.linkId}") {
+                            bearerAuth(
+                                createMockToken(
+                                    ident = organization.inngaarIJuridiskEnheter.first().organisasjonsnummer
+                                )
+                            )
+                        }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.OK
+                        response.headers["Content-Type"] shouldBe document.contentType
+                        coVerify(exactly = 1) {
+                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
+                        }
+                    }
+                }
+
+                it("should return 403 Forbidden for unauthorized token") {
+                    withTestApplication {
+                        // Arrange
+                        val nonMatchingOrgNumber = "999999999"
+                        val organization = organisasjon()
+                        val document = documentEntity(dialogEntity().copy(orgNumber = organization.organisasjonsnummer))
+                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
+                        texasClientMock.defaultMocks(
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(
+                                ID = "0192:$nonMatchingOrgNumber" // Different orgnumber
+                            ),
+                            scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                        )
+                        fakeEregClient.organisasjoner[document.dialog.orgNumber] = organization
+                        // Act
+                        val response = client.get("api/v1/documents/${document.linkId}") {
+                            bearerAuth(createMockToken(ident = nonMatchingOrgNumber))
+                        }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.Forbidden
+                        coVerify(exactly = 1) {
+                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
+                        }
+                        coVerify(exactly = 0) {
+                            documentDAO.update(any())
+                        }
+                    }
+                }
+            }
+
+            describe("TokenX token") {
+                it("should return 200 OK for authorized token") {
+                    withTestApplication {
+                        // Arrange
+                        val document = documentEntity(dialogEntity())
+                        val callerPid = "11223344556"
+                        texasClientMock.defaultMocks(
+                            acr = "Level4",
+                            pid = callerPid
+                        )
+                        fakeAltinnTilgangerClient.usersWithAccess.add(callerPid to document.dialog.orgNumber)
+                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
+                        coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
+                        // Act
+                        val response = client.get("api/v1/documents/${document.linkId}") {
+                            bearerAuth(createMockToken(callerPid, issuer = tokenXIssuer))
+                        }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.OK
+                        response.headers["Content-Type"] shouldBe document.contentType
+                        coVerify(exactly = 1) {
+                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
+                        }
+                    }
+                }
+
+                it("should return 403 Forbidden if token lacks Level4") {
+                    withTestApplication {
+                        // Arrange
+                        val document = documentEntity(dialogEntity())
+                        val callerPid = "11223344556"
+                        texasClientMock.defaultMocks(
+                            acr = "Level3",
+                            pid = callerPid
+                        )
+                        fakeAltinnTilgangerClient.usersWithAccess.add(callerPid to document.dialog.orgNumber)
+                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
+                        // Act
+                        val response = client.get("api/v1/documents/${document.linkId}") {
+                            bearerAuth(createMockToken(callerPid, issuer = tokenXIssuer))
+                        }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.Forbidden
                         coVerify(exactly = 0) {
                             validationServiceSpy.validateDocumentAccess(any(), eq(document))
                         }
                     }
                 }
+
+                it("should return 403 Forbidden when token user lacks altinn resource") {
+                    withTestApplication {
+                        // Arrange
+                        val document = documentEntity(dialogEntity())
+                        val callerPid = "11223344556"
+                        texasClientMock.defaultMocks(
+                            acr = "Level4",
+                            pid = callerPid
+                        )
+                        fakeAltinnTilgangerClient.usersWithAccess.clear()
+                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
+                        // Act
+                        val response = client.get("api/v1/documents/${document.linkId}") {
+                            bearerAuth(createMockToken(callerPid, issuer = tokenXIssuer))
+                        }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.Forbidden
+                        coVerify(exactly = 1) {
+                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
+                        }
+                    }
+                }
+            }
+
+            describe("Idporten token") {
+                it("should return 200 OK for authorized token") {
+                    withTestApplication {
+                        // Arrange
+                        val document = documentEntity(dialogEntity())
+                        val callerPid = "11223344556"
+                        texasClientMock.defaultMocks(
+                            acr = "idporten-loa-high",
+                            pid = callerPid
+                        )
+                        fakeAltinnTilgangerClient.usersWithAccess.add(callerPid to document.dialog.orgNumber)
+                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
+                        coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
+                        // Act
+                        val response = client.get("api/v1/documents/${document.linkId}") {
+                            bearerAuth(createMockToken(callerPid, issuer = idportenIssuer))
+                        }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.OK
+                        response.headers["Content-Type"] shouldBe document.contentType
+                        coVerify(exactly = 1) {
+                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
+                        }
+                    }
+                }
+
+                describe("Not Found") {
+                    it("should return 404 Not found for unknown id") {
+                        withTestApplication {
+                            // Arrange
+                            val document = document().toDocumentEntity(dialogEntity())
+                            coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns null
+                            texasClientMock.defaultMocks(
+                                consumer = DefaultOrganization.copy(
+                                    ID = "0192:${document.dialog.orgNumber}"
+                                ),
+                                scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                            )
+                            // Act
+                            val response = client.get("api/v1/documents/${document.linkId}") {
+                                bearerAuth(createMockToken(ident = document.dialog.orgNumber))
+                            }
+
+                            // Assert
+                            response.status shouldBe HttpStatusCode.NotFound
+                            coVerify(exactly = 0) {
+                                validationServiceSpy.validateDocumentAccess(any(), eq(document))
+                            }
+                        }
+                    }
+                }
             }
         }
-    }
-})
+    })

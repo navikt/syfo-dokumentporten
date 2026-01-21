@@ -12,41 +12,55 @@ import no.nav.syfo.application.exception.ApiErrorException
 import no.nav.syfo.application.exception.UpstreamRequestException
 import no.nav.syfo.document.api.v1.dto.DocumentType
 
-class AltinnTilgangerServiceTest : DescribeSpec({
-    val altinnTilgangerClient = FakeAltinnTilgangerClient()
-    val altinnTilgangerService = AltinnTilgangerService(altinnTilgangerClient)
+class AltinnTilgangerServiceTest :
+    DescribeSpec({
+        val altinnTilgangerClient = FakeAltinnTilgangerClient()
+        val altinnTilgangerService = AltinnTilgangerService(altinnTilgangerClient)
 
-    beforeTest {
-        clearAllMocks()
-    }
-
-    describe("validateTilgangToOrganisasjon") {
-        it("should not throw when user has access to org") {
-            val fnr = "12345678901"
-            val orgnummer = "987654321"
-            val brukerPrincipal = BrukerPrincipal(fnr, "token")
-            shouldThrow<ApiErrorException.ForbiddenException> {
-                altinnTilgangerService.validateTilgangToOrganisasjon(brukerPrincipal, orgnummer, DocumentType.OPPFOLGINGSPLAN)
-            }
+        beforeTest {
+            clearAllMocks()
         }
 
-        it("should not throw when user has access to org") {
-            val accessPair = altinnTilgangerClient.usersWithAccess.first()
-            val brukerPrincipal = BrukerPrincipal(accessPair.first, "token")
-            shouldNotThrow<Exception> {
-                altinnTilgangerService.validateTilgangToOrganisasjon(brukerPrincipal, accessPair.second, DocumentType.OPPFOLGINGSPLAN)
+        describe("validateTilgangToOrganisasjon") {
+            it("should not throw when user has access to org") {
+                val fnr = "12345678901"
+                val orgnummer = "987654321"
+                val brukerPrincipal = BrukerPrincipal(fnr, "token")
+                shouldThrow<ApiErrorException.ForbiddenException> {
+                    altinnTilgangerService.validateTilgangToOrganisasjon(
+                        brukerPrincipal,
+                        orgnummer,
+                        DocumentType.OPPFOLGINGSPLAN
+                    )
+                }
             }
-        }
 
-        it("should throw =Internal Server Error when client failes to make request") {
-            val mockAltinnTilgangerClient = mockk<FakeAltinnTilgangerClient>()
-            coEvery { mockAltinnTilgangerClient.hentTilganger(any())} throws UpstreamRequestException("Forced failure")
-            val altinnTilgangerServiceWithMock = AltinnTilgangerService(mockAltinnTilgangerClient)
-            val accessPair = altinnTilgangerClient.usersWithAccess.first()
-            val brukerPrincipal = BrukerPrincipal(accessPair.first, "token")
-            shouldThrow<ApiErrorException.InternalServerErrorException> {
-                altinnTilgangerServiceWithMock.validateTilgangToOrganisasjon(brukerPrincipal, accessPair.second, DocumentType.OPPFOLGINGSPLAN)
+            it("should not throw when user has access to org") {
+                val accessPair = altinnTilgangerClient.usersWithAccess.first()
+                val brukerPrincipal = BrukerPrincipal(accessPair.first, "token")
+                shouldNotThrow<Exception> {
+                    altinnTilgangerService.validateTilgangToOrganisasjon(
+                        brukerPrincipal,
+                        accessPair.second,
+                        DocumentType.OPPFOLGINGSPLAN
+                    )
+                }
+            }
+
+            it("should throw =Internal Server Error when client failes to make request") {
+                val mockAltinnTilgangerClient = mockk<FakeAltinnTilgangerClient>()
+                coEvery { mockAltinnTilgangerClient.hentTilganger(any()) } throws
+                    UpstreamRequestException("Forced failure")
+                val altinnTilgangerServiceWithMock = AltinnTilgangerService(mockAltinnTilgangerClient)
+                val accessPair = altinnTilgangerClient.usersWithAccess.first()
+                val brukerPrincipal = BrukerPrincipal(accessPair.first, "token")
+                shouldThrow<ApiErrorException.InternalServerErrorException> {
+                    altinnTilgangerServiceWithMock.validateTilgangToOrganisasjon(
+                        brukerPrincipal,
+                        accessPair.second,
+                        DocumentType.OPPFOLGINGSPLAN
+                    )
+                }
             }
         }
-    }
-})
+    })

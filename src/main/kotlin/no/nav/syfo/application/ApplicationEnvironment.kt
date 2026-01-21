@@ -20,16 +20,14 @@ data class NaisEnvironment(
     override val publicIngressUrl: String = getEnvVar("PUBLIC_INGRESS_URL"),
     override val dialogportenIsApiOnly: Boolean = getEnvVar("DIALOGPORTEN_API_ONLY").toBoolean(),
 
-    ) : Environment
+) : Environment
 
 fun getEnvVar(varName: String, defaultValue: String? = null) =
     System.getenv(varName) ?: defaultValue ?: throw RuntimeException("Missing required variable \"$varName\"")
 
-fun isLocalEnv(): Boolean =
-    getEnvVar("NAIS_CLUSTER_NAME", "local") == "local"
+fun isLocalEnv(): Boolean = getEnvVar("NAIS_CLUSTER_NAME", "local") == "local"
 
-fun isProdEnv(): Boolean =
-    getEnvVar("NAIS_CLUSTER_NAME", "local") == "prod-gcp"
+fun isProdEnv(): Boolean = getEnvVar("NAIS_CLUSTER_NAME", "local") == "prod-gcp"
 
 data class LocalEnvironment(
     override val database: DatabaseEnvironment = DatabaseEnvironment.createForLocal(),

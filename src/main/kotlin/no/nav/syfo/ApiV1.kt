@@ -11,7 +11,7 @@ import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.texas.TexasAzureADAuthPlugin
-import no.nav.syfo.texas.client.TexasHttpClient
+import no.nav.syfo.texas.client.TexasClient
 
 const val API_V1_PATH = "/api/v1"
 const val DOCUMENT_API_PATH = "/documents"
@@ -19,7 +19,7 @@ const val GUI_DOCUMENT_API_PATH = "/gui/documents"
 
 @Suppress("LongParameterList")
 fun Route.registerApiV1(
-    texasHttpClient: TexasHttpClient,
+    texasClient: TexasClient,
     documentDAO: DocumentDAO,
     documentContentDAO: DocumentContentDAO,
     dialogDAO: DialogDAO,
@@ -27,7 +27,7 @@ fun Route.registerApiV1(
 ) {
     route("/internal$API_V1_PATH") {
         install(TexasAzureADAuthPlugin) {
-            client = texasHttpClient
+            client = texasClient
         }
         registerInternalDocumentsApiV1(documentDAO, dialogDAO)
     }
@@ -37,7 +37,7 @@ fun Route.registerApiV1(
             registerExternalGetDocumentByIdApiV1(
                 documentDAO = documentDAO,
                 documentContentDAO = documentContentDAO,
-                texasHttpClient = texasHttpClient,
+                texasClient = texasClient,
                 validationService = validationService
             )
         }
@@ -46,10 +46,9 @@ fun Route.registerApiV1(
             registerExternalGetDocumentByIdApiV1(
                 documentDAO = documentDAO,
                 documentContentDAO = documentContentDAO,
-                texasHttpClient = texasHttpClient,
+                texasClient = texasClient,
                 validationService = validationService
             )
         }
     }
-
 }
