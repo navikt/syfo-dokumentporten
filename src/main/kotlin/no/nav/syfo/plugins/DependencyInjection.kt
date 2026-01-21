@@ -3,9 +3,14 @@ package no.nav.syfo.plugins
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import no.nav.syfo.altinn.common.AltinnTokenProvider
-import no.nav.syfo.ereg.EregService
-import no.nav.syfo.ereg.client.EregClient
-import no.nav.syfo.ereg.client.FakeEregClient
+import no.nav.syfo.altinn.dialogporten.client.DialogportenClient
+import no.nav.syfo.altinn.dialogporten.client.FakeDialogportenClient
+import no.nav.syfo.altinn.dialogporten.service.DialogportenService
+import no.nav.syfo.altinn.dialogporten.task.DeleteDialogTask
+import no.nav.syfo.altinn.dialogporten.task.SendDialogTask
+import no.nav.syfo.altinn.pdp.client.FakePdpClient
+import no.nav.syfo.altinn.pdp.client.PdpClient
+import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.altinntilganger.client.AltinnTilgangerClient
 import no.nav.syfo.altinntilganger.client.FakeAltinnTilgangerClient
@@ -18,18 +23,13 @@ import no.nav.syfo.application.database.DatabaseConfig
 import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.application.isLocalEnv
 import no.nav.syfo.application.leaderelection.LeaderElection
-import no.nav.syfo.document.service.ValidationService
-import no.nav.syfo.document.db.DocumentDAO
-import no.nav.syfo.altinn.dialogporten.client.DialogportenClient
-import no.nav.syfo.altinn.dialogporten.client.FakeDialogportenClient
-import no.nav.syfo.altinn.dialogporten.service.DialogportenService
-import no.nav.syfo.altinn.dialogporten.task.DeleteDialogTask
-import no.nav.syfo.altinn.dialogporten.task.SendDialogTask
-import no.nav.syfo.altinn.pdp.client.FakePdpClient
-import no.nav.syfo.altinn.pdp.client.PdpClient
-import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
+import no.nav.syfo.document.db.DocumentDAO
+import no.nav.syfo.document.service.ValidationService
+import no.nav.syfo.ereg.EregService
+import no.nav.syfo.ereg.client.EregClient
+import no.nav.syfo.ereg.client.FakeEregClient
 import no.nav.syfo.texas.client.TexasHttpClient
 import no.nav.syfo.util.httpClientDefault
 import org.koin.core.scope.Scope
@@ -55,8 +55,11 @@ private fun applicationStateModule() = module { single { ApplicationState() } }
 
 private fun environmentModule(isLocalEnv: Boolean) = module {
     single {
-        if (isLocalEnv) LocalEnvironment()
-        else NaisEnvironment()
+        if (isLocalEnv) {
+            LocalEnvironment()
+        } else {
+            NaisEnvironment()
+        }
     }
 }
 
@@ -86,9 +89,13 @@ private fun databaseModule() = module {
 private fun servicesModule() = module {
     single { TexasHttpClient(client = get(), environment = env().texas) }
     single {
-        if (isLocalEnv()) FakeEregClient() else EregClient(
-            eregBaseUrl = env().clientProperties.eregBaseUrl,
-        )
+        if (isLocalEnv()) {
+            FakeEregClient()
+        } else {
+            EregClient(
+                eregBaseUrl = env().clientProperties.eregBaseUrl,
+            )
+        }
     }
     single {
         EregService(
@@ -96,11 +103,15 @@ private fun servicesModule() = module {
         )
     }
     single {
-        if (isLocalEnv()) FakeAltinnTilgangerClient() else AltinnTilgangerClient(
-            texasClient = get(),
-            httpClient = get(),
-            baseUrl = env().clientProperties.altinnTilgangerBaseUrl,
-        )
+        if (isLocalEnv()) {
+            FakeAltinnTilgangerClient()
+        } else {
+            AltinnTilgangerClient(
+                texasClient = get(),
+                httpClient = get(),
+                baseUrl = env().clientProperties.altinnTilgangerBaseUrl,
+            )
+        }
     }
     single {
         AltinnTokenProvider(
@@ -110,19 +121,27 @@ private fun servicesModule() = module {
         )
     }
     single {
-        if (isLocalEnv()) FakeDialogportenClient() else DialogportenClient(
-            altinnTokenProvider = get(),
-            httpClient = get(),
-            baseUrl = env().clientProperties.altinn3BaseUrl,
-        )
+        if (isLocalEnv()) {
+            FakeDialogportenClient()
+        } else {
+            DialogportenClient(
+                altinnTokenProvider = get(),
+                httpClient = get(),
+                baseUrl = env().clientProperties.altinn3BaseUrl,
+            )
+        }
     }
     single {
-        if (isLocalEnv()) FakePdpClient() else PdpClient(
-            httpClient = get(),
-            baseUrl = env().clientProperties.altinn3BaseUrl,
-            subscriptionKey = env().clientProperties.pdpSubscriptionKey,
-            altinnTokenProvider = get(),
-        )
+        if (isLocalEnv()) {
+            FakePdpClient()
+        } else {
+            PdpClient(
+                httpClient = get(),
+                baseUrl = env().clientProperties.altinn3BaseUrl,
+                subscriptionKey = env().clientProperties.pdpSubscriptionKey,
+                altinnTokenProvider = get(),
+            )
+        }
     }
 
     single { AltinnTilgangerService(get()) }
@@ -131,7 +150,7 @@ private fun servicesModule() = module {
     single { ValidationService(get(), get(), get()) }
     single { LeaderElection(get(), env().clientProperties.electorPath) }
     single { DialogportenService(get(), get(), env().publicIngressUrl, env().dialogportenIsApiOnly, get()) }
-    single { SendDialogTask(get(),get()) }
+    single { SendDialogTask(get(), get()) }
     single { DeleteDialogTask(get(), get()) }
 }
 

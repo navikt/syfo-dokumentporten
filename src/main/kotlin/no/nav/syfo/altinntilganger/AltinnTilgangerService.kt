@@ -7,9 +7,7 @@ import no.nav.syfo.application.exception.UpstreamRequestException
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.util.logger
 
-class AltinnTilgangerService(
-    val altinnTilgangerClient: IAltinnTilgangerClient,
-) {
+class AltinnTilgangerService(val altinnTilgangerClient: IAltinnTilgangerClient,) {
     suspend fun validateTilgangToOrganisasjon(
         brukerPrincipal: BrukerPrincipal,
         orgnummer: String,
@@ -19,8 +17,9 @@ class AltinnTilgangerService(
             val tilganger = altinnTilgangerClient.hentTilganger(brukerPrincipal)
             val requiredResource = requiredResourceByDocumentType[documentType]
                 ?: throw ApiErrorException.InternalServerErrorException("Ukjent dokumenttype $documentType")
-            if (tilganger?.orgNrTilTilganger[orgnummer]?.contains(requiredResource) != true)
+            if (tilganger?.orgNrTilTilganger[orgnummer]?.contains(requiredResource) != true) {
                 throw ApiErrorException.ForbiddenException("Bruker har ikke tilgang til organisasjon $orgnummer")
+            }
         } catch (e: UpstreamRequestException) {
             logger.error("Feil ved henting av tilgang til organisasjon $orgnummer", e)
             throw ApiErrorException.InternalServerErrorException("Feil ved henting av altinn-tilganger")

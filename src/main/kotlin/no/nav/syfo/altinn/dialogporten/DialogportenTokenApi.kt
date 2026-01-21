@@ -9,10 +9,7 @@ import no.nav.syfo.application.auth.AddTokenIssuerPlugin
 import no.nav.syfo.texas.MaskinportenIdportenAndTokenXAuthPlugin
 import no.nav.syfo.texas.client.TexasHttpClient
 
-fun Route.registerDialogportenTokenApi(
-    texasHttpClient: TexasHttpClient,
-    altinnTokenProvider: AltinnTokenProvider,
-) {
+fun Route.registerDialogportenTokenApi(texasHttpClient: TexasHttpClient, altinnTokenProvider: AltinnTokenProvider,) {
     route("/dialogporten/token") {
         install(AddTokenIssuerPlugin)
         install(MaskinportenIdportenAndTokenXAuthPlugin) {

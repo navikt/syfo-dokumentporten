@@ -2,12 +2,12 @@ package no.nav.syfo.document.db
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.sql.ResultSet
-import java.util.UUID
 import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.document.api.v1.dto.DocumentType
+import java.sql.ResultSet
 import java.sql.Timestamp
 import java.sql.Types
+import java.util.UUID
 
 private const val SELECT_DOC_WITH_DIALOG_JOIN =
     """
@@ -20,8 +20,8 @@ private const val SELECT_DOC_WITH_DIALOG_JOIN =
     """
 
 class DocumentDAO(private val database: DatabaseInterface) {
-    suspend fun insert(documentEntity: DocumentEntity, content: ByteArray): PersistedDocumentEntity {
-        return withContext(Dispatchers.IO) {
+    suspend fun insert(documentEntity: DocumentEntity, content: ByteArray): PersistedDocumentEntity =
+        withContext(Dispatchers.IO) {
             database.connection.use { connection ->
                 val insertedDocument = connection.prepareStatement(
                     """
@@ -35,7 +35,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
                                              dialog_id)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         RETURNING *;
-                        """.trimIndent()
+                    """.trimIndent()
                 ).use { preparedStatement ->
                     with(documentEntity) {
                         var idx = 1
@@ -53,7 +53,9 @@ class DocumentDAO(private val database: DatabaseInterface) {
                     runCatching {
                         if (preparedStatement.resultSet.next()) {
                             preparedStatement.resultSet.toDocumentEntity(documentEntity.dialog)
-                        } else throw DocumentInsertException("Could not get the inserted document.")
+                        } else {
+                            throw DocumentInsertException("Could not get the inserted document.")
+                        }
                     }.getOrElse {
                         connection.rollback()
                         throw it
@@ -64,7 +66,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
                     """
                         INSERT INTO document_content(id, content)
                         VALUES (?, ?)
-                        """.trimIndent()
+                    """.trimIndent()
                 ).use { preparedStatement ->
                     preparedStatement.setLong(1, insertedDocument.id)
                     preparedStatement.setBytes(2, content)
@@ -75,7 +77,6 @@ class DocumentDAO(private val database: DatabaseInterface) {
                 insertedDocument
             }
         }
-    }
 
     suspend fun update(documentEntity: PersistedDocumentEntity) {
         withContext(Dispatchers.IO) {
@@ -88,7 +89,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
                             updated    = ?,
                             transmission_id = ?
                         WHERE id = ?
-                        """.trimIndent()
+                    """.trimIndent()
                 ).use { preparedStatement ->
                     with(documentEntity) {
                         preparedStatement.setObject(1, status, Types.OTHER)
@@ -121,50 +122,46 @@ class DocumentDAO(private val database: DatabaseInterface) {
         }
     }
 
-    suspend fun getById(id: Long): PersistedDocumentEntity? {
-        return withContext(Dispatchers.IO) {
-            database.connection.use { connection ->
-                connection.prepareStatement(
-                    """
+    suspend fun getById(id: Long): PersistedDocumentEntity? = withContext(Dispatchers.IO) {
+        database.connection.use { connection ->
+            connection.prepareStatement(
+                """
                         $SELECT_DOC_WITH_DIALOG_JOIN
                         WHERE doc.id = ?
-                        """.trimIndent()
-                ).use { preparedStatement ->
-                    preparedStatement.setLong(1, id)
-                    val resultSet = preparedStatement.executeQuery()
-                    if (resultSet.next()) {
-                        resultSet.toDocumentEntity()
-                    } else {
-                        null
-                    }
+                """.trimIndent()
+            ).use { preparedStatement ->
+                preparedStatement.setLong(1, id)
+                val resultSet = preparedStatement.executeQuery()
+                if (resultSet.next()) {
+                    resultSet.toDocumentEntity()
+                } else {
+                    null
                 }
             }
         }
     }
 
-    suspend fun getByLinkId(linkId: UUID): PersistedDocumentEntity? {
-        return withContext(Dispatchers.IO) {
-            database.connection.use { connection ->
-                connection.prepareStatement(
-                    """
+    suspend fun getByLinkId(linkId: UUID): PersistedDocumentEntity? = withContext(Dispatchers.IO) {
+        database.connection.use { connection ->
+            connection.prepareStatement(
+                """
                         $SELECT_DOC_WITH_DIALOG_JOIN
                         WHERE doc.link_id = ?
-                        """.trimIndent()
-                ).use { preparedStatement ->
-                    preparedStatement.setObject(1, linkId)
-                    val resultSet = preparedStatement.executeQuery()
-                    if (resultSet.next()) {
-                        resultSet.toDocumentEntity()
-                    } else {
-                        null
-                    }
+                """.trimIndent()
+            ).use { preparedStatement ->
+                preparedStatement.setObject(1, linkId)
+                val resultSet = preparedStatement.executeQuery()
+                if (resultSet.next()) {
+                    resultSet.toDocumentEntity()
+                } else {
+                    null
                 }
             }
         }
     }
 
-    suspend fun getDocumentsByStatus(status: DocumentStatus, limit: Int = 100): List<PersistedDocumentEntity> {
-        return withContext(Dispatchers.IO) {
+    suspend fun getDocumentsByStatus(status: DocumentStatus, limit: Int = 100): List<PersistedDocumentEntity> =
+        withContext(Dispatchers.IO) {
             database.connection.use { connection ->
                 connection.prepareStatement(
                     """
@@ -172,7 +169,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
                         WHERE doc.status = ?
                         order by doc.created
                         LIMIT ?
-                        """.trimIndent()
+                    """.trimIndent()
                 ).use { preparedStatement ->
                     preparedStatement.setObject(1, status, Types.OTHER)
                     preparedStatement.setInt(2, limit)
@@ -185,7 +182,6 @@ class DocumentDAO(private val database: DatabaseInterface) {
                 }
             }
         }
-    }
 }
 
 fun ResultSet.toDocumentEntity(withDialog: PersistedDialogEntity? = null): PersistedDocumentEntity =

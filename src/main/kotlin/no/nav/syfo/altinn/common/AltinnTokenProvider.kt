@@ -21,11 +21,7 @@ class AltinnTokenProvider(
     private val tokens: MutableMap<String, AltinnToken> = mutableMapOf()
     private val mutex = Mutex()
 
-    data class AltinnToken(
-        val accessToken: String,
-        val altinnExpiryTime: Duration,
-        val scope: String,
-    )
+    data class AltinnToken(val accessToken: String, val altinnExpiryTime: Duration, val scope: String,)
 
     suspend fun token(target: String): AltinnToken {
         mutex.withLock {
@@ -82,12 +78,11 @@ class AltinnTokenProvider(
         return token
     }
 
-    private suspend fun altinnExchange(token: String): String =
-        httpClient
-            .get("$altinnBaseUrl/authentication/api/v1/exchange/maskinporten") {
-                bearerAuth(token)
-            }.bodyAsText()
-            .replace("\"", "")
+    private suspend fun altinnExchange(token: String): String = httpClient
+        .get("$altinnBaseUrl/authentication/api/v1/exchange/maskinporten") {
+            bearerAuth(token)
+        }.bodyAsText()
+        .replace("\"", "")
 
     companion object {
         const val DIALOGPORTEN_TARGET_SCOPE = "digdir:dialogporten.serviceprovider"

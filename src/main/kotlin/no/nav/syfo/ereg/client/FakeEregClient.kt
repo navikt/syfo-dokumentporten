@@ -2,7 +2,7 @@ package no.nav.syfo.ereg.client
 
 import java.util.concurrent.atomic.*
 
-class FakeEregClient() : IEaregClient {
+class FakeEregClient : IEaregClient {
     val organisasjoner = defaultOrganisasjoner.toMutableMap()
     private val failureRef = AtomicReference<Throwable?>(null)
 
@@ -12,9 +12,7 @@ class FakeEregClient() : IEaregClient {
 
     fun clearFailure() = failureRef.set(null)
 
-    override suspend fun getOrganisasjon(
-        orgnummer: String
-    ): Organisasjon? {
+    override suspend fun getOrganisasjon(orgnummer: String): Organisasjon? {
         if (failureRef.get() != null) {
             throw failureRef.get()!!
         }

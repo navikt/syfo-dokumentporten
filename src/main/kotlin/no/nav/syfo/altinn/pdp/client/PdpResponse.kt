@@ -1,12 +1,8 @@
 package no.nav.syfo.altinn.pdp.client
 
-data class PdpResponse(
-    val response: List<DecisionResult>,
-)
+data class PdpResponse(val response: List<DecisionResult>,)
 
-data class DecisionResult(
-    val decision: Decision,
-)
+data class DecisionResult(val decision: Decision,)
 
 enum class Decision {
     Permit,

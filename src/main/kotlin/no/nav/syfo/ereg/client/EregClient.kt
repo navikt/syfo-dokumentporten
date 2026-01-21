@@ -9,20 +9,14 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import no.nav.syfo.application.exception.UpstreamRequestException
-import no.nav.syfo.texas.client.TexasHttpClient
 import no.nav.syfo.util.httpClientDefault
 import no.nav.syfo.util.logger
 
 interface IEaregClient {
-    suspend fun getOrganisasjon(
-        orgnummer: String
-    ): Organisasjon?
+    suspend fun getOrganisasjon(orgnummer: String): Organisasjon?
 }
 
-class EregClient(
-    val eregBaseUrl: String,
-    private val httpClient: HttpClient = httpClientDefault()
-) : IEaregClient {
+class EregClient(val eregBaseUrl: String, private val httpClient: HttpClient = httpClientDefault()) : IEaregClient {
     override suspend fun getOrganisasjon(orgnummer: String): Organisasjon? {
         val response = try {
             val response = httpClient.get("$eregBaseUrl/ereg/api/v1/organisasjon/$orgnummer") {
@@ -34,7 +28,9 @@ class EregClient(
             if (e.response.status == HttpStatusCode.NotFound) {
                 logger.error("Could not find organization for orgNumber $orgnummer")
                 null
-            } else throw UpstreamRequestException("Error when fetching organization from ereg", e)
+            } else {
+                throw UpstreamRequestException("Error when fetching organization from ereg", e)
+            }
         }
         return response
     }

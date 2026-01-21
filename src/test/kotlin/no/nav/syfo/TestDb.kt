@@ -2,13 +2,13 @@ package no.nav.syfo
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import java.sql.Connection
-import kotlin.use
 import no.nav.syfo.application.database.DatabaseInterface
 import org.flywaydb.core.Flyway
 import org.slf4j.LoggerFactory
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy
+import java.sql.Connection
+import kotlin.use
 
 class PsqlContainer : PostgreSQLContainer<PsqlContainer>("postgres:17-alpine")
 
@@ -40,13 +40,12 @@ class TestDatabase(
         runFlywayMigrations()
     }
 
-    private fun runFlywayMigrations() =
-        Flyway.configure().run {
-            locations("db")
-            configuration(mapOf("flyway.postgresql.transactional.lock" to "false"))
-            dataSource(connectionName, dbUsername, dbPassword)
-            load().migrate()
-        }
+    private fun runFlywayMigrations() = Flyway.configure().run {
+        locations("db")
+        configuration(mapOf("flyway.postgresql.transactional.lock" to "false"))
+        dataSource(connectionName, dbUsername, dbPassword)
+        load().migrate()
+    }
 }
 
 class TestDB private constructor() {
@@ -77,16 +76,15 @@ class TestDB private constructor() {
             }
         }
 
-        fun clearAllData() =
-            database.connection.use {
-                it.prepareStatement(
-                    """
+        fun clearAllData() = database.connection.use {
+            it.prepareStatement(
+                """
                         DELETE FROM document_content;
                         DELETE FROM document;
                         DELETE FROM dialog;
-                    """.trimIndent()
-                ).use { ps -> ps.executeUpdate() }
-                it.commit()
-            }
+                """.trimIndent()
+            ).use { ps -> ps.executeUpdate() }
+            it.commit()
+        }
     }
 }

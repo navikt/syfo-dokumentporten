@@ -40,117 +40,117 @@ import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.registerApiV1
 import no.nav.syfo.texas.client.TexasHttpClient
 
-class InternalDocumentApiTest : DescribeSpec({
-    val texasHttpClientMock = mockk<TexasHttpClient>()
-    val documentDAOMock = mockk<DocumentDAO>()
-    val dialogDAOMock = mockk<DialogDAO>()
-    val documentContentDAOMock = mockk<DocumentContentDAO>()
+class InternalDocumentApiTest :
+    DescribeSpec({
+        val texasHttpClientMock = mockk<TexasHttpClient>()
+        val documentDAOMock = mockk<DocumentDAO>()
+        val dialogDAOMock = mockk<DialogDAO>()
+        val documentContentDAOMock = mockk<DocumentContentDAO>()
 
-    beforeTest {
-        clearAllMocks()
-        TestDB.clearAllData()
-    }
-    fun withTestApplication(
-        fn: suspend ApplicationTestBuilder.() -> Unit
-    ) {
-        testApplication {
-            this.client = createClient {
-                install(ContentNegotiation) {
-                    jackson {
-                        registerKotlinModule()
-                        registerModule(JavaTimeModule())
-                        configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
-                        configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        beforeTest {
+            clearAllMocks()
+            TestDB.clearAllData()
+        }
+        fun withTestApplication(fn: suspend ApplicationTestBuilder.() -> Unit) {
+            testApplication {
+                this.client = createClient {
+                    install(ContentNegotiation) {
+                        jackson {
+                            registerKotlinModule()
+                            registerModule(JavaTimeModule())
+                            configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+                            configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                        }
+                    }
+                }
+                application {
+                    installContentNegotiation()
+                    installStatusPages()
+                    routing {
+                        registerApiV1(
+                            texasHttpClientMock,
+                            documentDAOMock,
+                            documentContentDAOMock,
+                            dialogDAOMock,
+                            validationService = mockk<ValidationService>()
+                        )
+                    }
+                }
+                fn(this)
+            }
+        }
+        describe("POST /documents") {
+            it("should return 200 OK for valid payload") {
+                withTestApplication {
+                    // Arrange
+                    val capturedSlot = slot<DocumentEntity>()
+                    val capturedContent = slot<ByteArray>()
+                    coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
+                    coEvery { documentDAOMock.insert(capture(capturedSlot), capture(capturedContent)) } returns
+                        documentEntity(dialogEntity())
+                    texasHttpClientMock.defaultMocks()
+                    val document = document()
+                    // Act
+                    val response = client.post("/internal/api/v1/documents") {
+                        contentType(ContentType.Application.Json)
+                        setBody(document)
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+
+                    // Assert
+                    response.status shouldBe HttpStatusCode.OK
+                    // Verify that the document was inserted into the database
+                    coVerify(exactly = 1) {
+                        documentDAOMock.insert(any(), any())
+                        capturedContent
+                            .captured
+                            .toString(Charsets.UTF_8) shouldBe document.content.toString(Charsets.UTF_8)
                     }
                 }
             }
-            application {
-                installContentNegotiation()
-                installStatusPages()
-                routing {
-                    registerApiV1(
-                        texasHttpClientMock,
-                        documentDAOMock,
-                        documentContentDAOMock,
-                        dialogDAOMock,
-                        validationService = mockk<ValidationService>()
-                    )
+
+            it("should return 400 on invalid") {
+                withTestApplication {
+                    // Arrange
+                    texasHttpClientMock.defaultMocks()
+                    coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
+                    coEvery { documentDAOMock.insert(any(), any()) } returns documentEntity(dialogEntity())
+                    // Act
+                    val response = client.post("/internal/api/v1/documents") {
+                        contentType(ContentType.Application.Json)
+                        setBody("""{"invalid": "payload"}""")
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+
+                    // Assert
+                    response.status shouldBe HttpStatusCode.BadRequest
+                    // Verify that the document was inserted into the database
+                    coVerify(exactly = 0) {
+                        documentDAOMock.insert(any(), any())
+                    }
                 }
             }
-            fn(this)
-        }
-    }
-    describe("POST /documents") {
-        it("should return 200 OK for valid payload") {
-            withTestApplication {
-                // Arrange
-                val capturedSlot = slot<DocumentEntity>()
-                val capturedContent = slot<ByteArray>()
-                coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
-                coEvery { documentDAOMock.insert(capture(capturedSlot), capture(capturedContent)) } returns documentEntity(dialogEntity())
-                texasHttpClientMock.defaultMocks()
-                val document = document()
-                // Act
-                val response = client.post("/internal/api/v1/documents") {
-                    contentType(ContentType.Application.Json)
-                    setBody(document)
-                    bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
-                }
+            it("should return 500 on db write error") {
+                withTestApplication {
+                    // Arrange
+                    texasHttpClientMock.defaultMocks()
+                    coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
+                    coEvery { documentDAOMock.insert(any(), any()) } throws RuntimeException("DB error")
+                    // Act
+                    val response = client.post("/internal/api/v1/documents") {
+                        contentType(ContentType.Application.Json)
+                        setBody(document())
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
 
-                // Assert
-                response.status shouldBe HttpStatusCode.OK
-                // Verify that the document was inserted into the database
-                coVerify(exactly = 1) {
-                    documentDAOMock.insert(any(), any())
-                    capturedContent
-                        .captured
-                        .toString(Charsets.UTF_8) shouldBe document.content.toString(Charsets.UTF_8)
-                }
-            }
-        }
-
-        it("should return 400 on invalid") {
-            withTestApplication {
-                // Arrange
-                texasHttpClientMock.defaultMocks()
-                coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
-                coEvery { documentDAOMock.insert(any(), any()) } returns documentEntity(dialogEntity())
-                // Act
-                val response = client.post("/internal/api/v1/documents") {
-                    contentType(ContentType.Application.Json)
-                    setBody("""{"invalid": "payload"}""")
-                    bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
-                }
-
-                // Assert
-                response.status shouldBe HttpStatusCode.BadRequest
-                // Verify that the document was inserted into the database
-                coVerify(exactly = 0) {
-                    documentDAOMock.insert(any(), any())
+                    // Assert
+                    response.status shouldBe HttpStatusCode.InternalServerError
+                    response.body<String>() shouldNotContain "DB error"
+                    // Verify that the document was inserted into the database
+                    coVerify(exactly = 1) {
+                        documentDAOMock.insert(any(), any())
+                    }
                 }
             }
         }
-        it("should return 500 on db write error") {
-            withTestApplication {
-                // Arrange
-                texasHttpClientMock.defaultMocks()
-                coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
-                coEvery { documentDAOMock.insert(any(), any()) } throws RuntimeException("DB error")
-                // Act
-                val response = client.post("/internal/api/v1/documents") {
-                    contentType(ContentType.Application.Json)
-                    setBody(document())
-                    bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
-                }
-
-                // Assert
-                response.status shouldBe HttpStatusCode.InternalServerError
-                response.body<String>() shouldNotContain "DB error"
-                // Verify that the document was inserted into the database
-                coVerify(exactly = 1) {
-                    documentDAOMock.insert(any(), any())
-                }
-            }
-        }
-    }
-})
+    })

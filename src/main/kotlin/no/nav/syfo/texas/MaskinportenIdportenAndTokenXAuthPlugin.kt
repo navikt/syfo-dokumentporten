@@ -59,11 +59,17 @@ val MaskinportenIdportenAndTokenXAuthPlugin = createRouteScopedPlugin(
                     if (introspectionResponse.consumer == null) {
                         throw ApiErrorException.UnauthorizedException("No consumer in token claims")
                     }
-                    if (!(introspectionResponse.scope == MASKINPORTEN_ARKIVPORTEN_SCOPE || introspectionResponse.scope == MASKINPORTEN_SYFO_DOKUMENTPORTEN_SCOPE)) {
+                    if (!(
+                            introspectionResponse.scope == MASKINPORTEN_ARKIVPORTEN_SCOPE ||
+                                introspectionResponse.scope == MASKINPORTEN_SYFO_DOKUMENTPORTEN_SCOPE
+                            )
+                    ) {
                         throw ApiErrorException.UnauthorizedException("Invalid scope from maskinporten")
                     }
                     val systemUserOrganizationId = introspectionResponse.getSystemUserOrganization()
-                        ?: throw ApiErrorException.UnauthorizedException("No system user organization number in token claims")
+                        ?: throw ApiErrorException.UnauthorizedException(
+                            "No system user organization number in token claims"
+                        )
                     val systemUserId = introspectionResponse.getSystemUserId()
                         ?: throw ApiErrorException.UnauthorizedException("No system user id in token claims")
 
@@ -80,7 +86,9 @@ val MaskinportenIdportenAndTokenXAuthPlugin = createRouteScopedPlugin(
 
                 JwtIssuer.IDPORTEN -> {
                     if (!introspectionResponse.acr.equals("idporten-loa-high", ignoreCase = true)) {
-                        call.application.environment.log.warn("User does not have Level4 access: ${introspectionResponse.acr}. Redirecting to /oauth2/login")
+                        call.application.environment.log.warn(
+                            "User does not have Level4 access: ${introspectionResponse.acr}. Redirecting to /oauth2/login"
+                        )
                         call.respondRedirect("/oauth2/login?redirect=${call.request.path()}")
                         return@onCall
                     }
@@ -95,7 +103,9 @@ val MaskinportenIdportenAndTokenXAuthPlugin = createRouteScopedPlugin(
 
                 JwtIssuer.TOKEN_X -> {
                     if (!introspectionResponse.acr.equals("Level4", ignoreCase = true)) {
-                        call.application.environment.log.warn("User does not have Level4 access: ${introspectionResponse.acr}")
+                        call.application.environment.log.warn(
+                            "User does not have Level4 access: ${introspectionResponse.acr}"
+                        )
                         call.respondNullable(HttpStatusCode.Forbidden)
                         return@onCall
                     }

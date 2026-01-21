@@ -1,17 +1,17 @@
 package no.nav.syfo.application.api
 
 import io.ktor.server.application.Application
-import io.ktor.server.routing.get
-import io.ktor.server.routing.routing
 import io.ktor.server.http.content.staticResources
 import io.ktor.server.plugins.swagger.swaggerUI
 import io.ktor.server.response.respondRedirect
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
 import no.nav.syfo.altinn.common.AltinnTokenProvider
+import no.nav.syfo.altinn.dialogporten.registerDialogportenTokenApi
 import no.nav.syfo.application.ApplicationState
 import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.application.isProdEnv
 import no.nav.syfo.application.metric.registerMetricApi
-import no.nav.syfo.altinn.dialogporten.registerDialogportenTokenApi
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO

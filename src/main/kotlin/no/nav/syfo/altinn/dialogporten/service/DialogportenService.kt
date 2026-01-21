@@ -3,9 +3,12 @@ package no.nav.syfo.altinn.dialogporten.service
 import com.fasterxml.uuid.Generators
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.delay
 import no.nav.syfo.API_V1_PATH
 import no.nav.syfo.DOCUMENT_API_PATH
 import no.nav.syfo.GUI_DOCUMENT_API_PATH
+import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_DIALOGS_CREATED
+import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSIONS_CREATED
 import no.nav.syfo.altinn.dialogporten.client.IDialogportenClient
 import no.nav.syfo.altinn.dialogporten.domain.Attachment
 import no.nav.syfo.altinn.dialogporten.domain.AttachmentUrlConsumerType
@@ -15,6 +18,7 @@ import no.nav.syfo.altinn.dialogporten.domain.Dialog
 import no.nav.syfo.altinn.dialogporten.domain.Transmission
 import no.nav.syfo.altinn.dialogporten.domain.Url
 import no.nav.syfo.altinn.dialogporten.domain.create
+import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentEntity
 import no.nav.syfo.document.db.DocumentStatus
@@ -25,10 +29,6 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
-import kotlinx.coroutines.delay
-import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_DIALOGS_CREATED
-import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSIONS_CREATED
-import no.nav.syfo.document.db.DialogDAO
 
 const val DIALOG_RESSURS = "nav_syfo_dialog"
 
@@ -49,8 +49,12 @@ class DialogportenService(
             batchNum += 1
             val firstCreatedTimestamp = if (!documentsToSend.isEmpty()) {
                 documentsToSend.first().created
-            } else null
-            logger.info("Batch: ${batchNum}: Found ${documentsToSend.size} documents to send to dialogporten. First created at ${firstCreatedTimestamp ?: "N/A"}")
+            } else {
+                null
+            }
+            logger.info(
+                "Batch: $batchNum: Found ${documentsToSend.size} documents to send to dialogporten. First created at ${firstCreatedTimestamp ?: "N/A"}"
+            )
 
             val newDialogs = mutableMapOf<Long, UUID>()
             for (document in documentsToSend) {
@@ -79,12 +83,15 @@ class DialogportenService(
             batchNum += 1
             val firstCreatedTimestamp = if (!dialogsToDeleteInDialogporten.isEmpty()) {
                 dialogsToDeleteInDialogporten.first().created
-            } else null
-            logger.info("Batch: ${batchNum}: Found ${dialogsToDeleteInDialogporten.size} documents to delete from dialogporten. First created at ${firstCreatedTimestamp ?: "N/A"}")
+            } else {
+                null
+            }
+            logger.info(
+                "Batch: $batchNum: Found ${dialogsToDeleteInDialogporten.size} documents to delete from dialogporten. First created at ${firstCreatedTimestamp ?: "N/A"}"
+            )
 
             for (dialog in dialogsToDeleteInDialogporten) {
                 try {
-
                     dialog.dialogportenUUID?.let { uuid ->
                         val status = dialogportenClient.deleteDialog(uuid)
                         if (status.isSuccess()) {
@@ -95,14 +102,18 @@ class DialogportenService(
                                 )
                             )
                         } else if (listOf(HttpStatusCode.Gone, HttpStatusCode.NotFound).contains(status)) {
-                            logger.info("Skipping setting properties to null, dialog ${dialog.id} with dialogportenUUID $uuid already deleted in dialogporten")
+                            logger.info(
+                                "Skipping setting properties to null, dialog ${dialog.id} with dialogportenUUID $uuid already deleted in dialogporten"
+                            )
                             dialogDAO.updateDialogportenAfterDelete(
                                 dialog.copy(
                                     updated = Instant.now()
                                 )
                             )
                         } else {
-                            logger.error("Failed to delete dialog ${dialog.id} with dialogportenUUID $uuid from dialogporten, received status $status")
+                            logger.error(
+                                "Failed to delete dialog ${dialog.id} with dialogportenUUID $uuid from dialogporten, received status $status"
+                            )
                             throw RuntimeException("Failed to delete dialog ${dialog.id} with dialogportenUUID $uuid")
                         }
                     }
@@ -128,7 +139,9 @@ class DialogportenService(
         )
         val fullDocumentLink = createApiDocumentLink(document.linkId.toString())
         COUNT_DIALOGPORTEN_TRANSMISSIONS_CREATED.increment()
-        logger.info("Added transmission $transmissionId for document ${document.id}, dialogportenId $dialogportenId, with link $fullDocumentLink and content type ${document.contentType}")
+        logger.info(
+            "Added transmission $transmissionId for document ${document.id}, dialogportenId $dialogportenId, with link $fullDocumentLink and content type ${document.contentType}"
+        )
     }
 
     private suspend fun addToNewDialog(document: PersistedDocumentEntity): UUID {
@@ -149,7 +162,9 @@ class DialogportenService(
         val fullDocumentLink = createApiDocumentLink(document.linkId.toString())
         COUNT_DIALOGPORTEN_DIALOGS_CREATED.increment()
         COUNT_DIALOGPORTEN_TRANSMISSIONS_CREATED.increment()
-        logger.info("Create dialog $dialogId, with transmission $transmissionId for document ${document.id}, with link $fullDocumentLink and content type ${document.contentType}")
+        logger.info(
+            "Create dialog $dialogId, with transmission $transmissionId for document ${document.id}, with link $fullDocumentLink and content type ${document.contentType}"
+        )
         return dialogId
     }
 
@@ -172,65 +187,59 @@ class DialogportenService(
         return "${document.type.displayName}.$fileType"
     }
 
-    private fun DocumentEntity.toDialogWithTransmission(transmissionId: UUID): Dialog {
-        return Dialog(
-            serviceResource = "urn:altinn:resource:$DIALOG_RESSURS",
-            party = "urn:altinn:organization:identifier-no:${dialog.orgNumber}",
-            externalReference = "syfo-dokumentporten",
-            content = Content.create(
-                title = dialog.title,
-                summary = dialog.summary,
-            ),
-            isApiOnly = dialogportenIsApiOnly,
-            transmissions = listOf(
-                toTransmission(transmissionId)
-            )
+    private fun DocumentEntity.toDialogWithTransmission(transmissionId: UUID): Dialog = Dialog(
+        serviceResource = "urn:altinn:resource:$DIALOG_RESSURS",
+        party = "urn:altinn:organization:identifier-no:${dialog.orgNumber}",
+        externalReference = "syfo-dokumentporten",
+        content = Content.create(
+            title = dialog.title,
+            summary = dialog.summary,
+        ),
+        isApiOnly = dialogportenIsApiOnly,
+        transmissions = listOf(
+            toTransmission(transmissionId)
         )
-    }
+    )
 
-    private fun DocumentEntity.toTransmission(transmissionId: UUID): Transmission {
-        return Transmission(
-            id = transmissionId,
-            content = Content.create(
-                title = title,
-                summary = summary,
-            ),
-            type = Transmission.TransmissionType.Information,
-            sender = Transmission.Sender("ServiceOwner"),
-            externalReference = documentId.toString(),
-            extendedType = type.name,
-            attachments = listOf(
-                Attachment(
-                    displayName = listOf(
-                        ContentValueItem(
-                            getDocumentDisplayName(this),
-                            "nb"
-                        ),
+    private fun DocumentEntity.toTransmission(transmissionId: UUID): Transmission = Transmission(
+        id = transmissionId,
+        content = Content.create(
+            title = title,
+            summary = summary,
+        ),
+        type = Transmission.TransmissionType.Information,
+        sender = Transmission.Sender("ServiceOwner"),
+        externalReference = documentId.toString(),
+        extendedType = type.name,
+        attachments = listOf(
+            Attachment(
+                displayName = listOf(
+                    ContentValueItem(
+                        getDocumentDisplayName(this),
+                        "nb"
                     ),
-                    urls = listOf(
-                        Url(
-                            url = createApiDocumentLink(linkId.toString()),
-                            mediaType = contentType,
-                            consumerType = AttachmentUrlConsumerType.Api,
-                        ),
-                        Url(
-                            url = createGuiDocumentLink(linkId.toString()),
-                            mediaType = contentType,
-                            consumerType = AttachmentUrlConsumerType.Gui,
-                        ),
-                    ),
-                    expiresAt = instantStartOfFollowingDay4MonthsAhead()
                 ),
+                urls = listOf(
+                    Url(
+                        url = createApiDocumentLink(linkId.toString()),
+                        mediaType = contentType,
+                        consumerType = AttachmentUrlConsumerType.Api,
+                    ),
+                    Url(
+                        url = createGuiDocumentLink(linkId.toString()),
+                        mediaType = contentType,
+                        consumerType = AttachmentUrlConsumerType.Gui,
+                    ),
+                ),
+                expiresAt = instantStartOfFollowingDay4MonthsAhead()
             ),
-        )
-    }
+        ),
+    )
 
-    private fun instantStartOfFollowingDay4MonthsAhead(): Instant {
-        return LocalDate.now()
-            .plusMonths(4)
-            .plusDays(1)
-            .atTime(LocalTime.MIN)
-            .atZone(ZoneId.systemDefault())
-            .toInstant()
-    }
+    private fun instantStartOfFollowingDay4MonthsAhead(): Instant = LocalDate.now()
+        .plusMonths(4)
+        .plusDays(1)
+        .atTime(LocalTime.MIN)
+        .atZone(ZoneId.systemDefault())
+        .toInstant()
 }

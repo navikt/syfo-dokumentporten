@@ -7,7 +7,6 @@ import java.sql.ResultSet
 import java.sql.Timestamp
 import java.sql.Types
 import java.time.Instant
-import no.nav.syfo.altinn.dialogporten.domain.DialogStatus
 
 class DialogDAO(private val database: DatabaseInterface) {
     suspend fun insertDialog(dialogEntity: DialogEntity): PersistedDialogEntity {
@@ -43,7 +42,6 @@ class DialogDAO(private val database: DatabaseInterface) {
             }
         }
     }
-
 
     suspend fun getDialogAwaitingDeletionInDialogporten(limit: Int): List<PersistedDialogEntity> {
         val selectStatement =
@@ -94,7 +92,7 @@ class DialogDAO(private val database: DatabaseInterface) {
                             updated           = ?,
                             delete_performed  = ?
                         WHERE id = ?
-                        """.trimIndent()
+                    """.trimIndent()
                 ).use { ps ->
                     with(entity) {
                         ps.setObject(1, dialogportenUUID)
@@ -135,14 +133,13 @@ class DialogDAO(private val database: DatabaseInterface) {
     }
 }
 
-fun ResultSet.toDialog(): PersistedDialogEntity =
-    PersistedDialogEntity(
-        id = getLong("id"),
-        title = getString("title"),
-        summary = getString("summary"),
-        fnr = getString("fnr"),
-        orgNumber = getString("org_number"),
-        created = getTimestamp("created").toInstant(),
-        updated = getTimestamp("updated").toInstant(),
-        dialogportenUUID = getObject("dialogporten_uuid", java.util.UUID::class.java)
-    )
+fun ResultSet.toDialog(): PersistedDialogEntity = PersistedDialogEntity(
+    id = getLong("id"),
+    title = getString("title"),
+    summary = getString("summary"),
+    fnr = getString("fnr"),
+    orgNumber = getString("org_number"),
+    created = getTimestamp("created").toInstant(),
+    updated = getTimestamp("updated").toInstant(),
+    dialogportenUUID = getObject("dialogporten_uuid", java.util.UUID::class.java)
+)

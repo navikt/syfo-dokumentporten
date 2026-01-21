@@ -7,7 +7,6 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
-import java.time.Instant
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.Principal
 import no.nav.syfo.application.auth.SystemPrincipal
@@ -18,6 +17,7 @@ import no.nav.syfo.texas.MaskinportenIdportenAndTokenXAuthPlugin
 import no.nav.syfo.texas.client.TexasHttpClient
 import no.nav.syfo.util.logger
 import org.slf4j.Logger
+import java.time.Instant
 
 fun Route.registerExternalGetDocumentByIdApiV1(
     documentDAO: DocumentDAO,
@@ -30,7 +30,7 @@ fun Route.registerExternalGetDocumentByIdApiV1(
         install(MaskinportenIdportenAndTokenXAuthPlugin) {
             client = texasHttpClient
         }
-        get() {
+        get {
             val linkId = call.parameters.extractAndValidateUUIDParameter("id")
             val principal = call.getPrincipal()
             val document = documentDAO.getByLinkId(linkId) ?: throw NotFoundException("Document not found")
@@ -48,12 +48,7 @@ fun Route.registerExternalGetDocumentByIdApiV1(
     }
 }
 
-fun countRead(
-    logger: Logger,
-    principal: Principal,
-    isRead: Boolean,
-    orgNumber: String,
-) {
+fun countRead(logger: Logger, principal: Principal, isRead: Boolean, orgNumber: String,) {
     if (isRead) {
         when (principal) {
             is BrukerPrincipal -> {
@@ -63,7 +58,9 @@ fun countRead(
 
             is SystemPrincipal -> {
                 COUNT_DOCUMENTS_REREAD_BY_EXTERNAL_SYSTEMUSER.increment()
-                logger.warn("Document belonging to orgNUmber $orgNumber was system user with owner ${principal.systemOwner}")
+                logger.warn(
+                    "Document belonging to orgNUmber $orgNumber was system user with owner ${principal.systemOwner}"
+                )
             }
         }
     } else {

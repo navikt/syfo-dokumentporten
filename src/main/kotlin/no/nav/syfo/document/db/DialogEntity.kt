@@ -20,7 +20,7 @@ data class PersistedDialogEntity(
     override val dialogportenUUID: UUID? = null,
     val created: Instant,
     val updated: Instant,
-): DialogEntity(
+) : DialogEntity(
     title = title,
     summary = summary,
     fnr = fnr,

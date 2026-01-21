@@ -17,8 +17,8 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
-import java.util.*
 import no.nav.syfo.application.exception.ApiErrorException
+import java.util.*
 
 const val NAV_CALL_ID_HEADER = "Nav-Call-Id"
 
@@ -47,20 +47,18 @@ private fun logException(call: ApplicationCall, cause: Throwable) {
     call.application.log.warn(logExceptionMessage, cause)
 }
 
-fun determineApiError(cause: Throwable, path: String): ApiError {
-    return when (cause) {
-        is ApiErrorException.ForbiddenException -> cause.toApiError(path)
-        is ApiErrorException.InternalServerErrorException -> cause.toApiError(path)
-        is BadRequestException -> cause.toApiError(path)
-        is NotFoundException -> cause.toApiError(path)
-        is ApiErrorException -> cause.toApiError(path)
-        else -> ApiError(
-            HttpStatusCode.InternalServerError,
-            ErrorType.INTERNAL_SERVER_ERROR,
-            cause.message ?: "Internal server error",
-            path
-        )
-    }
+fun determineApiError(cause: Throwable, path: String): ApiError = when (cause) {
+    is ApiErrorException.ForbiddenException -> cause.toApiError(path)
+    is ApiErrorException.InternalServerErrorException -> cause.toApiError(path)
+    is BadRequestException -> cause.toApiError(path)
+    is NotFoundException -> cause.toApiError(path)
+    is ApiErrorException -> cause.toApiError(path)
+    else -> ApiError(
+        HttpStatusCode.InternalServerError,
+        ErrorType.INTERNAL_SERVER_ERROR,
+        cause.message ?: "Internal server error",
+        path
+    )
 }
 
 fun Application.installStatusPages() {
@@ -73,20 +71,16 @@ fun Application.installStatusPages() {
     }
 }
 
-fun BadRequestException.toApiError(path: String?): ApiError {
-    return ApiError(
-        status = HttpStatusCode.BadRequest,
-        type = ErrorType.BAD_REQUEST,
-        message = this.message ?: "Bad request",
-        path = path
-    )
-}
+fun BadRequestException.toApiError(path: String?): ApiError = ApiError(
+    status = HttpStatusCode.BadRequest,
+    type = ErrorType.BAD_REQUEST,
+    message = this.message ?: "Bad request",
+    path = path
+)
 
-fun NotFoundException.toApiError(path: String?): ApiError {
-    return ApiError(
-        status = HttpStatusCode.NotFound,
-        type = ErrorType.NOT_FOUND,
-        message = this.message ?: "Bad request",
-        path = path
-    )
-}
+fun NotFoundException.toApiError(path: String?): ApiError = ApiError(
+    status = HttpStatusCode.NotFound,
+    type = ErrorType.NOT_FOUND,
+    message = this.message ?: "Bad request",
+    path = path
+)

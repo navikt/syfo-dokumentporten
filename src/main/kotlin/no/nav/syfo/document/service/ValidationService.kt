@@ -1,17 +1,17 @@
 package no.nav.syfo.document.service
 
+import no.nav.syfo.altinn.pdp.client.System
+import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService.Companion.requiredResourceByDocumentType
 import no.nav.syfo.application.auth.BrukerPrincipal
-import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.application.auth.Principal
+import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.application.auth.maskinportenIdToOrgnumber
 import no.nav.syfo.application.exception.ApiErrorException
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.DocumentEntity
 import no.nav.syfo.ereg.EregService
-import no.nav.syfo.altinn.pdp.client.System
-import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.util.logger
 
 class ValidationService(
@@ -23,18 +23,14 @@ class ValidationService(
         val logger = logger()
     }
 
-    suspend fun validateDocumentAccess(
-        principal: Principal,
-        documentEntity: DocumentEntity
-    ) {
+    suspend fun validateDocumentAccess(principal: Principal, documentEntity: DocumentEntity) {
         when (principal) {
             is BrukerPrincipal -> validateAltTilgang(principal, documentEntity)
             is SystemPrincipal -> validateMaskinportenTilgang(principal, documentEntity)
         }
     }
 
-
-    suspend private fun validateAltTilgang(principal: BrukerPrincipal, documentEntity: DocumentEntity) {
+    private suspend fun validateAltTilgang(principal: BrukerPrincipal, documentEntity: DocumentEntity) {
         altinnTilgangerService.validateTilgangToOrganisasjon(
             principal,
             documentEntity.dialog!!.orgNumber,
@@ -47,9 +43,10 @@ class ValidationService(
         if (orgNumberFromToken != documentEntity.dialog!!.orgNumber) {
             val organisasjon = eregService.getOrganization(documentEntity.dialog.orgNumber)
             if (organisasjon.inngaarIJuridiskEnheter?.filter { it.organisasjonsnummer == orgNumberFromToken }
-                    .isNullOrEmpty()) {
+                    .isNullOrEmpty()
+            ) {
                 logger.warn(
-                    "Maskinporten orgnummer ${orgNumberFromToken} does not match document orgnummer ${documentEntity.dialog.orgNumber} or any parent organization."
+                    "Maskinporten orgnummer $orgNumberFromToken does not match document orgnummer ${documentEntity.dialog.orgNumber} or any parent organization."
                 )
                 throw ApiErrorException.ForbiddenException("Access denied. Invalid organization.")
             }
@@ -59,7 +56,9 @@ class ValidationService(
 
     private suspend fun validateAltinnRessursTilgang(principal: SystemPrincipal, documentType: DocumentType) {
         val requiredRessurs = requiredResourceByDocumentType[documentType]
-            ?: throw ApiErrorException.InternalServerErrorException("Could not find resource for document type $documentType")
+            ?: throw ApiErrorException.InternalServerErrorException(
+                "Could not find resource for document type $documentType"
+            )
 
         val hasAccess = pdpService.hasAccessToResource(
             System(principal.systemUserId),
@@ -70,8 +69,9 @@ class ValidationService(
             requiredRessurs
         )
         if (!hasAccess) {
-            throw ApiErrorException.ForbiddenException("Access denied to resource $requiredRessurs, for system user ${principal.systemUserId}", )
+            throw ApiErrorException.ForbiddenException(
+                "Access denied to resource $requiredRessurs, for system user ${principal.systemUserId}",
+            )
         }
-
     }
 }

@@ -2,7 +2,6 @@ package no.nav.syfo.altinn.dialogporten.domain
 
 import java.util.UUID
 
-
 data class Transmission(
     val id: UUID? = null,
     val type: TransmissionType,
@@ -12,9 +11,7 @@ data class Transmission(
     val content: Content,
     val attachments: List<Attachment> = emptyList(),
 ) {
-    data class Sender(
-        val actorType: String,
-    )
+    data class Sender(val actorType: String,)
 
     enum class TransmissionType {
         // For general information, not related to any submissions

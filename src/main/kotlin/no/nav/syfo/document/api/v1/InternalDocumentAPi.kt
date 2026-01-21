@@ -11,12 +11,9 @@ import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.util.logger
 
-fun Route.registerInternalDocumentsApiV1(
-    documentDAO: DocumentDAO,
-    dialogDAO: DialogDAO
-) {
+fun Route.registerInternalDocumentsApiV1(documentDAO: DocumentDAO, dialogDAO: DialogDAO) {
     route("/documents") {
-        post() {
+        post {
             val document = call.tryReceive<Document>()
             runCatching {
                 val existingDialog = dialogDAO.getByFnrAndOrgNumber(document.fnr, document.orgNumber)
