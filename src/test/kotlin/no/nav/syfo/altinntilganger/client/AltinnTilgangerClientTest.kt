@@ -12,14 +12,14 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.exception.UpstreamRequestException
-import no.nav.syfo.texas.client.TexasHttpClient
+import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.texas.client.TexasResponse
 import no.nav.syfo.util.httpClientDefault
 
 class AltinnTilgangerClientTest :
     DescribeSpec({
 
-        val mockTexasClient = mockk<TexasHttpClient>()
+        val mockTexasClient = mockk<TexasClient>()
         beforeTest {
             clearAllMocks()
         }

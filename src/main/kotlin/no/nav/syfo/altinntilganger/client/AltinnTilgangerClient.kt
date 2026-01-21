@@ -9,7 +9,7 @@ import net.datafaker.Faker
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.exception.UpstreamRequestException
-import no.nav.syfo.texas.client.TexasHttpClient
+import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.logger
 import java.util.*
 
@@ -48,7 +48,7 @@ class FakeAltinnTilgangerClient : IAltinnTilgangerClient {
 }
 
 class AltinnTilgangerClient(
-    private val texasClient: TexasHttpClient,
+    private val texasClient: TexasClient,
     private val httpClient: HttpClient,
     private val baseUrl: String,
 ) : IAltinnTilgangerClient {

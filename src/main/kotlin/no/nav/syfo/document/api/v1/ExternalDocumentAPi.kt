@@ -14,7 +14,7 @@ import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.texas.MaskinportenIdportenAndTokenXAuthPlugin
-import no.nav.syfo.texas.client.TexasHttpClient
+import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.logger
 import org.slf4j.Logger
 import java.time.Instant
@@ -22,13 +22,13 @@ import java.time.Instant
 fun Route.registerExternalGetDocumentByIdApiV1(
     documentDAO: DocumentDAO,
     documentContentDAO: DocumentContentDAO,
-    texasHttpClient: TexasHttpClient,
+    texasClient: TexasClient,
     validationService: ValidationService
 ) {
     val logger = logger("ExternalDocumentAPi")
     route("/{id}") {
         install(MaskinportenIdportenAndTokenXAuthPlugin) {
-            client = texasHttpClient
+            client = texasClient
         }
         get {
             val linkId = call.parameters.extractAndValidateUUIDParameter("id")

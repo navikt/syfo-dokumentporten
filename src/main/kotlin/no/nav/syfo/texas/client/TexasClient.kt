@@ -8,7 +8,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import no.nav.syfo.application.texas.TexasEnvironment
 
-class TexasHttpClient(val client: HttpClient, val environment: TexasEnvironment) {
+class TexasClient(val client: HttpClient, val environment: TexasEnvironment) {
 
     suspend fun introspectToken(identityProvider: String, token: String): TexasIntrospectionResponse =
         client.post(environment.tokenIntrospectionEndpoint) {

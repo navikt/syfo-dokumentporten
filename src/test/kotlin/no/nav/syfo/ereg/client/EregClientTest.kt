@@ -14,13 +14,13 @@ import io.ktor.http.headersOf
 import io.mockk.clearAllMocks
 import io.mockk.mockk
 import no.nav.syfo.application.exception.UpstreamRequestException
-import no.nav.syfo.texas.client.TexasHttpClient
+import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.httpClientDefault
 import organisasjon
 
 class EregClientTest :
     DescribeSpec({
-        val texasHttpClient = mockk<TexasHttpClient>(relaxed = true)
+        val texasClient = mockk<TexasClient>(relaxed = true)
 
         beforeTest {
             clearAllMocks()
@@ -44,7 +44,7 @@ class EregClientTest :
             )
 
             it("Fetches Organisasjon in Ereg") {
-                texasHttpClient.defaultMocks()
+                texasClient.defaultMocks()
                 val result = eregClient.getOrganisasjon(organization.organisasjonsnummer)
                 result shouldBe organization
             }

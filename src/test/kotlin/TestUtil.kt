@@ -16,7 +16,7 @@ import no.nav.syfo.document.db.PersistedDocumentEntity
 import no.nav.syfo.ereg.client.Organisasjon
 import no.nav.syfo.texas.client.AuthorizationDetail
 import no.nav.syfo.texas.client.OrganizationId
-import no.nav.syfo.texas.client.TexasHttpClient
+import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.texas.client.TexasIntrospectionResponse
 import no.nav.syfo.texas.client.TexasResponse
 import java.time.Instant
@@ -120,7 +120,7 @@ fun getMockEngine(path: String = "", status: HttpStatusCode, headers: Headers, c
         }
     }
 
-fun TexasHttpClient.defaultMocks(
+fun TexasClient.defaultMocks(
     systemBrukerOrganisasjon: OrganizationId? = DefaultOrganization,
     pid: String? = null,
     acr: String? = null,
@@ -172,7 +172,7 @@ fun TexasHttpClient.defaultMocks(
     }
 }
 
-fun TexasHttpClient.defaultMocks(pid: String = "userIdentifier", acr: String = "Level4", navident: String? = null) {
+fun TexasClient.defaultMocks(pid: String = "userIdentifier", acr: String = "Level4", navident: String? = null) {
     coEvery { introspectToken(any(), any()) } returns TexasIntrospectionResponse(
         active = true,
         pid = pid,

@@ -38,11 +38,11 @@ import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentEntity
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.registerApiV1
-import no.nav.syfo.texas.client.TexasHttpClient
+import no.nav.syfo.texas.client.TexasClient
 
 class InternalDocumentApiTest :
     DescribeSpec({
-        val texasHttpClientMock = mockk<TexasHttpClient>()
+        val texasClientMock = mockk<TexasClient>()
         val documentDAOMock = mockk<DocumentDAO>()
         val dialogDAOMock = mockk<DialogDAO>()
         val documentContentDAOMock = mockk<DocumentContentDAO>()
@@ -68,7 +68,7 @@ class InternalDocumentApiTest :
                     installStatusPages()
                     routing {
                         registerApiV1(
-                            texasHttpClientMock,
+                            texasClientMock,
                             documentDAOMock,
                             documentContentDAOMock,
                             dialogDAOMock,
@@ -88,7 +88,7 @@ class InternalDocumentApiTest :
                     coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
                     coEvery { documentDAOMock.insert(capture(capturedSlot), capture(capturedContent)) } returns
                         documentEntity(dialogEntity())
-                    texasHttpClientMock.defaultMocks()
+                    texasClientMock.defaultMocks()
                     val document = document()
                     // Act
                     val response = client.post("/internal/api/v1/documents") {
@@ -112,7 +112,7 @@ class InternalDocumentApiTest :
             it("should return 400 on invalid") {
                 withTestApplication {
                     // Arrange
-                    texasHttpClientMock.defaultMocks()
+                    texasClientMock.defaultMocks()
                     coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
                     coEvery { documentDAOMock.insert(any(), any()) } returns documentEntity(dialogEntity())
                     // Act
@@ -133,7 +133,7 @@ class InternalDocumentApiTest :
             it("should return 500 on db write error") {
                 withTestApplication {
                     // Arrange
-                    texasHttpClientMock.defaultMocks()
+                    texasClientMock.defaultMocks()
                     coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
                     coEvery { documentDAOMock.insert(any(), any()) } throws RuntimeException("DB error")
                     // Act

@@ -17,13 +17,13 @@ import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.registerApiV1
-import no.nav.syfo.texas.client.TexasHttpClient
+import no.nav.syfo.texas.client.TexasClient
 import org.koin.ktor.ext.inject
 
 fun Application.configureRouting() {
     val applicationState by inject<ApplicationState>()
     val database by inject<DatabaseInterface>()
-    val texasHttpClient by inject<TexasHttpClient>()
+    val texasClient by inject<TexasClient>()
     val documentDAO by inject<DocumentDAO>()
     val documentContentDAO by inject<DocumentContentDAO>()
     val dialogDAO by inject<DialogDAO>()
@@ -37,13 +37,13 @@ fun Application.configureRouting() {
     routing {
         registerPodApi(applicationState, database)
         registerMetricApi()
-        registerApiV1(texasHttpClient, documentDAO, documentContentDAO, dialogDAO, validationService)
+        registerApiV1(texasClient, documentDAO, documentContentDAO, dialogDAO, validationService)
         // Static OpenAPI spec + Swagger UI only in non-prod
         staticResources("/openapi", "openapi")
         swaggerUI(path = "swagger", swaggerFile = "openapi/documentation.yaml")
         if (!isProdEnv()) {
             // TODO: Remove this endpoint later
-            registerDialogportenTokenApi(texasHttpClient, altinnTokenProvider)
+            registerDialogportenTokenApi(texasClient, altinnTokenProvider)
         }
         get("/") {
             call.respondRedirect("/swagger")

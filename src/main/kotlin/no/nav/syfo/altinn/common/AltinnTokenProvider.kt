@@ -8,13 +8,13 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import no.nav.syfo.texas.client.TexasHttpClient
+import no.nav.syfo.texas.client.TexasClient
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class AltinnTokenProvider(
-    private val texasHttpClient: TexasHttpClient,
+    private val texasClient: TexasClient,
     private val httpClient: HttpClient,
     private val altinnBaseUrl: String,
 ) {
@@ -39,7 +39,7 @@ class AltinnTokenProvider(
                     return requireNotNull(tokens[target]) { "Access token is null" }
                 }
             }
-            val maskinportenToken = texasHttpClient.systemToken("maskinporten", target)
+            val maskinportenToken = texasClient.systemToken("maskinporten", target)
             val newToken = altinnExchange(maskinportenToken.accessToken).toAltinnToken()
 
             tokens[target] = newToken
@@ -66,7 +66,7 @@ class AltinnTokenProvider(
             }
 
         val token = if (!res.status.isSuccess()) {
-            val maskinportenToken = texasHttpClient.systemToken("maskinporten", scope)
+            val maskinportenToken = texasClient.systemToken("maskinporten", scope)
             altinnExchange(maskinportenToken.accessToken).toAltinnToken()
         } else {
             res.bodyAsText()

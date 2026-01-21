@@ -41,12 +41,12 @@ import no.nav.syfo.ereg.client.FakeEregClient
 import no.nav.syfo.registerApiV1
 import no.nav.syfo.texas.MASKINPORTEN_ARKIVPORTEN_SCOPE
 import no.nav.syfo.texas.MASKINPORTEN_SYFO_DOKUMENTPORTEN_SCOPE
-import no.nav.syfo.texas.client.TexasHttpClient
+import no.nav.syfo.texas.client.TexasClient
 import organisasjon
 
 class ExternalDocumentApiTest :
     DescribeSpec({
-        val texasHttpClientMock = mockk<TexasHttpClient>()
+        val texasClientMock = mockk<TexasClient>()
         val documentDAO = mockk<DocumentDAO>(relaxed = true)
         val documentContentDAO = mockk<DocumentContentDAO>(relaxed = true)
         val dialogDAO = mockk<DialogDAO>()
@@ -84,7 +84,7 @@ class ExternalDocumentApiTest :
                     installStatusPages()
                     routing {
                         registerApiV1(
-                            texasHttpClient = texasHttpClientMock,
+                            texasClient = texasClientMock,
                             documentDAO = documentDAO,
                             documentContentDAO = documentContentDAO,
                             dialogDAO = dialogDAO,
@@ -103,7 +103,7 @@ class ExternalDocumentApiTest :
                         val document = documentEntity(dialogEntity())
                         coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
                         coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
-                        texasHttpClientMock.defaultMocks(
+                        texasClientMock.defaultMocks(
                             systemBrukerOrganisasjon = DefaultOrganization.copy(
                                 ID = "0192:${document.dialog.orgNumber}"
                             ),
@@ -135,7 +135,7 @@ class ExternalDocumentApiTest :
                         val document = documentEntity(dialogEntity())
                         coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
                         coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
-                        texasHttpClientMock.defaultMocks(
+                        texasClientMock.defaultMocks(
                             systemBrukerOrganisasjon = DefaultOrganization.copy(
                                 ID = "0192:${document.dialog.orgNumber}"
                             ),
@@ -162,7 +162,7 @@ class ExternalDocumentApiTest :
                         val document = documentEntity(dialogEntity().copy(orgNumber = organization.organisasjonsnummer))
                         coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
                         coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
-                        texasHttpClientMock.defaultMocks(
+                        texasClientMock.defaultMocks(
                             systemBrukerOrganisasjon = DefaultOrganization.copy(
                                 ID = "0192:${organization.inngaarIJuridiskEnheter!!.first().organisasjonsnummer}"
                             ),
@@ -201,7 +201,7 @@ class ExternalDocumentApiTest :
                         val document = documentEntity(dialogEntity().copy(orgNumber = organization.organisasjonsnummer))
                         coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
                         coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
-                        texasHttpClientMock.defaultMocks(
+                        texasClientMock.defaultMocks(
                             systemBrukerOrganisasjon = DefaultOrganization.copy(
                                 ID = "0192:${organization.inngaarIJuridiskEnheter!!.first().organisasjonsnummer}"
                             ),
@@ -233,7 +233,7 @@ class ExternalDocumentApiTest :
                         val organization = organisasjon()
                         val document = documentEntity(dialogEntity().copy(orgNumber = organization.organisasjonsnummer))
                         coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
-                        texasHttpClientMock.defaultMocks(
+                        texasClientMock.defaultMocks(
                             systemBrukerOrganisasjon = DefaultOrganization.copy(
                                 ID = "0192:$nonMatchingOrgNumber" // Different orgnumber
                             ),
@@ -263,7 +263,7 @@ class ExternalDocumentApiTest :
                         // Arrange
                         val document = documentEntity(dialogEntity())
                         val callerPid = "11223344556"
-                        texasHttpClientMock.defaultMocks(
+                        texasClientMock.defaultMocks(
                             acr = "Level4",
                             pid = callerPid
                         )
@@ -289,7 +289,7 @@ class ExternalDocumentApiTest :
                         // Arrange
                         val document = documentEntity(dialogEntity())
                         val callerPid = "11223344556"
-                        texasHttpClientMock.defaultMocks(
+                        texasClientMock.defaultMocks(
                             acr = "Level3",
                             pid = callerPid
                         )
@@ -313,7 +313,7 @@ class ExternalDocumentApiTest :
                         // Arrange
                         val document = documentEntity(dialogEntity())
                         val callerPid = "11223344556"
-                        texasHttpClientMock.defaultMocks(
+                        texasClientMock.defaultMocks(
                             acr = "Level4",
                             pid = callerPid
                         )
@@ -339,7 +339,7 @@ class ExternalDocumentApiTest :
                         // Arrange
                         val document = documentEntity(dialogEntity())
                         val callerPid = "11223344556"
-                        texasHttpClientMock.defaultMocks(
+                        texasClientMock.defaultMocks(
                             acr = "idporten-loa-high",
                             pid = callerPid
                         )
@@ -366,7 +366,7 @@ class ExternalDocumentApiTest :
                             // Arrange
                             val document = document().toDocumentEntity(dialogEntity())
                             coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns null
-                            texasHttpClientMock.defaultMocks(
+                            texasClientMock.defaultMocks(
                                 consumer = DefaultOrganization.copy(
                                     ID = "0192:${document.dialog.orgNumber}"
                                 ),

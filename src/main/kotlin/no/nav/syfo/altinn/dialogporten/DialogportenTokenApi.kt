@@ -7,13 +7,13 @@ import io.ktor.server.routing.route
 import no.nav.syfo.altinn.common.AltinnTokenProvider
 import no.nav.syfo.application.auth.AddTokenIssuerPlugin
 import no.nav.syfo.texas.MaskinportenIdportenAndTokenXAuthPlugin
-import no.nav.syfo.texas.client.TexasHttpClient
+import no.nav.syfo.texas.client.TexasClient
 
-fun Route.registerDialogportenTokenApi(texasHttpClient: TexasHttpClient, altinnTokenProvider: AltinnTokenProvider,) {
+fun Route.registerDialogportenTokenApi(texasClient: TexasClient, altinnTokenProvider: AltinnTokenProvider,) {
     route("/dialogporten/token") {
         install(AddTokenIssuerPlugin)
         install(MaskinportenIdportenAndTokenXAuthPlugin) {
-            client = texasHttpClient
+            client = texasClient
         }
         get {
             val token = with(altinnTokenProvider) {

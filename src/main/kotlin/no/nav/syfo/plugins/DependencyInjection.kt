@@ -30,7 +30,7 @@ import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.EregClient
 import no.nav.syfo.ereg.client.FakeEregClient
-import no.nav.syfo.texas.client.TexasHttpClient
+import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.httpClientDefault
 import org.koin.core.scope.Scope
 import org.koin.dsl.module
@@ -87,7 +87,7 @@ private fun databaseModule() = module {
 }
 
 private fun servicesModule() = module {
-    single { TexasHttpClient(client = get(), environment = env().texas) }
+    single { TexasClient(client = get(), environment = env().texas) }
     single {
         if (isLocalEnv()) {
             FakeEregClient()
@@ -115,7 +115,7 @@ private fun servicesModule() = module {
     }
     single {
         AltinnTokenProvider(
-            texasHttpClient = get(),
+            texasClient = get(),
             altinnBaseUrl = env().clientProperties.altinn3BaseUrl,
             httpClient = get()
         )
