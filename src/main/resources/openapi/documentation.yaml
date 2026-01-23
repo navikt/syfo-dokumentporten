@@ -97,6 +97,36 @@ paths:
   #          description: Forbidden - Caller does not have access to the organization or document type
   #        '500':
   #          description: Internal server error
+#  /api/v1/documents/{id}/metadata:
+#    get:
+#      summary: Get a document by id
+#      description: Fetch the metadata for a stored document.
+#      tags: [ Documents ]
+#      security:
+#        - maskinporten_jwt: [ ]
+#        - tokenx_jwt: [ ]
+#      parameters:
+#        - in: path
+#          name: id
+#          description: Document id (UUID)
+#          schema:
+#            type: string
+#          required: true
+#      responses:
+#        '200':
+#          description: Document metadata
+#          content:
+#            application/json:
+#              schema:
+#                $ref: '#/components/schemas/DocumentMetadata'
+#        '401':
+#          description: Unauthorized
+#        '403':
+#          description: Forbidden
+#        '404':
+#          description: Document not found
+#        '500':
+#          description: Server error
   /api/v1/documents/{id}:
     get:
       summary: Get a document by id
@@ -258,7 +288,7 @@ components:
 #          type: array
 #          description: List of documents on this page
 #          items:
-#            $ref: '#/components/schemas/DocumentListItem'
+#            $ref: '#/components/schemas/DocumentMetadata'
 #        meta:
 #          $ref: '#/components/schemas/PageMeta'
 #      required:
@@ -290,9 +320,9 @@ components:
 #        - pageSize
 #        - hasMore
 #        - resultSize
-#    DocumentListItem:
+#    DocumentMetadata:
 #      type: object
-#      description: Document entity returned in list responses
+#      description: Document metadata without binary content
 #      properties:
 #        nationalIdentificationNumber:
 #          type: string
