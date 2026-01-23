@@ -13,9 +13,11 @@ import documentContent
 import documentEntity
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
+import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
+import io.ktor.client.statement.content
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.jackson.jackson
 import io.ktor.server.routing.routing
@@ -31,8 +33,12 @@ import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.altinntilganger.client.FakeAltinnTilgangerClient
 import no.nav.syfo.application.LocalEnvironment
+import no.nav.syfo.application.api.ApiError
+import no.nav.syfo.application.api.ErrorType
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
+import no.nav.syfo.application.exception.ApiErrorException
+import no.nav.syfo.document.api.v1.dto.DocumentResponse
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
@@ -651,6 +657,94 @@ class ExternalDocumentApiTest : DescribeSpec({
 
                     // Assert
                     response.status shouldBe HttpStatusCode.OK
+                }
+            }
+        }
+    }
+    describe("GET /documents/{id}/metadata") {
+        describe("Maskinporten token") {
+            it("should return 200 OK single matching documents") {
+                withTestApplication {
+                    // Arrange
+                    val orgNumber = "123456789"
+                    val dialog = dialogEntity().copy(orgNumber = orgNumber)
+                    val document = documentEntity(dialog)
+
+                    coEvery {
+                        documentDAO.getByLinkId(linkId = document.linkId)
+                    } returns document
+                    texasHttpClientMock.defaultMocks(
+                        systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:$orgNumber"),
+                        scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                    )
+
+                    // Act
+                    val response =
+                        client.get("/api/v1/documents/${document.linkId}/metadata") {
+                            bearerAuth(createMockToken(ident = orgNumber))
+                        }
+
+                    // Assert
+                    response.status shouldBe HttpStatusCode.OK
+                    response.body<DocumentResponse>() shouldBe document.toDocumentResponse()
+                }
+            }
+
+            it("should return NotFound for unknown linkId") {
+                withTestApplication {
+                    // Arrange
+                    val orgNumber = "123456789"
+                    val linkId = java.util.UUID.randomUUID()
+
+                    coEvery {
+                        documentDAO.getByLinkId(linkId = linkId)
+                    } returns null
+                    texasHttpClientMock.defaultMocks(
+                        systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:$orgNumber"),
+                        scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                    )
+
+                    // Act
+                    val response =
+                        client.get("/api/v1/documents/${linkId}/metadata") {
+                            bearerAuth(createMockToken(ident = orgNumber))
+                        }
+
+                    // Assert
+                    response.status shouldBe HttpStatusCode.NotFound
+                    val apiError = response.body<ApiError>()
+                    apiError.status shouldBe HttpStatusCode.NotFound
+                    apiError.type shouldBe ErrorType.NOT_FOUND
+                }
+            }
+            it("should return Forbidden for for maskinporten token with orgnummer mismatch fron document") {
+                withTestApplication {
+                    // Arrange
+                    val orgNumber = "123456789"
+                    val organization = organisasjon()
+                    val dialog = dialogEntity().copy(orgNumber = orgNumber)
+                    val document = documentEntity(dialog)
+                    fakeEregClient.organisasjoner[document.dialog.orgNumber] = organization
+
+                    coEvery {
+                        documentDAO.getByLinkId(linkId = document.linkId)
+                    } returns document
+                    texasHttpClientMock.defaultMocks(
+                        systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:${orgNumber.reversed()}"),
+                        scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                    )
+
+                    // Act
+                    val response =
+                        client.get("/api/v1/documents/${document.linkId}/metadata") {
+                            bearerAuth(createMockToken(ident = orgNumber))
+                        }
+
+                    // Assert
+                    response.status shouldBe HttpStatusCode.Forbidden
+                    val apiError = response.body<ApiError>()
+                    apiError.status shouldBe HttpStatusCode.Forbidden
+                    apiError.type shouldBe ErrorType.AUTHORIZATION_ERROR
                 }
             }
         }

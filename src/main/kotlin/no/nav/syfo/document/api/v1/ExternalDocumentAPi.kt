@@ -33,12 +33,12 @@ fun Route.registerExternalDocumentsApiV1(
 ) {
     val logger = logger("ExternalDocumentAPi")
 
-    route("$DOCUMENT_API_PATH/{id}") {
+    route("$DOCUMENT_API_PATH") {
 
         install(MaskinportenIdportenAndTokenXAuthPlugin) {
             client = texasHttpClient
         }
-        get() {
+        get("/{id}") {
             val linkId = call.parameters.extractAndValidateUUIDParameter("id")
             val principal = call.getPrincipal()
             val document = documentDAO.getByLinkId(linkId) ?: throw NotFoundException("Document not found")
@@ -53,13 +53,7 @@ fun Route.registerExternalDocumentsApiV1(
             countRead(logger, principal, document.isRead, document.dialog.orgNumber)
             call.response.status(HttpStatusCode.OK)
         }
-    }
-
-    if (env.documentCollectionEnabled) {
-        route(DOCUMENT_API_PATH) {
-            install(MaskinportenIdportenAndTokenXAuthPlugin) {
-                client = texasHttpClient
-            }
+        if (env.documentCollectionEnabled) {
             get() {
                 val orgNumber = call.getOrgNumber()
                 val isRead = call.queryParameters["isRead"]?.toBoolean()
@@ -82,6 +76,15 @@ fun Route.registerExternalDocumentsApiV1(
                     createdAfter = createdAfter,
                 )
                 call.respond(documentPage.toDocumentResponsePage())
+            }
+
+            get("{id}/metadata") {
+                val linkId = call.parameters.extractAndValidateUUIDParameter("id")
+                val principal = call.getPrincipal()
+                val document = documentDAO.getByLinkId(linkId) ?: throw NotFoundException("Document not found")
+                validationService.validateDocumentAccess(principal, document)
+                validationService.validateDocumentAccess(principal, document)
+                call.respond(document.toDocumentResponse())
             }
         }
     }
