@@ -23,7 +23,7 @@ dependencies {
     implementation(libs.ktor.server.config.yaml)
     implementation("io.ktor:ktor-client-core")
     implementation("io.ktor:ktor-client-content-negotiation")
-    implementation("io.ktor:ktor-client-apache-jvm")
+    implementation("io.ktor:ktor-client-apache5-jvm")
     implementation("io.ktor:ktor-serialization-jackson")
     implementation("io.ktor:ktor-server-auth")
     implementation("io.ktor:ktor-server-auth-jwt")
