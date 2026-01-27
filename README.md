@@ -73,15 +73,15 @@ sequenceDiagram
 ```mermaid
     C4Container
     title Container diagram Syfo-dokumentporten
-    Person(person, Person, "A person using innbox in Altinn3 to receive documents from NAV")
+    Person(person, Person, "A person using inbox in Altinn3 to retrieve documents from NAV")
     Container_Ext(lps, "LPS", "And external system used by organizations")
 
     Container_Boundary(c3, "Digdir") {
-        Container_Ext(dialogporten, "Dialogporten", "", "Api for creating and responsing with dialogs and transmissions")
+        Container_Ext(dialogporten, "Dialogporten", "", "System for creating and responding with dialogs and transmissions")
     }
         
     Container_Boundary(c1, "Syfo-dokumentporten") {
-        Container(dokumentporten, "Syfo/dokumentporten", "Kotlin, Docker Container", "Provides api for accepting and responding with pdf documents")
+        Container(dokumentporten, "Syfo-dokumentporten", "Kotlin, Docker Container", "Provides api for accepting and responding with pdf documents")
         ContainerDb(database, "CloudSQL Database", "Postgresql Database", "Stores dialogs and documents")
     }
 
