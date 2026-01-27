@@ -38,7 +38,11 @@ sequenceDiagram
     participant altinn
     participant dialogporten
     participant dokumentporten as syfo-dokumentporten
-
+    participant dialogmote as dialogmøte informasjon
+    participant oppfolginsplan as oppfølgingsplaner
+    
+    dialogmote ->> dokumentporten: POST /internal/api/v1/documents
+    oppfolginsplan ->> dokumentporten: POST /internal/api/v1/documents
     lps ->> maskinporten: Get System user token
     lps ->> altinn: Exchange token for Altinn token
     lps ->> dialogporten: GET /api/v1/enduser/dialogs
@@ -50,16 +54,16 @@ sequenceDiagram
 ## Request flow from Syfo-dokumentporten perspective
 ```mermaid
 sequenceDiagram
-    participant isdialogmote
-    participant oppfolginsplan as syfo-doppfolgingsplan
+    participant dialogmote as dialogmøte informasjon 
+    participant oppfolginsplan as oppfølgingsplaner
     participant dokumentporten as syfo-dokumentporten
     participant maskinporten
     participant altinn
     participant dialogporten
     participant lps
     participant user
-        
-    isdialogmote ->> dokumentporten: POST /internal/api/v1/documents
+
+    dialogmote ->> dokumentporten: POST /internal/api/v1/documents
     oppfolginsplan ->> dokumentporten: POST /internal/api/v1/documents
     dokumentporten ->> maskinporten: Get System token
     dokumentporten ->> altinn: Exchange token for Altinn token
