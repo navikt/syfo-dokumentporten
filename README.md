@@ -100,11 +100,7 @@ sequenceDiagram
     Rel(lps, dokumentporten, "Uses", "HTTPS/PDF")
     Rel(person, dialogporten, "Uses", "HTTPS/HTML")
     Rel(person, dokumentporten, "Uses", "HTTPS/PDF")
-
-
 ```
-## Database diagram
-[ER diagram](documentation/database-ER-diagram.md)
 
 ## Wiki
 We have a [wiki](https://github.io/navikt/syfo-dokumentporten/wiki) for this project, 
