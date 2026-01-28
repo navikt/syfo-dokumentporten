@@ -5,11 +5,16 @@ info:
   description: |
     Public API for interacting with Syfo-Dokumentporten(Formerly Arkivporten) documents.
     
+    This service creates dialogs in Altinn Dialogporten grouped by national identification number and add transmissions with links back to its own endpoints.
+    The links points to documents stored in this service, for followupplans and letters related to dialogmeetings.
+    This lets external organizations consume the dialogs using mechanisms provided by Digdir, acquire links back to this service and use them to retrieve documents pertaining to their own employees, for archival purposes.
+    The national identification number is not provided in the dialogs.
+    
+    ### Authentication
     This api require authentication with Maskinporten or Idporten Level 4 issued JWT.
 
     The Maskinporten token must be issued to a SystemUser with
-    scope `nav:syfo/dokumentporten` and Altinn resources `nav_syfo_oppfolgingsplan` and `nav_syfo_dialogmote`. We will continue to support `nav:syfo/arkivporten` scope for backward compatibility in dev environment for a while.
-    But we will not support it in production, and we recommend users to use the new scope `nav:syfo/dokumentporten`.
+    scope `nav:syfo/dokumentporten` and Altinn resources `nav_syfo_oppfolgingsplan` and `nav_syfo_dialogmote`.
 servers:
   - url: https://syfo-dokumentporten.nav.no
     description: Prod environment
