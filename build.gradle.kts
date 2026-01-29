@@ -34,8 +34,8 @@ dependencies {
     implementation(libs.koin.logger)
     implementation(libs.logstash)
     implementation(libs.jackson.datatype.jsr310)
-    implementation("io.ktor:ktor-server-openapi:3.3.3")
-    implementation("io.ktor:ktor-server-swagger:3.3.3")
+    implementation("io.ktor:ktor-server-openapi:3.4.0")
+    implementation("io.ktor:ktor-server-swagger:3.4.0")
     implementation(libs.fasterxml.uuid)
     // Database
     implementation(libs.bundles.database)
