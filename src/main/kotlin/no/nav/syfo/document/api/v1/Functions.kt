@@ -43,9 +43,8 @@ fun Parameters.extractDocumentTypeParameter(name: String): DocumentType {
     }
 }
 
-fun RoutingCall.getRequiredQueryParameter(name: String): String {
-    return this.queryParameters[name] ?: throw ApiErrorException.BadRequestException("Missing $name parameter")
-}
+fun RoutingCall.getRequiredQueryParameter(name: String): String =
+    this.queryParameters[name] ?: throw ApiErrorException.BadRequestException("Missing $name parameter")
 
 fun RoutingCall.getCreatedAfter(): Instant {
     val createdAfter = getRequiredQueryParameter("createdAfter")
@@ -58,16 +57,14 @@ fun RoutingCall.getCreatedAfter(): Instant {
     }
 }
 
-fun RoutingCall.getPageSize(): Int? =
-    this.queryParameters["pageSize"]
-        ?.toIntOrNull()
+fun RoutingCall.getPageSize(): Int? = this.queryParameters["pageSize"]
+    ?.toIntOrNull()
 
 fun RoutingCall.getOrgNumber(): String =
     queryParameters["orgNumber"] ?: throw BadRequestException("Missing parameter: orgNumber")
 
-fun RoutingCall.getPage(): Int? =
-    this.queryParameters["page"]
-        ?.toIntOrNull()
+fun RoutingCall.getPage(): Int? = this.queryParameters["page"]
+    ?.toIntOrNull()
 
 suspend inline fun <reified T : Any> RoutingCall.tryReceive() = runCatching { receive<T>() }.getOrElse {
     when {

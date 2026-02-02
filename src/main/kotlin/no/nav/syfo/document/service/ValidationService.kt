@@ -83,15 +83,13 @@ class ValidationService(
         validateAltinnRessursTilgang(principal, documentType)
     }
 
-    private suspend fun validateHierarchicalEeregAccess(
-        requestedOrgNumber: String,
-        orgnumber: String
-    ) {
+    private suspend fun validateHierarchicalEeregAccess(requestedOrgNumber: String, orgnumber: String) {
         val organisasjon = eregService.getOrganization(requestedOrgNumber)
         if (organisasjon.inngaarIJuridiskEnheter?.filter { it.organisasjonsnummer == orgnumber }
-                .isNullOrEmpty()) {
+                .isNullOrEmpty()
+        ) {
             logger.warn(
-                "Actual orgnumber: ${orgnumber} does not match requested orgnumber: $requestedOrgNumber or any parent organization."
+                "Actual orgnumber: $orgnumber does not match requested orgnumber: $requestedOrgNumber or any parent organization."
             )
             throw ApiErrorException.ForbiddenException("Access denied. Invalid organization.")
         }
@@ -99,7 +97,9 @@ class ValidationService(
 
     private suspend fun validateAltinnRessursTilgang(principal: SystemPrincipal, documentType: DocumentType) {
         val requiredRessurs = requiredResourceByDocumentType[documentType]
-            ?: throw ApiErrorException.InternalServerErrorException("Could not find resource for document type $documentType")
+            ?: throw ApiErrorException.InternalServerErrorException(
+                "Could not find resource for document type $documentType"
+            )
 
         val hasAccess = pdpService.hasAccessToResource(
             System(principal.systemUserId),

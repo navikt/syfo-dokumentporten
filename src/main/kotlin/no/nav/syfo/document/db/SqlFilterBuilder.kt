@@ -49,7 +49,9 @@ class SqlFilterBuilder {
     fun buildFilterString(): String {
         val whereClause = if (filters.isNotEmpty()) {
             "WHERE ${filters.joinToString(" AND ") { "${it.name} ${it.operator} ?" }}"
-        } else ""
+        } else {
+            ""
+        }
         val orderClause = orderBy?.let { "ORDER BY ${it.columnName} ${orderDirection.name}" } ?: ""
         val limitClause = limit?.let {
             require(it > 0) { "Limit must be at least 1" }

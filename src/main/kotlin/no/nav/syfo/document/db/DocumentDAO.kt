@@ -3,8 +3,6 @@ package no.nav.syfo.document.db
 import io.ktor.client.utils.EmptyContent.contentType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.sql.ResultSet
-import java.util.UUID
 import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.Page.Meta
@@ -155,14 +153,15 @@ class DocumentDAO(private val database: DatabaseInterface) {
                     """
                         ${selectDocWithDialogJoin()}
                         WHERE doc.link_id = ?
-                """.trimIndent()
-            ).use { preparedStatement ->
-                preparedStatement.setObject(1, linkId)
-                val resultSet = preparedStatement.executeQuery()
-                if (resultSet.next()) {
-                    resultSet.toDocumentEntity()
-                } else {
-                    null
+                    """.trimIndent()
+                ).use { preparedStatement ->
+                    preparedStatement.setObject(1, linkId)
+                    val resultSet = preparedStatement.executeQuery()
+                    if (resultSet.next()) {
+                        resultSet.toDocumentEntity()
+                    } else {
+                        null
+                    }
                 }
             }
         }
@@ -190,7 +189,6 @@ class DocumentDAO(private val database: DatabaseInterface) {
                 }
             }
         }
-    }
 
     suspend fun findDocumentsByParameters(
         pageSize: Int,

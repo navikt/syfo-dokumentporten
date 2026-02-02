@@ -17,6 +17,7 @@ import no.nav.syfo.document.db.Page
 import no.nav.syfo.document.db.toDocumentResponsePage
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.texas.MaskinportenIdportenAndTokenXAuthPlugin
+import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.logger
 import org.slf4j.Logger
 import java.time.Instant
@@ -52,11 +53,11 @@ fun Route.registerExternalGetDocumentByIdApiV1(
     }
 
     if (env.documentCollectionEnabled) {
-        route(DOCUMENT_API_PATH) {
+        route("/") {
             install(MaskinportenIdportenAndTokenXAuthPlugin) {
-                client = texasHttpClient
+                client = texasClient
             }
-            get() {
+            get {
                 val orgNumber = call.getOrgNumber()
                 val isRead = call.queryParameters["isRead"]?.toBoolean()
                 val documentType = call.queryParameters.extractDocumentTypeParameter("documentType")
@@ -83,7 +84,7 @@ fun Route.registerExternalGetDocumentByIdApiV1(
     }
 }
 
-fun countRead(logger: Logger, principal: Principal, isRead: Boolean, orgNumber: String,) {
+fun countRead(logger: Logger, principal: Principal, isRead: Boolean, orgNumber: String) {
     if (isRead) {
         when (principal) {
             is BrukerPrincipal -> {

@@ -127,20 +127,18 @@ data class PersistedDocumentEntity(
         return result
     }
 
-    fun toDocumentResponse(): DocumentResponse {
-        return DocumentResponse(
-            documentId = documentId,
-            type = type,
-            contentType = contentType,
-            linkId = linkId,
-            status = status,
-            isRead = isRead,
-            transmissionId = transmissionId,
-            dialogId = dialog.dialogportenUUID,
-            nationalIdentificationNumber = dialog.fnr,
-            orgNumber = dialog.orgNumber,
-            updated = updated,
-            created = created,
-        )
-    }
+    fun toDocumentResponse(): DocumentResponse = DocumentResponse(
+        documentId = documentId,
+        type = type,
+        contentType = contentType,
+        linkId = linkId,
+        status = status,
+        isRead = isRead,
+        transmissionId = transmissionId,
+        dialogId = dialog.dialogportenUUID,
+        nationalIdentificationNumber = dialog.fnr,
+        orgNumber = dialog.orgNumber,
+        updated = updated,
+        created = created,
+    )
 }
