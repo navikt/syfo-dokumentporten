@@ -21,10 +21,7 @@ import java.time.format.DateTimeParseException
 import java.util.UUID
 
 fun Parameters.extractAndValidateUUIDParameter(name: String): UUID {
-    val parameter = get(name)
-    if (parameter == null) {
-        throw BadRequestException("Missing parameter: $name")
-    }
+    val parameter = get(name) ?: throw BadRequestException("Missing parameter: $name")
 
     return try {
         UUID.fromString(parameter)
@@ -63,15 +60,13 @@ fun RoutingCall.getPageSize(): Int? = this.queryParameters["pageSize"]
 fun RoutingCall.getOrgNumber(): String =
     queryParameters["orgNumber"] ?: throw BadRequestException("Missing parameter: orgNumber")
 
-fun RoutingCall.getPage(): Int? = this.queryParameters["page"]
-    ?.toIntOrNull()
-
 suspend inline fun <reified T : Any> RoutingCall.tryReceive() = runCatching { receive<T>() }.getOrElse {
     when {
         it is JsonConvertException -> throw BadRequestException("Invalid payload in request: ${it.message}", it)
         else -> throw it
     }
 }
+
 fun RoutingCall.getPrincipal(): Principal = when (attributes[TOKEN_ISSUER]) {
     JwtIssuer.MASKINPORTEN -> {
         authentication.principal<SystemPrincipal>() ?: throw UnauthorizedException()

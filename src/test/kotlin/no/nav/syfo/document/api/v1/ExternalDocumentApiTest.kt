@@ -416,7 +416,7 @@ class ExternalDocumentApiTest :
                             items = documents
                         )
                         coEvery {
-                            documentDAO.findDocumentsByParameters(any(), any())
+                            documentDAO.findDocumentsByParameters(pageSize = any())
                         } returns page
                         texasClientMock.defaultMocks(
                             systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:$orgNumber"),
@@ -454,8 +454,7 @@ class ExternalDocumentApiTest :
                         )
                         coEvery {
                             documentDAO.findDocumentsByParameters(
-                                any(),
-                                any(),
+                                pageSize = any(),
                                 type = DocumentType.DIALOGMOTE,
                             )
                         } returns page
@@ -530,8 +529,7 @@ class ExternalDocumentApiTest :
                         )
                         coEvery {
                             documentDAO.findDocumentsByParameters(
-                                any(),
-                                any(),
+                                pageSize = any(),
                                 isRead = true,
                             )
                         } returns page
@@ -655,8 +653,7 @@ class ExternalDocumentApiTest :
                         )
                         coEvery {
                             documentDAO.findDocumentsByParameters(
-                                any(),
-                                any()
+                                pageSize = any()
                             )
                         } returns emptyPage
                         texasClientMock.defaultMocks(

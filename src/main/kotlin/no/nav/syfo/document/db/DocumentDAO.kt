@@ -1,6 +1,5 @@
 package no.nav.syfo.document.db
 
-import io.ktor.client.utils.EmptyContent.contentType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import no.nav.syfo.application.database.DatabaseInterface
@@ -189,13 +188,13 @@ class DocumentDAO(private val database: DatabaseInterface) {
         }
 
     suspend fun findDocumentsByParameters(
-        pageSize: Int,
-        orgnumber: String? = null,
-        type: DocumentType? = null,
         isRead: Boolean? = null,
+        type: DocumentType? = null,
+        orgnumber: String? = null,
         createdAfter: Instant? = null,
         createdBefore: Instant? = null,
         orderBy: SqlFilterBuilder.OrderBy = SqlFilterBuilder.OrderBy.CREATED,
+        pageSize: Int,
         orderDirection: Page.OrderDirection = Page.OrderDirection.ASC,
     ): Page<PersistedDocumentEntity> {
         val limitInRange = pageSize.coerceIn(1, Page.MAX_PAGE_SIZE)
@@ -206,7 +205,6 @@ class DocumentDAO(private val database: DatabaseInterface) {
                     builder
                         .filterParam("doc.is_read", isRead)
                         .filterParam("doc.type", type)
-                        .filterParam("doc.content_type", contentType)
                         .filterParam("dialog.org_number", orgnumber)
                         .filterParam(
                             "doc.created",
