@@ -28,34 +28,32 @@ fun Route.registerExternalCollectionEndpointV1(
     validationService: ValidationService,
     env: Environment
 ) {
-    if (env.documentCollectionEnabled) {
-        route("") {
-            install(MaskinportenIdportenAndTokenXAuthPlugin) {
-                client = texasClient
-            }
-            get {
-                val orgNumber = call.getOrgNumber()
-                val isRead = call.queryParameters["isRead"]?.toBoolean()
-                val documentType = call.queryParameters.extractDocumentTypeParameter("documentType")
-                val pageSize = call.getPageSize()
-                val createdAfter = call.getCreatedAfter()
-                val principal = call.getPrincipal()
+    route("") {
+        install(MaskinportenIdportenAndTokenXAuthPlugin) {
+            client = texasClient
+        }
+        get {
+            val orgNumber = call.getOrgNumber()
+            val isRead = call.queryParameters["isRead"]?.toBoolean()
+            val documentType = call.queryParameters.extractDocumentTypeParameter("documentType")
+            val pageSize = call.getPageSize()
+            val createdAfter = call.getCreatedAfter()
+            val principal = call.getPrincipal()
 
-                validationService.validateDocumentsOfTypeAccess(
-                    principal = principal,
-                    requestedOrgNumber = orgNumber,
-                    documentType = documentType,
-                )
+            validationService.validateDocumentsOfTypeAccess(
+                principal = principal,
+                requestedOrgNumber = orgNumber,
+                documentType = documentType,
+            )
 
-                val documentPage = documentDAO.findDocumentsByParameters(
-                    orgnumber = orgNumber,
-                    isRead = isRead,
-                    type = documentType,
-                    pageSize = pageSize ?: Page.DEFAULT_PAGE_SIZE,
-                    createdAfter = createdAfter,
-                )
-                call.respond(documentPage.toDocumentResponsePage())
-            }
+            val documentPage = documentDAO.findDocumentsByParameters(
+                orgnumber = orgNumber,
+                isRead = isRead,
+                type = documentType,
+                pageSize = pageSize ?: Page.DEFAULT_PAGE_SIZE,
+                createdAfter = createdAfter,
+            )
+            call.respond(documentPage.toDocumentResponsePage())
         }
     }
 }

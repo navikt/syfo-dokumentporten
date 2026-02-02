@@ -8,7 +8,6 @@ interface Environment {
     val texas: TexasEnvironment
     val clientProperties: ClientProperties
     val publicIngressUrl: String
-    val documentCollectionEnabled: Boolean
     val dialogportenIsApiOnly: Boolean
 }
 
@@ -20,11 +19,6 @@ data class NaisEnvironment(
     override val clientProperties: ClientProperties = ClientProperties.createFromEnvVars(),
     override val publicIngressUrl: String = getEnvVar("PUBLIC_INGRESS_URL"),
     override val dialogportenIsApiOnly: Boolean = getEnvVar("DIALOGPORTEN_API_ONLY").toBoolean(),
-    override val documentCollectionEnabled: Boolean = getEnvVar(
-        "DOCUMENT_COLLECTION_ENABLED",
-        "false"
-    ).toBoolean(),
-
 ) : Environment
 
 fun getEnvVar(varName: String, defaultValue: String? = null) =
@@ -40,5 +34,4 @@ data class LocalEnvironment(
     override val clientProperties: ClientProperties = ClientProperties.createForLocal(),
     override val publicIngressUrl: String = "http://localhost:8080",
     override val dialogportenIsApiOnly: Boolean = true,
-    override val documentCollectionEnabled: Boolean = true,
 ) : Environment
