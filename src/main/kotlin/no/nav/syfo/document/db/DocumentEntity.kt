@@ -136,7 +136,7 @@ data class PersistedDocumentEntity(
         isRead = isRead,
         transmissionId = transmissionId,
         dialogId = dialog.dialogportenUUID,
-        nationalIdentificationNumber = dialog.fnr,
+        employeeIdentificationNumber = dialog.fnr,
         orgNumber = dialog.orgNumber,
         updated = updated,
         created = created,
