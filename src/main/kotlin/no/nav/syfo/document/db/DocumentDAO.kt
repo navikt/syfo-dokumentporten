@@ -146,22 +146,20 @@ class DocumentDAO(private val database: DatabaseInterface) {
         }
     }
 
-    suspend fun getByLinkId(linkId: UUID): PersistedDocumentEntity? {
-        return withContext(Dispatchers.IO) {
-            database.connection.use { connection ->
-                connection.prepareStatement(
-                    """
+    suspend fun getByLinkId(linkId: UUID): PersistedDocumentEntity? = withContext(Dispatchers.IO) {
+        database.connection.use { connection ->
+            connection.prepareStatement(
+                """
                         ${selectDocWithDialogJoin()}
                         WHERE doc.link_id = ?
-                    """.trimIndent()
-                ).use { preparedStatement ->
-                    preparedStatement.setObject(1, linkId)
-                    val resultSet = preparedStatement.executeQuery()
-                    if (resultSet.next()) {
-                        resultSet.toDocumentEntity()
-                    } else {
-                        null
-                    }
+                """.trimIndent()
+            ).use { preparedStatement ->
+                preparedStatement.setObject(1, linkId)
+                val resultSet = preparedStatement.executeQuery()
+                if (resultSet.next()) {
+                    resultSet.toDocumentEntity()
+                } else {
+                    null
                 }
             }
         }
@@ -176,7 +174,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
                         WHERE doc.status = ? 
                         order by doc.created 
                         LIMIT ? 
-                        """.trimIndent()
+                    """.trimIndent()
                 ).use { preparedStatement ->
                     preparedStatement.setObject(1, status, Types.OTHER)
                     preparedStatement.setInt(2, limit)

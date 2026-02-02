@@ -22,38 +22,14 @@ import no.nav.syfo.util.logger
 import org.slf4j.Logger
 import java.time.Instant
 
-fun Route.registerExternalGetDocumentByIdApiV1(
+fun Route.registerExternalCollectionEndpointV1(
     documentDAO: DocumentDAO,
-    documentContentDAO: DocumentContentDAO,
     texasClient: TexasClient,
     validationService: ValidationService,
     env: Environment
 ) {
-    val logger = logger("ExternalDocumentAPi")
-
-    route("/{id}") {
-        install(MaskinportenIdportenAndTokenXAuthPlugin) {
-            client = texasClient
-        }
-        get {
-            val linkId = call.parameters.extractAndValidateUUIDParameter("id")
-            val principal = call.getPrincipal()
-            val document = documentDAO.getByLinkId(linkId) ?: throw NotFoundException("Document not found")
-            validationService.validateDocumentAccess(principal, document)
-            val content = documentContentDAO.getDocumentContentById(document.id)
-                ?: throw NotFoundException("Document content not found")
-            if (!document.isRead) {
-                documentDAO.update(document.copy(isRead = true, updated = Instant.now()))
-            }
-            call.response.headers.append(HttpHeaders.ContentType, document.contentType)
-            call.respond<ByteArray>(content)
-            countRead(logger, principal, document.isRead, document.dialog.orgNumber)
-            call.response.status(HttpStatusCode.OK)
-        }
-    }
-
     if (env.documentCollectionEnabled) {
-        route("/") {
+        route("") {
             install(MaskinportenIdportenAndTokenXAuthPlugin) {
                 client = texasClient
             }
@@ -80,6 +56,36 @@ fun Route.registerExternalGetDocumentByIdApiV1(
                 )
                 call.respond(documentPage.toDocumentResponsePage())
             }
+        }
+    }
+}
+
+fun Route.registerExternalGetDocumentByIdApiV1(
+    documentDAO: DocumentDAO,
+    documentContentDAO: DocumentContentDAO,
+    texasClient: TexasClient,
+    validationService: ValidationService,
+) {
+    val logger = logger("ExternalDocumentAPi")
+
+    route("/{id}") {
+        install(MaskinportenIdportenAndTokenXAuthPlugin) {
+            client = texasClient
+        }
+        get {
+            val linkId = call.parameters.extractAndValidateUUIDParameter("id")
+            val principal = call.getPrincipal()
+            val document = documentDAO.getByLinkId(linkId) ?: throw NotFoundException("Document not found")
+            validationService.validateDocumentAccess(principal, document)
+            val content = documentContentDAO.getDocumentContentById(document.id)
+                ?: throw NotFoundException("Document content not found")
+            if (!document.isRead) {
+                documentDAO.update(document.copy(isRead = true, updated = Instant.now()))
+            }
+            call.response.headers.append(HttpHeaders.ContentType, document.contentType)
+            call.respond<ByteArray>(content)
+            countRead(logger, principal, document.isRead, document.dialog.orgNumber)
+            call.response.status(HttpStatusCode.OK)
         }
     }
 }
