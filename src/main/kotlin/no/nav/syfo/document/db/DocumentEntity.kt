@@ -1,6 +1,6 @@
 package no.nav.syfo.document.db
 
-import no.nav.syfo.document.api.v1.dto.DocumentResponse
+import no.nav.syfo.document.api.v1.dto.DocumentDetails
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import java.time.Instant
 import java.util.UUID
@@ -127,7 +127,7 @@ data class PersistedDocumentEntity(
         return result
     }
 
-    fun toDocumentResponse(): DocumentResponse = DocumentResponse(
+    fun toDocumentDetails(): DocumentDetails = DocumentDetails(
         documentId = documentId,
         type = type,
         contentType = contentType,

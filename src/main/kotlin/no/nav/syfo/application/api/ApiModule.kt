@@ -30,7 +30,6 @@ fun Application.configureRouting() {
     val dialogDAO by inject<DialogDAO>()
     val validationService by inject<ValidationService>()
     val altinnTokenProvider by inject<AltinnTokenProvider>()
-    val env by inject<Environment>()
 
     installCallId()
     installContentNegotiation()
@@ -39,7 +38,7 @@ fun Application.configureRouting() {
     routing {
         registerPodApi(applicationState, database)
         registerMetricApi()
-        registerApiV1(texasClient, documentDAO, documentContentDAO, dialogDAO, validationService, env)
+        registerApiV1(texasClient, documentDAO, documentContentDAO, dialogDAO, validationService)
         // Static OpenAPI spec + Swagger UI only in non-prod
         staticResources("/openapi", "openapi")
         swaggerUI(path = "swagger", swaggerFile = "openapi/documentation.yaml")

@@ -2,11 +2,9 @@ package no.nav.syfo
 
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.route
-import no.nav.syfo.application.Environment
 import no.nav.syfo.application.auth.AddTokenIssuerPlugin
 import no.nav.syfo.application.auth.AddTokenIssuerPluginWithRedirect
-import no.nav.syfo.document.api.v1.registerExternalCollectionEndpointV1
-import no.nav.syfo.document.api.v1.registerExternalGetDocumentByIdApiV1
+import no.nav.syfo.document.api.v1.registerExternalApiV1
 import no.nav.syfo.document.api.v1.registerInternalDocumentsApiV1
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
@@ -26,7 +24,6 @@ fun Route.registerApiV1(
     documentContentDAO: DocumentContentDAO,
     dialogDAO: DialogDAO,
     validationService: ValidationService,
-    env: Environment
 ) {
     route("/internal$API_V1_PATH") {
         install(TexasAzureADAuthPlugin) {
@@ -37,22 +34,16 @@ fun Route.registerApiV1(
     route(API_V1_PATH) {
         route(DOCUMENT_API_PATH) {
             install(AddTokenIssuerPlugin)
-            registerExternalGetDocumentByIdApiV1(
+            registerExternalApiV1(
                 documentDAO = documentDAO,
                 documentContentDAO = documentContentDAO,
                 texasClient = texasClient,
                 validationService = validationService,
             )
-            registerExternalCollectionEndpointV1(
-                documentDAO = documentDAO,
-                texasClient = texasClient,
-                validationService = validationService,
-                env = env
-            )
         }
         route(GUI_DOCUMENT_API_PATH) {
             install(AddTokenIssuerPluginWithRedirect)
-            registerExternalGetDocumentByIdApiV1(
+            registerExternalApiV1(
                 documentDAO = documentDAO,
                 documentContentDAO = documentContentDAO,
                 texasClient = texasClient,

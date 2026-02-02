@@ -74,7 +74,6 @@ class InternalDocumentApiTest :
                             documentContentDAOMock,
                             dialogDAOMock,
                             validationService = mockk<ValidationService>(),
-                            env = LocalEnvironment()
                         )
                     }
                 }

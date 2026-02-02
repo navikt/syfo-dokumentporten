@@ -4,7 +4,7 @@ import no.nav.syfo.document.db.DocumentStatus
 import java.time.Instant
 import java.util.UUID
 
-data class DocumentResponse(
+data class DocumentDetails(
     val documentId: UUID,
     val type: DocumentType,
     val contentType: String,

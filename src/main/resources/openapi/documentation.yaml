@@ -102,6 +102,37 @@ paths:
           description: Forbidden - Caller does not have access to the organization or document type
         '500':
           description: Internal server error
+
+  /api/v1/documents/{id}/details:
+    get:
+      summary: Get details for a document by id
+      description: Fetch the details for a stored document.
+      tags: [ Documents ]
+      security:
+        - maskinporten_jwt: [ ]
+        - tokenx_jwt: [ ]
+      parameters:
+        - in: path
+          name: id
+          description: Document id (UUID)
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Document details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDetails'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Document not found
+        '500':
+          description: Server error
   /api/v1/documents/{id}:
     get:
       summary: Get a document by id
@@ -263,7 +294,7 @@ components:
           type: array
           description: List of documents on this page
           items:
-            $ref: '#/components/schemas/DocumentListItem'
+            $ref: '#/components/schemas/DocumentDetails'
         meta:
           $ref: '#/components/schemas/PageMeta'
       required:
@@ -295,13 +326,14 @@ components:
         - pageSize
         - hasMore
         - resultSize
-    DocumentListItem:
+    DocumentDetails:
       type: object
-      description: Document entity returned in list responses
+      description: Details of a document without the binary content
       properties:
-        nationalIdentificationNumber:
+        employeeIdentificationNumber:
           type: string
-          description: Person identifier
+          description: National identification number for the person associated with the document
+          example: "12345678901"
         documentId:
           type: string
           format: uuid
@@ -348,7 +380,7 @@ components:
           format: date-time
           description: Last update timestamp (UTC)
       required:
-        - nationalIdentificationNumber
+        - employeeIdentificationNumber
         - documentId
         - type
         - contentType

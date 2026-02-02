@@ -7,7 +7,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
-import no.nav.syfo.application.Environment
+import java.time.Instant
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.Principal
 import no.nav.syfo.application.auth.SystemPrincipal
@@ -20,14 +20,15 @@ import no.nav.syfo.texas.MaskinportenIdportenAndTokenXAuthPlugin
 import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.logger
 import org.slf4j.Logger
-import java.time.Instant
 
-fun Route.registerExternalCollectionEndpointV1(
+fun Route.registerExternalApiV1(
     documentDAO: DocumentDAO,
+    documentContentDAO: DocumentContentDAO,
     texasClient: TexasClient,
     validationService: ValidationService,
-    env: Environment
 ) {
+    val logger = logger("ExternalDocumentAPi")
+
     route("") {
         install(MaskinportenIdportenAndTokenXAuthPlugin) {
             client = texasClient
@@ -55,22 +56,7 @@ fun Route.registerExternalCollectionEndpointV1(
             )
             call.respond(documentPage.toDocumentResponsePage())
         }
-    }
-}
-
-fun Route.registerExternalGetDocumentByIdApiV1(
-    documentDAO: DocumentDAO,
-    documentContentDAO: DocumentContentDAO,
-    texasClient: TexasClient,
-    validationService: ValidationService,
-) {
-    val logger = logger("ExternalDocumentAPi")
-
-    route("/{id}") {
-        install(MaskinportenIdportenAndTokenXAuthPlugin) {
-            client = texasClient
-        }
-        get {
+        get("/{id}") {
             val linkId = call.parameters.extractAndValidateUUIDParameter("id")
             val principal = call.getPrincipal()
             val document = documentDAO.getByLinkId(linkId) ?: throw NotFoundException("Document not found")
@@ -84,6 +70,19 @@ fun Route.registerExternalGetDocumentByIdApiV1(
             call.respond<ByteArray>(content)
             countRead(logger, principal, document.isRead, document.dialog.orgNumber)
             call.response.status(HttpStatusCode.OK)
+        }
+
+        get("/{id}/details") {
+            val linkId = call.parameters.extractAndValidateUUIDParameter("id")
+            val principal = call.getPrincipal()
+            val document = documentDAO.getByLinkId(linkId) ?: throw NotFoundException("Document not found")
+            validationService.validateDocumentAccess(principal, document)
+            call.response.status(HttpStatusCode.OK)
+            call.respond(
+                HttpStatusCode.OK,
+                document.toDocumentDetails()
+            )
+
         }
     }
 }
