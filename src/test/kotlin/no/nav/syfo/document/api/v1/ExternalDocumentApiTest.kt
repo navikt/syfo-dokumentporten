@@ -13,10 +13,13 @@ import documentContent
 import documentEntity
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
+import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.withCharset
 import io.ktor.serialization.jackson.jackson
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
@@ -32,9 +35,13 @@ import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.altinntilganger.client.FakeAltinnTilgangerClient
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
+import no.nav.syfo.document.api.v1.dto.DocumentDetails
+import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
+import no.nav.syfo.document.db.Page
+import no.nav.syfo.document.db.PersistedDocumentEntity
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.FakeEregClient
@@ -65,6 +72,7 @@ class ExternalDocumentApiTest :
             clearAllMocks()
             TestDB.clearAllData()
             coEvery { pdpServiceMock.hasAccessToResource(any(), any(), any()) } returns true
+            fakeAltinnTilgangerClient.usersWithAccess.clear()
         }
 
         fun withTestApplication(fn: suspend ApplicationTestBuilder.() -> Unit) {
@@ -88,7 +96,7 @@ class ExternalDocumentApiTest :
                             documentDAO = documentDAO,
                             documentContentDAO = documentContentDAO,
                             dialogDAO = dialogDAO,
-                            validationService = validationServiceSpy
+                            validationService = validationServiceSpy,
                         )
                     }
                 }
@@ -284,6 +292,36 @@ class ExternalDocumentApiTest :
                     }
                 }
 
+                it("should return 200 OK and details response for authorized token") {
+                    withTestApplication {
+                        // Arrange
+                        val document = documentEntity(dialogEntity())
+                        val callerPid = "11223344556"
+                        texasClientMock.defaultMocks(
+                            acr = "Level4",
+                            pid = callerPid
+                        )
+                        fakeAltinnTilgangerClient.usersWithAccess.add(callerPid to document.dialog.orgNumber)
+                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
+                        coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
+                        // Act
+                        val response = client.get("api/v1/documents/${document.linkId}/details") {
+                            bearerAuth(createMockToken(callerPid, issuer = tokenXIssuer))
+                        }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.OK
+                        response.headers["Content-Type"] shouldBe
+                            ContentType.Application.Json.withCharset(Charsets.UTF_8).toString()
+                        val responseBody = response.body<DocumentDetails>()
+                        responseBody shouldBe document.toDocumentDetails()
+
+                        coVerify(exactly = 1) {
+                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
+                        }
+                    }
+                }
+
                 it("should return 403 Forbidden if token lacks Level4") {
                     withTestApplication {
                         // Arrange
@@ -383,6 +421,288 @@ class ExternalDocumentApiTest :
                                 validationServiceSpy.validateDocumentAccess(any(), eq(document))
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        describe("GET /documents (paginated list)") {
+            describe("Maskinporten token") {
+                it("should return 200 OK with paginated documents") {
+                    withTestApplication {
+                        // Arrange
+                        val orgNumber = "123456789"
+                        val dialog = dialogEntity().copy(orgNumber = orgNumber)
+                        val documents = listOf(
+                            documentEntity(dialog),
+                            documentEntity(dialog),
+                            documentEntity(dialog)
+                        )
+                        val page = Page(
+                            meta = Page.Meta(
+                                size = 0,
+                                pageSize = 50,
+                                hasMore = false,
+                                resultSize = 0L
+                            ),
+                            items = documents
+                        )
+                        coEvery {
+                            documentDAO.findDocumentsByParameters(pageSize = any())
+                        } returns page
+                        texasClientMock.defaultMocks(
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:$orgNumber"),
+                            scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                        )
+
+                        // Act
+                        val response =
+                            client.get(
+                                "api/v1/documents?orgNumber=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z"
+                            ) {
+                                bearerAuth(createMockToken(ident = orgNumber))
+                            }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.OK
+                    }
+                }
+
+                it("should return 200 OK with filtered documents by type") {
+                    withTestApplication {
+                        // Arrange
+                        val orgNumber = "123456789"
+                        val dialog = dialogEntity().copy(orgNumber = orgNumber)
+                        val documents =
+                            listOf(documentEntity(dialog).copy(type = DocumentType.DIALOGMOTE))
+                        val page = Page(
+                            meta = Page.Meta(
+                                size = 1,
+                                pageSize = 50,
+                                hasMore = false,
+                                resultSize = 1L
+                            ),
+                            items = documents
+                        )
+                        coEvery {
+                            documentDAO.findDocumentsByParameters(
+                                pageSize = any(),
+                                type = DocumentType.DIALOGMOTE,
+                            )
+                        } returns page
+                        texasClientMock.defaultMocks(
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:$orgNumber"),
+                            scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                        )
+
+                        // Act
+                        val response =
+                            client.get(
+                                "api/v1/documents?orgNumber=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z"
+                            ) {
+                                bearerAuth(createMockToken(ident = orgNumber))
+                            }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.OK
+                    }
+                }
+
+                it("should return 200 OK with custom pagination parameters") {
+                    withTestApplication {
+                        // Arrange
+                        val orgNumber = "123456789"
+                        val dialog = dialogEntity().copy(orgNumber = orgNumber)
+                        val documents = listOf(documentEntity(dialog))
+                        val page = Page(
+                            meta = Page.Meta(
+                                size = 1,
+                                pageSize = 50,
+                                hasMore = true,
+                                resultSize = 25L
+                            ),
+                            items = documents
+                        )
+                        coEvery {
+                            documentDAO.findDocumentsByParameters(
+                                pageSize = 5,
+                            )
+                        } returns page
+                        texasClientMock.defaultMocks(
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:$orgNumber"),
+                            scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                        )
+
+                        // Act
+                        val response =
+                            client.get(
+                                "api/v1/documents?orgNumber=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z&pageSize=5&page=2"
+                            ) {
+                                bearerAuth(createMockToken(ident = orgNumber))
+                            }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.OK
+                    }
+                }
+
+                it("should return 200 OK with isRead filter") {
+                    withTestApplication {
+                        // Arrange
+                        val orgNumber = "123456789"
+                        val page = Page<PersistedDocumentEntity>(
+                            meta = Page.Meta(
+                                size = 0,
+                                pageSize = 50,
+                                hasMore = false,
+                                resultSize = 0L
+                            ),
+                            items = emptyList()
+                        )
+                        coEvery {
+                            documentDAO.findDocumentsByParameters(
+                                pageSize = any(),
+                                isRead = true,
+                            )
+                        } returns page
+                        texasClientMock.defaultMocks(
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:$orgNumber"),
+                            scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                        )
+
+                        // Act
+                        val response =
+                            client.get(
+                                "api/v1/documents?orgNumber=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z&isRead=true"
+                            ) {
+                                bearerAuth(createMockToken(ident = orgNumber))
+                            }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.OK
+                    }
+                }
+
+                it("should return 400 Bad Request when orgNumber is missing") {
+                    withTestApplication {
+                        // Arrange
+                        val orgNumber = "123456789"
+                        texasClientMock.defaultMocks(
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:$orgNumber"),
+                            scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                        )
+
+                        // Act
+                        val response =
+                            client.get("api/v1/documents?documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z") {
+                                bearerAuth(createMockToken(ident = orgNumber))
+                            }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.BadRequest
+                    }
+                }
+
+                it("should return 400 Bad Request when documentType is missing") {
+                    withTestApplication {
+                        // Arrange
+                        val orgNumber = "123456789"
+                        texasClientMock.defaultMocks(
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:$orgNumber"),
+                            scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                        )
+
+                        // Act
+                        val response =
+                            client.get("api/v1/documents?orgNumber=$orgNumber&createdAfter=2024-01-01T00:00:00Z") {
+                                bearerAuth(createMockToken(ident = orgNumber))
+                            }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.BadRequest
+                    }
+                }
+
+                it("should return 400 Bad Request when createdAfter is missing") {
+                    withTestApplication {
+                        // Arrange
+                        val orgNumber = "123456789"
+                        texasClientMock.defaultMocks(
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:$orgNumber"),
+                            scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                        )
+
+                        // Act
+                        val response = client.get("api/v1/documents?orgNumber=$orgNumber&documentType=DIALOGMOTE") {
+                            bearerAuth(createMockToken(ident = orgNumber))
+                        }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.BadRequest
+                    }
+                }
+
+                it("should return 403 Forbidden for unauthorized organization") {
+                    withTestApplication {
+                        // Arrange
+                        val requestedOrgNumber = "123456789"
+                        val tokenOrgNumber = "987654321"
+                        // Add the requested org to the fake client so it's found, but without parent relationship
+                        fakeEregClient.organisasjoner[requestedOrgNumber] = organisasjon().copy(
+                            organisasjonsnummer = requestedOrgNumber,
+                            inngaarIJuridiskEnheter = emptyList() // No parent relationship to tokenOrgNumber
+                        )
+                        texasClientMock.defaultMocks(
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:$tokenOrgNumber"),
+                            scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                        )
+
+                        // Act
+                        val response =
+                            client.get(
+                                "api/v1/documents?orgNumber=$requestedOrgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z"
+                            ) {
+                                bearerAuth(createMockToken(ident = tokenOrgNumber))
+                            }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.Forbidden
+                    }
+                }
+
+                it("should return empty page when no documents match") {
+                    withTestApplication {
+                        // Arrange
+                        val orgNumber = "123456789"
+                        val emptyPage = Page<PersistedDocumentEntity>(
+                            meta = Page.Meta(
+                                size = 0,
+                                pageSize = 50,
+                                hasMore = false,
+                                resultSize = 0L
+                            ),
+                            items = emptyList()
+                        )
+                        coEvery {
+                            documentDAO.findDocumentsByParameters(
+                                pageSize = any()
+                            )
+                        } returns emptyPage
+                        texasClientMock.defaultMocks(
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:$orgNumber"),
+                            scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                        )
+
+                        // Act
+                        val response =
+                            client.get(
+                                "api/v1/documents?orgNumber=$orgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z"
+                            ) {
+                                bearerAuth(createMockToken(ident = orgNumber))
+                            }
+
+                        // Assert
+                        response.status shouldBe HttpStatusCode.OK
                     }
                 }
             }

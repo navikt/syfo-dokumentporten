@@ -9,6 +9,7 @@ import io.ktor.server.routing.routing
 import no.nav.syfo.altinn.common.AltinnTokenProvider
 import no.nav.syfo.altinn.dialogporten.registerDialogportenTokenApi
 import no.nav.syfo.application.ApplicationState
+import no.nav.syfo.application.Environment
 import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.application.isProdEnv
 import no.nav.syfo.application.metric.registerMetricApi

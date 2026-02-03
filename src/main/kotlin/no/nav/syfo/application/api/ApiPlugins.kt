@@ -18,7 +18,7 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import no.nav.syfo.application.exception.ApiErrorException
-import java.util.*
+import java.util.UUID
 
 const val NAV_CALL_ID_HEADER = "Nav-Call-Id"
 

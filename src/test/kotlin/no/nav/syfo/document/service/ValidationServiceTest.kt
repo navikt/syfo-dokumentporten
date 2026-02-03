@@ -98,7 +98,11 @@ class ValidationServiceTest :
                         )
 
                         // Act & Assert - should not throw exception
-                        validationService.validateMaskinportenTilgang(systemPrincipal, documentEntity)
+                        validationService.validateMaskinportenTilgang(
+                            systemPrincipal,
+                            documentEntity.dialog.orgNumber,
+                            documentEntity.type
+                        )
                         coVerify(exactly = 0) {
                             eregService.getOrganization(any())
                         }
@@ -156,7 +160,8 @@ class ValidationServiceTest :
                             // Act & Assert - should not throw exception
                             validationService.validateMaskinportenTilgang(
                                 systemPrincipal,
-                                entity,
+                                entity.dialog.orgNumber,
+                                entity.type
                             )
 
                             coVerify(exactly = 1) {
@@ -190,7 +195,8 @@ class ValidationServiceTest :
                             shouldThrow<ApiErrorException.ForbiddenException> {
                                 validationService.validateMaskinportenTilgang(
                                     systemPrincipal,
-                                    entity
+                                    entity.dialog.orgNumber,
+                                    entity.type,
                                 )
                             }
                             coVerify { eregService.getOrganization(entity.dialog.orgNumber) }
@@ -219,7 +225,8 @@ class ValidationServiceTest :
                             val exception = shouldThrow<ApiErrorException.ForbiddenException> {
                                 validationService.validateMaskinportenTilgang(
                                     systemPrincipal,
-                                    entity
+                                    entity.dialog.orgNumber,
+                                    entity.type,
                                 )
                             }
                             exception.message shouldBe "Access denied. Invalid organization."

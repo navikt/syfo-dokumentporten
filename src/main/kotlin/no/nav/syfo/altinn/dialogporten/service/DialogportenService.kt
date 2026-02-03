@@ -47,7 +47,7 @@ class DialogportenService(
         do {
             val documentsToSend = getDocumentsToSend()
             batchNum += 1
-            val firstCreatedTimestamp = if (!documentsToSend.isEmpty()) {
+            val firstCreatedTimestamp = if (documentsToSend.isNotEmpty()) {
                 documentsToSend.first().created
             } else {
                 null

@@ -19,7 +19,6 @@ data class NaisEnvironment(
     override val clientProperties: ClientProperties = ClientProperties.createFromEnvVars(),
     override val publicIngressUrl: String = getEnvVar("PUBLIC_INGRESS_URL"),
     override val dialogportenIsApiOnly: Boolean = getEnvVar("DIALOGPORTEN_API_ONLY").toBoolean(),
-
 ) : Environment
 
 fun getEnvVar(varName: String, defaultValue: String? = null) =

@@ -1,5 +1,6 @@
 package no.nav.syfo.document.db
 
+import no.nav.syfo.document.api.v1.dto.DocumentDetails
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import java.time.Instant
 import java.util.UUID
@@ -125,4 +126,19 @@ data class PersistedDocumentEntity(
         result = 31 * result + updated.hashCode()
         return result
     }
+
+    fun toDocumentDetails(): DocumentDetails = DocumentDetails(
+        documentId = documentId,
+        type = type,
+        contentType = contentType,
+        linkId = linkId,
+        status = status,
+        isRead = isRead,
+        transmissionId = transmissionId,
+        dialogId = dialog.dialogportenUUID,
+        employeeIdentificationNumber = dialog.fnr,
+        orgNumber = dialog.orgNumber,
+        updated = updated,
+        created = created,
+    )
 }

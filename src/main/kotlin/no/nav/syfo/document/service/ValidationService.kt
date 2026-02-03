@@ -25,33 +25,74 @@ class ValidationService(
 
     suspend fun validateDocumentAccess(principal: Principal, documentEntity: DocumentEntity) {
         when (principal) {
-            is BrukerPrincipal -> validateAltTilgang(principal, documentEntity)
-            is SystemPrincipal -> validateMaskinportenTilgang(principal, documentEntity)
+            is BrukerPrincipal -> validateAltTilgang(
+                principal,
+                documentEntity.dialog.orgNumber,
+                documentEntity.type
+            )
+
+            is SystemPrincipal -> validateMaskinportenTilgang(
+                principal,
+                documentEntity.dialog.orgNumber,
+                documentEntity.type
+            )
         }
     }
 
-    private suspend fun validateAltTilgang(principal: BrukerPrincipal, documentEntity: DocumentEntity) {
+    suspend fun validateDocumentsOfTypeAccess(
+        principal: Principal,
+        requestedOrgNumber: String,
+        documentType: DocumentType,
+    ) {
+        when (principal) {
+            is BrukerPrincipal -> altinnTilgangerService.validateTilgangToOrganisasjon(
+                principal,
+                requestedOrgNumber,
+                documentType,
+            )
+
+            is SystemPrincipal -> validateMaskinportenTilgang(
+                principal,
+                requestedOrgNumber,
+                documentType
+            )
+        }
+    }
+
+    private suspend fun validateAltTilgang(
+        principal: BrukerPrincipal,
+        requestedOrgNumber: String,
+        documentType: DocumentType
+    ) {
         altinnTilgangerService.validateTilgangToOrganisasjon(
             principal,
-            documentEntity.dialog!!.orgNumber,
-            documentEntity.type
+            requestedOrgNumber,
+            documentType
         )
     }
 
-    suspend fun validateMaskinportenTilgang(principal: SystemPrincipal, documentEntity: DocumentEntity) {
+    suspend fun validateMaskinportenTilgang(
+        principal: SystemPrincipal,
+        requestedOrgNumber: String,
+        documentType: DocumentType
+    ) {
         val orgNumberFromToken = maskinportenIdToOrgnumber(principal.ident)
-        if (orgNumberFromToken != documentEntity.dialog!!.orgNumber) {
-            val organisasjon = eregService.getOrganization(documentEntity.dialog.orgNumber)
-            if (organisasjon.inngaarIJuridiskEnheter?.filter { it.organisasjonsnummer == orgNumberFromToken }
-                    .isNullOrEmpty()
-            ) {
-                logger.warn(
-                    "Maskinporten orgnummer $orgNumberFromToken does not match document orgnummer ${documentEntity.dialog.orgNumber} or any parent organization."
-                )
-                throw ApiErrorException.ForbiddenException("Access denied. Invalid organization.")
-            }
+        if (orgNumberFromToken != requestedOrgNumber) {
+            validateHierarchicalEeregAccess(requestedOrgNumber, orgNumberFromToken)
         }
-        validateAltinnRessursTilgang(principal, documentEntity.type)
+        validateAltinnRessursTilgang(principal, documentType)
+    }
+
+    private suspend fun validateHierarchicalEeregAccess(requestedOrgNumber: String, orgnumber: String) {
+        val organisasjon = eregService.getOrganization(requestedOrgNumber)
+        if (organisasjon.inngaarIJuridiskEnheter?.filter { it.organisasjonsnummer == orgnumber }
+                .isNullOrEmpty()
+        ) {
+            logger.warn(
+                "Actual orgnumber: $orgnumber does not match requested orgnumber: $requestedOrgNumber or any parent organization."
+            )
+            throw ApiErrorException.ForbiddenException("Access denied. Invalid organization.")
+        }
     }
 
     private suspend fun validateAltinnRessursTilgang(principal: SystemPrincipal, documentType: DocumentType) {
