@@ -288,11 +288,6 @@ components:
       type: object
       description: Persistent document entity.
       properties:
-        id:
-          type: integer
-          format: int64
-          readOnly: true
-          description: Internal database identifier.
         documentId:
           type: string
           format: uuid
@@ -325,37 +320,15 @@ components:
         summary:
           type: string
           description: Summary shown in dialog.
-        linkId:
-          type: string
-          format: uuid
-          description: Public link UUID used for external retrieval.
-        status:
-          type: string
-          description: Processing status.
-          enum: [ RECEIVED, PENDING, COMPLETED, ERROR ]
-        isRead:
-          type: boolean
-          description: Whether the document has been marked as read.
-          default: false
-        dialogId:
-          type: string
-          format: uuid
-          nullable: true
-          description: Related dialog UUID if assigned.
-        created:
-          type: string
-          format: date-time
-          description: Creation timestamp (UTC).
       required:
         - documentId
         - type
         - content
         - contentType
+        - f
         - orgNumber
-        - dialogTitle
-        - dialogSummary
-        - linkId
-        - status
+        - title
+        - summary
       additionalProperties: false
     DocumentPage:
       type: object
@@ -423,7 +396,12 @@ components:
           description: Public link UUID used for external retrieval
         status:
           type: string
-          description: Processing status
+          description: |
+            Processing status
+            * `RECEIVED`: Document has been received but have not yet been delivered to Dialogporten.
+            * `PENDING`: Document is awaiting being sendt to Dialogporten.
+            * `COMPLETED`: Document has been processed and been delivered to Dialogporten.
+            * `ERROR`: An error occurred during processing. The document is not available for retrieval.
           enum: [ RECEIVED, PENDING, COMPLETED, ERROR ]
         isRead:
           type: boolean
