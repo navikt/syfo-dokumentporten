@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Syfo-dokumentporten API
-  version: 1.1.0
+  version: 1.1.1
   description: |
     Public API for interacting with Syfo-Dokumentporten(Formerly Arkivporten) documents.
     
@@ -95,14 +95,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/DocumentPage'
         '400':
-          description: Bad Request - Missing or invalid parameters
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '401':
-          description: Unauthorized - Invalid or missing token
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '403':
-          description: Forbidden - Caller does not have access to the organization or document type
+          description:  Forbidden - Caller does not have access to the organization or document type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '500':
-          description: Internal server error
-
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
   /api/v1/documents/{id}/details:
     get:
       summary: Get details for a document by id
@@ -125,14 +140,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DocumentDetails'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '403':
-          description: Forbidden
+          description:  Forbidden - Caller does not have access to the organization or document type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '404':
           description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '500':
-          description: Server error
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
   /api/v1/documents/{id}:
     get:
       summary: Get a document by id
@@ -160,14 +197,36 @@ paths:
               schema:
                 type: string
                 format: binary
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '403':
-          description: Forbidden
+          description:  Forbidden - Caller does not have access to the organization or document type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '404':
           description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '500':
-          description: Server error
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
   /internal/api/v1/documents:
     post:
       summary: Create a document
@@ -195,11 +254,23 @@ paths:
         '200':
           description: Created
         '400':
-          description: Validation error
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '500':
-          description: Server error
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
 components:
   securitySchemes:
     maskinporten_jwt:
@@ -390,3 +461,62 @@ components:
         - orgNumber
         - created
         - updated
+    ErrorType:
+      type: string
+      description: |
+        Application error type.
+        * `AUTHENTICATION_ERROR`: Authentication failed due to missing or invalid credentials.
+        * `AUTHORIZATION_ERROR`: Authorization failed due to insufficient permissions.
+        * `NOT_FOUND`: The requested resource was not found.
+        * `INTERNAL_SERVER_ERROR`: An unexpected error occurred on the server.
+        * `ILLEGAL_ARGUMENT`: The request contained an illegal argument.
+        * `BAD_REQUEST`: The request was malformed or contained invalid data.
+        * `CONFLICT`: The request could not be completed due to a conflict with the current state of the resource.
+      enum:
+        - AUTHENTICATION_ERROR
+        - AUTHORIZATION_ERROR
+        - NOT_FOUND
+        - INTERNAL_SERVER_ERROR
+        - ILLEGAL_ARGUMENT
+        - BAD_REQUEST
+        - INVALID_FORMAT
+        - CONFLICT
+      example: BAD_REQUEST
+    ApiError:
+      type: object
+      description: Standard error payload.
+      properties:
+        status:
+          type: object
+          properties:
+            value:
+              type: integer
+              format: int32
+              description: HTTP status code that matches the status of the request.
+              example: 400
+            description:
+              type: string
+              description: Status description appropriate for the status value.
+              example: Bad Request
+        type:
+          $ref: '#/components/schemas/ErrorType'
+        message:
+          type: string
+          description: Human readable error message.
+          example: Invalid date format for createdAfter parameter. Expected ISO-8601 format.
+        path:
+          type: string
+          nullable: true
+          description: Request path.
+          example: /api/v1/documents
+        timestamp:
+          type: string
+          format: date-time
+          description: Error creation time (UTC).
+          example: 2024-05-01T12:34:56Z
+      required:
+        - status
+        - type
+        - message
+        - timestamp
+      additionalProperties: false
