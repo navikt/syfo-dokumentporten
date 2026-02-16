@@ -1,6 +1,6 @@
 # Syfo-dokumentporten
 
-[![Build Status](https://github.com/navikt/syfo-dokumentporten/actions/workflows/build-and-deploy.yaml/badge.svg)](https://github.com/navikt/aktivitetskrav-frontend/actions/workflows/build-and-deploy.yaml)
+[![Build Status](https://github.com/navikt/syfo-dokumentporten/actions/workflows/build-and-deploy.yaml/badge.svg)](https://github.com/navikt/syfo-dokumentporten/actions/workflows/build-and-deploy.yaml)
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=Kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Ktor](https://img.shields.io/badge/Ktor-%23087CFA.svg?style=for-the-badge&logo=Ktor&logoColor=white)](https://ktor.io/)
