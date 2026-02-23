@@ -6,6 +6,10 @@ updates:
       interval: daily
     cooldown:
       default-days: 7
+    groups:
+      actions:
+        patterns:
+          - '*'
 
   - package-ecosystem: gradle
     directory: "/"

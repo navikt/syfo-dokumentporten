@@ -1,0 +1,12 @@
+name: Dependabot automerge
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot-automerge:
+    uses: navikt/teamesyfo-github-actions-workflows/.github/workflows/dependabot-automerge.yaml@main
+    secrets:
+      AUTOMERGE_APP_PRIVATE_KEY: ${{ secrets.AUTOMERGE_APP_PRIVATE_KEY }}
