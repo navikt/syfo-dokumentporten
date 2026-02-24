@@ -72,7 +72,6 @@ class DialogportenService(
                     logger.error("Failed to send document ${document.id} to dialogporten", ex)
                 }
             }
-            delay(5000L) // small delay to avoid hammering dialogporten
         } while (documentsToSend.size >= sendDialogLimit)
     }
 
