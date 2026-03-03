@@ -23,6 +23,7 @@ import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentEntity
 import no.nav.syfo.document.db.DocumentStatus
 import no.nav.syfo.document.db.PersistedDocumentEntity
+import no.nav.syfo.pdl.PdlService
 import no.nav.syfo.util.logger
 import java.time.Instant
 import java.time.LocalDate
@@ -38,6 +39,7 @@ class DialogportenService(
     private val publicIngressUrl: String,
     private val dialogportenIsApiOnly: Boolean,
     private val dialogDAO: DialogDAO,
+    private val pdlService: PdlService,
 ) {
     private val logger = logger()
     private val deleteDialogLimit = 100
@@ -56,6 +58,19 @@ class DialogportenService(
                 "Batch: $batchNum: Found ${documentsToSend.size} documents to send to dialogporten. First created at ${firstCreatedTimestamp ?: "N/A"}"
             )
 
+            if (documentsToSend.isEmpty()) {
+                break
+            }
+            // Sat vi ikke har fodselsdato før ekstern kall
+            val firstDocument = documentsToSend.first()
+            val fodselsdato = pdlService.getBirthDateFor(firstDocument.dialog.fnr)
+            if (fodselsdato == null) {
+                logger.warn("Could not find fødselsdato for dialog ${firstDocument.dialog.id}")
+                break
+            }
+            val parsedBirthDate = LocalDate.parse(fodselsdato)
+            dialogDAO.updateDialogWithBirthDate(firstDocument.dialog.id, parsedBirthDate)
+
             val newDialogs = mutableMapOf<Long, UUID>()
             for (document in documentsToSend) {
                 try {
@@ -65,8 +80,8 @@ class DialogportenService(
                     if (dialogportenId != null) {
                         addToExistingDialog(document, dialogportenId)
                     } else {
-                        val dialogportenId = addToNewDialog(document)
-                        newDialogs[document.dialog.id] = dialogportenId
+                        val dialogportenIdNew = addToNewDialog(document)
+                        newDialogs[document.dialog.id] = dialogportenIdNew
                     }
                 } catch (ex: Exception) {
                     logger.error("Failed to send document ${document.id} to dialogporten", ex)

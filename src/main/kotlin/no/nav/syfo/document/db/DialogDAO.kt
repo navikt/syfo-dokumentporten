@@ -7,6 +7,7 @@ import java.sql.ResultSet
 import java.sql.Timestamp
 import java.sql.Types
 import java.time.Instant
+import java.time.LocalDate
 
 class DialogDAO(private val database: DatabaseInterface) {
     suspend fun insertDialog(dialogEntity: DialogEntity): PersistedDialogEntity {
@@ -17,8 +18,9 @@ class DialogDAO(private val database: DatabaseInterface) {
                 summary,
                 fnr,
                 org_number,
-                dialogporten_uuid
-            ) VALUES (?, ?, ?, ?, ?)
+                dialogporten_uuid,
+                birth_date
+            ) VALUES (?, ?, ?, ?, ?, ?)
             RETURNING *
             """.trimIndent()
         return withContext(Dispatchers.IO) {
@@ -30,6 +32,7 @@ class DialogDAO(private val database: DatabaseInterface) {
                     ps.setString(3, dialogEntity.fnr)
                     ps.setString(4, dialogEntity.orgNumber)
                     ps.setObject(5, dialogEntity.dialogportenUUID)
+                    ps.setObject(6, dialogEntity.birthDate)
                     val resultSet = ps.executeQuery()
                     return@use if (resultSet.next()) {
                         resultSet.toDialog()
@@ -39,6 +42,27 @@ class DialogDAO(private val database: DatabaseInterface) {
                 }.also {
                     conn.commit()
                 }
+            }
+        }
+    }
+
+    suspend fun updateDialogWithBirthDate(dialogId: Long, birthDate: LocalDate) {
+        withContext(Dispatchers.IO) {
+            database.connection.use { conn ->
+                conn.prepareStatement(
+                    """
+                    UPDATE dialog
+                    SET birth_date = ?,
+                        updated    = ?
+                    WHERE id = ?
+                    """.trimIndent()
+                ).use { ps ->
+                    ps.setObject(1, birthDate)
+                    ps.setTimestamp(2, Timestamp.from(Instant.now()))
+                    ps.setLong(3, dialogId)
+                    ps.executeUpdate()
+                }
+                conn.commit()
             }
         }
     }
@@ -141,5 +165,6 @@ fun ResultSet.toDialog(): PersistedDialogEntity = PersistedDialogEntity(
     orgNumber = getString("org_number"),
     created = getTimestamp("created").toInstant(),
     updated = getTimestamp("updated").toInstant(),
-    dialogportenUUID = getObject("dialogporten_uuid", java.util.UUID::class.java)
+    dialogportenUUID = getObject("dialogporten_uuid", java.util.UUID::class.java),
+    birthDate = getObject("birth_date", LocalDate::class.java),
 )
