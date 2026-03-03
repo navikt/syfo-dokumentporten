@@ -5,6 +5,7 @@ import no.nav.syfo.document.api.v1.fnrToBirthDate
 import no.nav.syfo.document.db.DialogEntity
 import no.nav.syfo.document.db.DocumentEntity
 import no.nav.syfo.document.db.PersistedDialogEntity
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
@@ -18,6 +19,7 @@ data class Document(
     val orgNumber: String,
     val title: String,
     val summary: String?,
+    val birthDate: LocalDate?,
 ) {
     fun toDocumentEntity(dialog: PersistedDialogEntity): DocumentEntity = DocumentEntity(
         documentId = documentId,
@@ -31,12 +33,16 @@ data class Document(
 
     fun toDialogEntity(): DialogEntity {
         val nameOrFnr = fullName ?: fnr
-        val birthDate = fnrToBirthDate(fnr)
-        val titleEnding = if (birthDate != null) {
-            "(f. ${birthDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))})"
+
+        // Prefer explicit birthDate from request, fallback to fnr-derived date if possible.
+        val effectiveBirthDate = birthDate ?: fnrToBirthDate(fnr)
+
+        val titleEnding = if (effectiveBirthDate != null) {
+            "(f. ${effectiveBirthDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))})"
         } else {
             if (!fullName.isNullOrEmpty()) "($fnr)" else ""
         }
+
         return DialogEntity(
             title = "Sykefraværsoppfølging for $nameOrFnr $titleEnding".trim(),
             summary = """
@@ -45,6 +51,7 @@ data class Document(
             """.trimIndent(),
             fnr = fnr,
             orgNumber = orgNumber,
+            birthDate = effectiveBirthDate,
         )
     }
 

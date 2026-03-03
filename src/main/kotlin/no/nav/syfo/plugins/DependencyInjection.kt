@@ -26,6 +26,7 @@ import no.nav.syfo.application.leaderelection.LeaderElection
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
+import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.EregClient
@@ -149,7 +150,15 @@ private fun servicesModule() = module {
     single { EregService(get()) }
     single { ValidationService(get(), get(), get()) }
     single { LeaderElection(get(), env().clientProperties.electorPath) }
-    single { DialogportenService(get(), get(), env().publicIngressUrl, env().dialogportenIsApiOnly, get()) }
+
+    single {
+        DialogService(
+            dialogDAO = get(),
+            pdlService = get(),
+        )
+    }
+
+    single { DialogportenService(get(), get(), env().publicIngressUrl, env().dialogportenIsApiOnly, get(), get()) }
     single { SendDialogTask(get(), get()) }
     single { DeleteDialogTask(get(), get()) }
 }

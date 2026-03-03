@@ -30,6 +30,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.spyk
 import no.nav.syfo.TestDB
+import no.nav.syfo.altinn.dialogporten.client.FakeDialogportenClient
 import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.altinntilganger.client.FakeAltinnTilgangerClient
@@ -42,9 +43,13 @@ import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.Page
 import no.nav.syfo.document.db.PersistedDocumentEntity
+import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.FakeEregClient
+import no.nav.syfo.pdl.PdlService
+import no.nav.syfo.pdl.client.FakePdlClient
+import no.nav.syfo.pdl.client.PdlClient
 import no.nav.syfo.registerApiV1
 import no.nav.syfo.texas.MASKINPORTEN_ARKIVPORTEN_SCOPE
 import no.nav.syfo.texas.MASKINPORTEN_SYFO_DOKUMENTPORTEN_SCOPE
@@ -65,6 +70,9 @@ class ExternalDocumentApiTest :
         val validationService =
             ValidationService(AltinnTilgangerService(fakeAltinnTilgangerClient), eregServiceSpy, pdpServiceMock)
         val validationServiceSpy = spyk(validationService)
+        val fakePdlClient = FakePdlClient()
+        val pdlService = PdlService(fakePdlClient)
+        val dialogServic = DialogService(dialogDAO, pdlService)
         val tokenXIssuer = "https://tokenx.nav.no"
         val idportenIssuer = "https://test.idporten.no"
 
@@ -97,6 +105,7 @@ class ExternalDocumentApiTest :
                             documentContentDAO = documentContentDAO,
                             dialogDAO = dialogDAO,
                             validationService = validationServiceSpy,
+                            dialogService = dialogServic,
                         )
                     }
                 }

@@ -17,11 +17,14 @@ import no.nav.syfo.altinn.dialogporten.service.DialogportenService
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentStatus
+import no.nav.syfo.pdl.PdlService
+import no.nav.syfo.pdl.client.PdlClient
 import java.util.UUID
 
 class DialogportenServiceTest :
     DescribeSpec({
         val dialogportenClient = mockk<IDialogportenClient>()
+        val pdlService = mockk<PdlService>()
         val documentDAO = mockk<DocumentDAO>()
         val publicIngressUrl = "https://test.nav.no"
         val dialogDao = mockk<no.nav.syfo.document.db.DialogDAO>()
@@ -32,10 +35,14 @@ class DialogportenServiceTest :
             publicIngressUrl = publicIngressUrl,
             dialogportenIsApiOnly = true,
             dialogDAO = dialogDao,
+            pdlService = pdlService
         )
 
         beforeTest {
             clearAllMocks()
+            // Default mocks for pdlService and dialogDao used in most tests
+            coEvery { pdlService.getBirthDateFor(any()) } returns "1990-01-15"
+            coEvery { dialogDao.updateDialogWithBirthDate(any(), any()) } returns Unit
         }
 
         describe("sendDocumentsToDialogporten") {
