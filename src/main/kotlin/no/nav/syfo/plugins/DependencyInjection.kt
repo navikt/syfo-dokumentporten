@@ -31,6 +31,9 @@ import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.EregClient
 import no.nav.syfo.ereg.client.FakeEregClient
+import no.nav.syfo.pdl.PdlService
+import no.nav.syfo.pdl.client.FakePdlClient
+import no.nav.syfo.pdl.client.PdlClient
 import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.httpClientDefault
 import org.koin.core.scope.Scope
@@ -147,9 +150,22 @@ private fun servicesModule() = module {
 
     single { AltinnTilgangerService(get()) }
     single { PdpService(get()) }
-    single { EregService(get()) }
     single { ValidationService(get(), get(), get()) }
     single { LeaderElection(get(), env().clientProperties.electorPath) }
+
+    single {
+        if (isLocalEnv()) {
+            FakePdlClient()
+        } else {
+            PdlClient(
+                httpClient = get(),
+                pdlBaseUrl = env().clientProperties.pdlBaseUrl,
+                texasHttpClient = get(),
+                scope = env().clientProperties.pdlScope,
+            )
+        }
+    }
+    single { PdlService(get()) }
 
     single {
         DialogService(

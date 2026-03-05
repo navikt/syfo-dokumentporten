@@ -116,5 +116,9 @@ spec:
       value: https://syfo-dokumentporten.nav.no
     - name: DIALOGPORTEN_API_ONLY
       value: "true"
+    - name: PDL_BASE_URL
+      value: https://pdl-api.prod-fss-pub.nais.io/graphql
+    - name: PDL_SCOPE
+      value: prod-fss.pdl.pdl-api
   envFrom:
     - secret: altinn-subscription-key

@@ -1,6 +1,5 @@
 package no.nav.syfo.pdl.client
 
-import java.sql.Date
 import java.time.LocalDate
 
 data class GetPersonResponse(

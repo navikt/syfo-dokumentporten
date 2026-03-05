@@ -31,7 +31,7 @@ fun Route.registerApiV1(
         install(TexasAzureADAuthPlugin) {
             client = texasClient
         }
-        registerInternalDocumentsApiV1(documentDAO, dialogDAO, dialogService)
+        registerInternalDocumentsApiV1(documentDAO, dialogService)
     }
     route(API_V1_PATH) {
         route(DOCUMENT_API_PATH) {

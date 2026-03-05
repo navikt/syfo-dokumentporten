@@ -41,7 +41,6 @@ fun Application.configureRouting() {
         registerPodApi(applicationState, database)
         registerMetricApi()
         registerApiV1(texasClient, documentDAO, documentContentDAO, dialogDAO, validationService, dialogService)
-        // Static OpenAPI spec + Swagger UI only in non-prod
         staticResources("/openapi", "openapi")
         swaggerUI(path = "swagger", swaggerFile = "openapi/documentation.yaml")
         if (!isProdEnv()) {

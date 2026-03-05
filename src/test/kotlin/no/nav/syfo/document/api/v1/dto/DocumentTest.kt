@@ -29,8 +29,7 @@ class DocumentTest :
                 // Arrange
                 val document = document().copy(
                     fullName = null,
-                    fnr = "01011999000",
-                    //birthDate = LocalDate.parse("1999-01-01"),
+                    fnr = "01011999000"
                 )
                 // Act
                 val dialog = document.toDialogEntity()
