@@ -25,8 +25,8 @@ private val getPersonQuery =
           mellomnavn
           etternavn
         }
+        foedselsdato { foedselsdato }
       }
-      foedselsdato { foedselsdato }
       identer: hentIdenter(ident: ${'$'}ident, historikk: false) {
           identer {
             ident,

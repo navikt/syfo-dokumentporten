@@ -61,15 +61,19 @@ class DialogportenService(
             if (documentsToSend.isEmpty()) {
                 break
             }
-            // Sat vi ikke har fodselsdato før ekstern kall
             val firstDocument = documentsToSend.first()
-            val fodselsdato = pdlService.getBirthDateFor(firstDocument.dialog.fnr)
-            if (fodselsdato == null) {
-                logger.warn("Could not find fødselsdato for dialog ${firstDocument.dialog.id}")
-                break
+            val fodselsdato: LocalDate? = firstDocument.dialog.birthDate ?: run {
+                val birthDateString = pdlService.getBirthDateFor(firstDocument.dialog.fnr)
+                if (birthDateString == null) {
+                    logger.warn("Could not find fødselsdato for dialog ${firstDocument.dialog.id}")
+                    return@run null
+                }
+                LocalDate.parse(birthDateString)
             }
-            val parsedBirthDate = LocalDate.parse(fodselsdato)
-            dialogDAO.updateDialogWithBirthDate(firstDocument.dialog.id, parsedBirthDate)
+            if (fodselsdato != null) {
+                dialogDAO.updateDialogWithBirthDate(firstDocument.dialog.id, fodselsdato)
+            }
+
 
             val newDialogs = mutableMapOf<Long, UUID>()
             for (document in documentsToSend) {
