@@ -27,6 +27,9 @@ class PdlService(private val pdlClient: IPdlClient) {
             logger.error("Could not fetch person from PDL", e)
             return null
         }
+        logger.info(
+            "Fetched person from PDL, name: ${response.data.person?.navn}, f. ${response.data.person?.birthDate}"
+        )
         val birthDate = response.data.person?.birthDate?.toString()
 
         return birthDate?.takeIf { it.isNotBlank() }

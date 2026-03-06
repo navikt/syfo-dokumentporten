@@ -61,31 +61,35 @@ class DialogportenService(
             if (documentsToSend.isEmpty()) {
                 break
             }
-            val firstDocument = documentsToSend.first()
-            val fodselsdato: LocalDate? = firstDocument.dialog.birthDate ?: run {
-                val birthDateString = pdlService.getBirthDateFor(firstDocument.dialog.fnr)
-                if (birthDateString == null) {
-                    logger.warn("Could not find fødselsdato for dialog ${firstDocument.dialog.id}")
-                    return@run null
-                }
-                LocalDate.parse(birthDateString)
-            }
-            if (fodselsdato != null) {
-                dialogDAO.updateDialogWithBirthDate(firstDocument.dialog.id, fodselsdato)
-            }
 
-
+            val enrichedBirthDates = mutableMapOf<Long, LocalDate?>()
             val newDialogs = mutableMapOf<Long, UUID>()
             for (document in documentsToSend) {
                 try {
+                    val dialogId = document.dialog.id
+                    if (dialogId !in enrichedBirthDates) {
+                        val fodselsdato: LocalDate? = document.dialog.birthDate ?: run {
+                            val birthDateString = pdlService.getBirthDateFor(document.dialog.fnr)
+                            if (birthDateString == null) {
+                                logger.warn("Could not find fødselsdato for dialog $dialogId")
+                                return@run null
+                            }
+                            LocalDate.parse(birthDateString)
+                        }
+                        enrichedBirthDates[dialogId] = fodselsdato
+                        if (fodselsdato != null) {
+                            dialogDAO.updateDialogWithBirthDate(dialogId, fodselsdato)
+                        }
+                    }
+
                     val dialogportenId = document.dialog.dialogportenUUID
-                        ?: newDialogs[document.dialog.id]
+                        ?: newDialogs[dialogId]
 
                     if (dialogportenId != null) {
                         addToExistingDialog(document, dialogportenId)
                     } else {
                         val dialogportenIdNew = addToNewDialog(document)
-                        newDialogs[document.dialog.id] = dialogportenIdNew
+                        newDialogs[dialogId] = dialogportenIdNew
                     }
                 } catch (ex: Exception) {
                     logger.error("Failed to send document ${document.id} to dialogporten", ex)
