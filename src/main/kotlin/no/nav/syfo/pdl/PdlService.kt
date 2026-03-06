@@ -28,9 +28,9 @@ class PdlService(private val pdlClient: IPdlClient) {
             return null
         }
         logger.info(
-            "Fetched person from PDL, name: ${response.data.person?.navn}, f. ${response.data.person?.birthDate}"
+            "Fetched person from PDL, name: ${response.data.person?.navn}, f. ${response.data.person?.foedselsdato}"
         )
-        val birthDate = response.data.person?.birthDate?.toString()
+        val birthDate = response.data.person?.foedselsdato?.toString()
 
         return birthDate?.takeIf { it.isNotBlank() }
     }

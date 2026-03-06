@@ -23,7 +23,7 @@ data class Ident(
 
 data class PersonResponse(
     val navn: List<Navn>?,
-    val birthDate: LocalDate?,
+    val foedselsdato: LocalDate?,
 )
 
 data class Navn(

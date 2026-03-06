@@ -83,7 +83,7 @@ class FakePdlClient : IPdlClient {
                             etternavn = navn.lastName(),
                         ),
                     ),
-                    birthDate = LocalDate.now(),
+                    foedselsdato = LocalDate.now(),
                 ),
                 identer = IdentResponse(
                     identer = listOf(
