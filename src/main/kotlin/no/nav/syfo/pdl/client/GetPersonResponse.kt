@@ -23,6 +23,10 @@ data class Ident(
 
 data class PersonResponse(
     val navn: List<Navn>?,
+    val foedselsdato: List<Foedselsdato>?,
+)
+
+data class Foedselsdato(
     val foedselsdato: LocalDate?,
 )
 

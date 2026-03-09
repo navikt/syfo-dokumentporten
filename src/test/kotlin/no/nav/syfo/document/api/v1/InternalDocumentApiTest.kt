@@ -30,7 +30,6 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
 import no.nav.syfo.TestDB
-import no.nav.syfo.application.LocalEnvironment
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
 import no.nav.syfo.document.db.DialogDAO
@@ -40,7 +39,6 @@ import no.nav.syfo.document.db.DocumentEntity
 import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.pdl.PdlService
-import no.nav.syfo.pdl.client.PdlClient
 import no.nav.syfo.registerApiV1
 import no.nav.syfo.texas.client.TexasClient
 
@@ -122,7 +120,7 @@ class InternalDocumentApiTest :
                     texasClientMock.defaultMocks()
                     coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
                     coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any()) } returns Unit
-                    //coEvery { pdlService.getBirthDateFor(any()) } returns "1990-01-15"
+                    // coEvery { pdlService.getBirthDateFor(any()) } returns "1990-01-15"
                     coEvery { documentDAOMock.insert(any(), any()) } returns documentEntity(dialogEntity())
                     // Act
                     val response = client.post("/internal/api/v1/documents") {

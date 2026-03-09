@@ -18,7 +18,6 @@ import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentStatus
 import no.nav.syfo.pdl.PdlService
-import no.nav.syfo.pdl.client.PdlClient
 import java.util.UUID
 
 class DialogportenServiceTest :
