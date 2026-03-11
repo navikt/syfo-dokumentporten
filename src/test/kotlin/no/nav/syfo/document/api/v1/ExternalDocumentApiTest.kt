@@ -70,7 +70,7 @@ class ExternalDocumentApiTest :
         val validationServiceSpy = spyk(validationService)
         val fakePdlClient = FakePdlClient()
         val pdlService = PdlService(fakePdlClient)
-        val dialogServic = DialogService(dialogDAO, pdlService)
+        val dialogService = DialogService(dialogDAO, pdlService)
         val tokenXIssuer = "https://tokenx.nav.no"
         val idportenIssuer = "https://test.idporten.no"
 
@@ -103,7 +103,7 @@ class ExternalDocumentApiTest :
                             documentContentDAO = documentContentDAO,
                             dialogDAO = dialogDAO,
                             validationService = validationServiceSpy,
-                            dialogService = dialogServic,
+                            dialogService = dialogService,
                         )
                     }
                 }

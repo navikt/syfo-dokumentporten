@@ -1,7 +1,8 @@
 package no.nav.syfo.document.service
 
+import no.nav.syfo.document.api.v1.dto.Document
+import no.nav.syfo.document.api.v1.generateDialogTitle
 import no.nav.syfo.document.db.DialogDAO
-import no.nav.syfo.document.db.DialogEntity
 import no.nav.syfo.document.db.PersistedDialogEntity
 import no.nav.syfo.pdl.PdlService
 import java.time.LocalDate
@@ -14,31 +15,25 @@ class DialogService(
     suspend fun getAndUpdateDialogByFnrAndOrgNumber(fnr: String, orgNumber: String): PersistedDialogEntity? {
         val dialog = dialogDAO.getByFnrAndOrgNumber(fnr, orgNumber)
         if (dialog != null && dialog.birthDate == null) {
-            val birthDate = pdlService.getBirthDateFor(fnr)
+            val personInfo = pdlService.getPersonInfo(fnr)
+            val birthDate = personInfo.birthDate?.let { LocalDate.parse(it) }
             if (birthDate != null) {
-                val parsed = LocalDate.parse(birthDate)
-                dialogDAO.updateDialogWithBirthDate(dialog.id, parsed)
-                return dialog.copy(birthDate = parsed)
+                val nameOrFnr = personInfo.fullName ?: fnr
+                val newTitle = generateDialogTitle(nameOrFnr, fnr, birthDate)
+                dialogDAO.updateDialogWithBirthDate(dialog.id, birthDate, newTitle)
+                return dialog.copy(birthDate = birthDate, title = newTitle)
             }
         }
         return dialog
     }
 
-    private fun DialogEntity.withBirthDate(birthDate: LocalDate): DialogEntity = DialogEntity(
-        title = title,
-        summary = summary,
-        fnr = fnr,
-        orgNumber = orgNumber,
-        dialogportenUUID = dialogportenUUID,
-        birthDate = birthDate,
-    )
+    suspend fun insertDialog(document: Document): PersistedDialogEntity {
+        val personInfo = pdlService.getPersonInfo(document.fnr)
+        val enrichedDocument = document.copy(
+            fullName = personInfo.fullName ?: document.fullName,
+            birthDate = personInfo.birthDate?.let { LocalDate.parse(it) } ?: document.birthDate,
+        )
 
-    suspend fun insertDialog(document: DialogEntity): PersistedDialogEntity {
-        val birthDate = pdlService.getBirthDateFor(document.fnr)
-        val documentWithBirthDate = birthDate
-            ?.let { document.withBirthDate(LocalDate.parse(it)) }
-            ?: document
-
-        return dialogDAO.insertDialog(documentWithBirthDate)
+        return dialogDAO.insertDialog(enrichedDocument.toDialogEntity())
     }
 }

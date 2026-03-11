@@ -46,20 +46,22 @@ class DialogDAO(private val database: DatabaseInterface) {
         }
     }
 
-    suspend fun updateDialogWithBirthDate(dialogId: Long, birthDate: LocalDate) {
+    suspend fun updateDialogWithBirthDate(dialogId: Long, birthDate: LocalDate, title: String) {
         withContext(Dispatchers.IO) {
             database.connection.use { conn ->
                 conn.prepareStatement(
                     """
                     UPDATE dialog
                     SET birth_date = ?,
+                        title      = ?,
                         updated    = ?
                     WHERE id = ?
                     """.trimIndent()
                 ).use { ps ->
                     ps.setObject(1, birthDate)
-                    ps.setTimestamp(2, Timestamp.from(Instant.now()))
-                    ps.setLong(3, dialogId)
+                    ps.setString(2, title)
+                    ps.setTimestamp(3, Timestamp.from(Instant.now()))
+                    ps.setLong(4, dialogId)
                     ps.executeUpdate()
                 }
                 conn.commit()

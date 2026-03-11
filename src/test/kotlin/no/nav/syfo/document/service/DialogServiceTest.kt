@@ -1,6 +1,7 @@
 package no.nav.syfo.document.service
 
 import dialogEntity
+import document
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
@@ -13,6 +14,7 @@ import io.mockk.slot
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DialogEntity
 import no.nav.syfo.document.db.PersistedDialogEntity
+import no.nav.syfo.pdl.PdlPersonInfo
 import no.nav.syfo.pdl.PdlService
 import java.time.Instant
 import java.time.LocalDate
@@ -26,6 +28,7 @@ class DialogServiceTest :
 
         beforeTest {
             clearAllMocks()
+            coEvery { pdlService.getPersonInfo(any()) } returns PdlPersonInfo(fullName = null, birthDate = null)
         }
 
         describe("getAndUpdateDialogByFnrAndOrgNumber") {
@@ -41,7 +44,7 @@ class DialogServiceTest :
                     result shouldBe null
                     coVerify(exactly = 1) { dialogDAO.getByFnrAndOrgNumber("12345678901", "123456789") }
                     coVerify(exactly = 0) { pdlService.getBirthDateFor(any()) }
-                    coVerify(exactly = 0) { dialogDAO.updateDialogWithBirthDate(any(), any()) }
+                    coVerify(exactly = 0) { dialogDAO.updateDialogWithBirthDate(any(), any(), any()) }
                 }
             }
 
@@ -64,7 +67,7 @@ class DialogServiceTest :
                         dialogDAO.getByFnrAndOrgNumber(existingDialog.fnr, existingDialog.orgNumber)
                     }
                     coVerify(exactly = 0) { pdlService.getBirthDateFor(any()) }
-                    coVerify(exactly = 0) { dialogDAO.updateDialogWithBirthDate(any(), any()) }
+                    coVerify(exactly = 0) { dialogDAO.updateDialogWithBirthDate(any(), any(), any()) }
                 }
             }
 
@@ -73,8 +76,9 @@ class DialogServiceTest :
                     // Arrange
                     val existingDialog = dialogEntity().copy(birthDate = null)
                     coEvery { dialogDAO.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
-                    coEvery { pdlService.getBirthDateFor(existingDialog.fnr) } returns "1985-06-20"
-                    coEvery { dialogDAO.updateDialogWithBirthDate(any(), any()) } returns Unit
+                    coEvery { pdlService.getPersonInfo(existingDialog.fnr) } returns
+                        PdlPersonInfo(fullName = "Test Person", birthDate = "1985-06-20")
+                    coEvery { dialogDAO.updateDialogWithBirthDate(any(), any(), any()) } returns Unit
 
                     // Act
                     val result = dialogService.getAndUpdateDialogByFnrAndOrgNumber(
@@ -86,9 +90,9 @@ class DialogServiceTest :
                     result shouldNotBe null
                     result?.birthDate shouldBe LocalDate.of(1985, 6, 20)
                     result?.id shouldBe existingDialog.id
-                    coVerify(exactly = 1) { pdlService.getBirthDateFor(existingDialog.fnr) }
+                    coVerify(exactly = 1) { pdlService.getPersonInfo(existingDialog.fnr) }
                     coVerify(exactly = 1) {
-                        dialogDAO.updateDialogWithBirthDate(existingDialog.id, LocalDate.of(1985, 6, 20))
+                        dialogDAO.updateDialogWithBirthDate(existingDialog.id, LocalDate.of(1985, 6, 20), any())
                     }
                 }
             }
@@ -98,7 +102,8 @@ class DialogServiceTest :
                     // Arrange
                     val existingDialog = dialogEntity().copy(birthDate = null)
                     coEvery { dialogDAO.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
-                    coEvery { pdlService.getBirthDateFor(any()) } returns null
+                    coEvery { pdlService.getPersonInfo(any()) } returns
+                        PdlPersonInfo(fullName = null, birthDate = null)
 
                     // Act
                     val result = dialogService.getAndUpdateDialogByFnrAndOrgNumber(
@@ -109,167 +114,133 @@ class DialogServiceTest :
                     // Assert
                     result shouldBe existingDialog
                     result?.birthDate shouldBe null
-                    coVerify(exactly = 1) { pdlService.getBirthDateFor(existingDialog.fnr) }
-                    coVerify(exactly = 0) { dialogDAO.updateDialogWithBirthDate(any(), any()) }
+                    coVerify(exactly = 1) { pdlService.getPersonInfo(existingDialog.fnr) }
+                    coVerify(exactly = 0) { dialogDAO.updateDialogWithBirthDate(any(), any(), any()) }
                 }
             }
         }
 
         describe("insertDialog") {
-            context("when PDL returns a birthDate") {
-                it("should insert dialog with birthDate from PDL") {
+            context("when PDL returns a birthDate for a regular fnr") {
+                it("should insert dialog with birthDate and correct title from PDL") {
                     // Arrange
-                    val dialogEntity = DialogEntity(
-                        title = "Innkalling til dialogmøte",
-                        summary = "Kort oppsummering",
-                        fnr = "12345678901",
+                    val doc = document().copy(
+                        fnr = "01031992000",
+                        fullName = "Ola Nordmann",
                         orgNumber = "123456789",
+                        birthDate = null,
                     )
                     val insertedSlot = slot<DialogEntity>()
                     val expectedBirthDate = LocalDate.of(1992, 3, 10)
 
-                    coEvery { pdlService.getBirthDateFor("12345678901") } returns "1992-03-10"
+                    coEvery { pdlService.getPersonInfo("01031992000") } returns
+                        PdlPersonInfo(fullName = "Ola Nordmann", birthDate = "1992-03-10")
                     coEvery { dialogDAO.insertDialog(capture(insertedSlot)) } returns PersistedDialogEntity(
                         id = 1L,
-                        title = dialogEntity.title,
-                        summary = dialogEntity.summary,
-                        fnr = dialogEntity.fnr,
-                        orgNumber = dialogEntity.orgNumber,
+                        title = "Sykefraværsoppfølging for Ola Nordmann (f. 10.03.1992)",
+                        summary = "test",
+                        fnr = doc.fnr,
+                        orgNumber = doc.orgNumber,
                         birthDate = expectedBirthDate,
                         created = Instant.now(),
                         updated = Instant.now(),
                     )
 
                     // Act
-                    val result = dialogService.insertDialog(dialogEntity)
+                    val result = dialogService.insertDialog(doc)
 
                     // Assert
                     result.birthDate shouldBe expectedBirthDate
                     insertedSlot.captured.birthDate shouldBe expectedBirthDate
-                    insertedSlot.captured.fnr shouldBe "12345678901"
+                    insertedSlot.captured.fnr shouldBe "01031992000"
                     insertedSlot.captured.orgNumber shouldBe "123456789"
-                    coVerify(exactly = 1) { pdlService.getBirthDateFor("12345678901") }
+                    insertedSlot.captured.title shouldBe "Sykefraværsoppfølging for Ola Nordmann (f. 10.03.1992)"
+                    coVerify(exactly = 1) { pdlService.getPersonInfo("01031992000") }
                     coVerify(exactly = 1) { dialogDAO.insertDialog(any()) }
+                }
+            }
+
+            context("when PDL returns birthDate for a d-nummer") {
+                it("should generate title with PDL birthDate instead of fnr fallback") {
+                    // Arrange — d-nummer: day + 40 → fnrToBirthDate returns null
+                    val doc = document().copy(
+                        fnr = "41011999000",
+                        fullName = "Test Person",
+                        orgNumber = "987654321",
+                        birthDate = null,
+                    )
+                    val insertedSlot = slot<DialogEntity>()
+
+                    coEvery { pdlService.getPersonInfo("41011999000") } returns
+                        PdlPersonInfo(fullName = "Test Person", birthDate = "1999-01-01")
+                    coEvery { dialogDAO.insertDialog(capture(insertedSlot)) } answers {
+                        val captured = insertedSlot.captured
+                        PersistedDialogEntity(
+                            id = 2L,
+                            title = captured.title,
+                            summary = captured.summary,
+                            fnr = captured.fnr,
+                            orgNumber = captured.orgNumber,
+                            birthDate = captured.birthDate,
+                            created = Instant.now(),
+                            updated = Instant.now(),
+                        )
+                    }
+
+                    // Act
+                    dialogService.insertDialog(doc)
+
+                    // Assert — title uses formatted birthDate, NOT the raw fnr
+                    insertedSlot.captured.birthDate shouldBe LocalDate.of(1999, 1, 1)
+                    insertedSlot.captured.title shouldBe "Sykefraværsoppfølging for Test Person (f. 01.01.1999)"
                 }
             }
 
             context("when PDL returns null") {
                 it("should insert dialog without birthDate") {
                     // Arrange
-                    val dialogEntity = DialogEntity(
-                        title = "Oppfølgingsplan",
-                        summary = "Oppsummering",
+                    val doc = document().copy(
                         fnr = "98765432109",
+                        fullName = "Kari Nordmann",
                         orgNumber = "987654321",
+                        birthDate = null,
                     )
                     val insertedSlot = slot<DialogEntity>()
 
-                    coEvery { pdlService.getBirthDateFor("98765432109") } returns null
+                    coEvery { pdlService.getPersonInfo("98765432109") } returns
+                        PdlPersonInfo(fullName = "Kari Nordmann", birthDate = null)
                     coEvery { dialogDAO.insertDialog(capture(insertedSlot)) } returns PersistedDialogEntity(
-                        id = 2L,
-                        title = dialogEntity.title,
-                        summary = dialogEntity.summary,
-                        fnr = dialogEntity.fnr,
-                        orgNumber = dialogEntity.orgNumber,
+                        id = 3L,
+                        title = "test",
+                        summary = "test",
+                        fnr = doc.fnr,
+                        orgNumber = doc.orgNumber,
                         birthDate = null,
                         created = Instant.now(),
                         updated = Instant.now(),
                     )
 
                     // Act
-                    val result = dialogService.insertDialog(dialogEntity)
+                    val result = dialogService.insertDialog(doc)
 
                     // Assert
                     result.birthDate shouldBe null
                     insertedSlot.captured.birthDate shouldBe null
-                    coVerify(exactly = 1) { pdlService.getBirthDateFor("98765432109") }
+                    coVerify(exactly = 1) { pdlService.getPersonInfo("98765432109") }
                     coVerify(exactly = 1) { dialogDAO.insertDialog(any()) }
-                }
-            }
-
-            context("when dialog already has birthDate set") {
-                it("should still call PDL and use PDL value") {
-                    // Arrange
-                    val dialogEntity = DialogEntity(
-                        title = "Dialogmøte",
-                        summary = "Oppsummering",
-                        fnr = "11111111111",
-                        orgNumber = "999999999",
-                        birthDate = LocalDate.of(2000, 1, 1),
-                    )
-                    val insertedSlot = slot<DialogEntity>()
-
-                    coEvery { pdlService.getBirthDateFor("11111111111") } returns "1995-12-25"
-                    coEvery { dialogDAO.insertDialog(capture(insertedSlot)) } returns PersistedDialogEntity(
-                        id = 3L,
-                        title = dialogEntity.title,
-                        summary = dialogEntity.summary,
-                        fnr = dialogEntity.fnr,
-                        orgNumber = dialogEntity.orgNumber,
-                        birthDate = LocalDate.of(1995, 12, 25),
-                        created = Instant.now(),
-                        updated = Instant.now(),
-                    )
-
-                    // Act
-                    val result = dialogService.insertDialog(dialogEntity)
-
-                    // Assert
-                    result.birthDate shouldBe LocalDate.of(1995, 12, 25)
-                    insertedSlot.captured.birthDate shouldBe LocalDate.of(1995, 12, 25)
-                    coVerify(exactly = 1) { pdlService.getBirthDateFor("11111111111") }
-                }
-            }
-
-            context("when dialog entity preserves all fields during insert") {
-                it("should pass title, summary, fnr, orgNumber, and dialogportenUUID through") {
-                    // Arrange
-                    val dialogEntity = DialogEntity(
-                        title = "My Title",
-                        summary = "My Summary",
-                        fnr = "22222222222",
-                        orgNumber = "888888888",
-                    )
-                    val insertedSlot = slot<DialogEntity>()
-
-                    coEvery { pdlService.getBirthDateFor(any()) } returns "2000-05-15"
-                    coEvery { dialogDAO.insertDialog(capture(insertedSlot)) } returns PersistedDialogEntity(
-                        id = 4L,
-                        title = dialogEntity.title,
-                        summary = dialogEntity.summary,
-                        fnr = dialogEntity.fnr,
-                        orgNumber = dialogEntity.orgNumber,
-                        birthDate = LocalDate.of(2000, 5, 15),
-                        created = Instant.now(),
-                        updated = Instant.now(),
-                    )
-
-                    // Act
-                    dialogService.insertDialog(dialogEntity)
-
-                    // Assert
-                    insertedSlot.captured.title shouldBe "My Title"
-                    insertedSlot.captured.summary shouldBe "My Summary"
-                    insertedSlot.captured.fnr shouldBe "22222222222"
-                    insertedSlot.captured.orgNumber shouldBe "888888888"
-                    insertedSlot.captured.birthDate shouldBe LocalDate.of(2000, 5, 15)
                 }
             }
 
             context("when PDL returns an invalid date string") {
                 it("should throw DateTimeParseException") {
                     // Arrange
-                    val dialogEntity = DialogEntity(
-                        title = "Title",
-                        summary = "Summary",
-                        fnr = "33333333333",
-                        orgNumber = "777777777",
-                    )
-                    coEvery { pdlService.getBirthDateFor("33333333333") } returns "not-a-date"
+                    val doc = document().copy(fnr = "33333333333")
+                    coEvery { pdlService.getPersonInfo("33333333333") } returns
+                        PdlPersonInfo(fullName = null, birthDate = "not-a-date")
 
                     // Act & Assert
                     shouldThrow<DateTimeParseException> {
-                        dialogService.insertDialog(dialogEntity)
+                        dialogService.insertDialog(doc)
                     }
                     coVerify(exactly = 0) { dialogDAO.insertDialog(any()) }
                 }
@@ -278,52 +249,84 @@ class DialogServiceTest :
             context("when dialogDAO.insertDialog throws exception") {
                 it("should propagate the exception") {
                     // Arrange
-                    val dialogEntity = DialogEntity(
-                        title = "Title",
-                        summary = "Summary",
-                        fnr = "44444444444",
-                        orgNumber = "666666666",
-                    )
-                    coEvery { pdlService.getBirthDateFor(any()) } returns "1990-01-01"
+                    val doc = document().copy(fnr = "44444444444")
+                    coEvery { pdlService.getPersonInfo(any()) } returns
+                        PdlPersonInfo(fullName = null, birthDate = "1990-01-01")
                     coEvery { dialogDAO.insertDialog(any()) } throws
                         RuntimeException("Database connection failed")
 
                     // Act & Assert
                     shouldThrow<RuntimeException> {
-                        dialogService.insertDialog(dialogEntity)
+                        dialogService.insertDialog(doc)
                     }
                 }
             }
 
-            context("when dialog has null summary") {
-                it("should insert dialog preserving null summary") {
+            context("when document has null summary") {
+                it("should insert dialog with generated summary") {
                     // Arrange
-                    val dialogEntity = DialogEntity(
-                        title = "Title without summary",
-                        summary = null,
+                    val doc = document().copy(
                         fnr = "55555555555",
+                        fullName = "Person Uten Oppsummering",
                         orgNumber = "555555555",
+                        summary = null,
                     )
                     val insertedSlot = slot<DialogEntity>()
 
-                    coEvery { pdlService.getBirthDateFor(any()) } returns null
+                    coEvery { pdlService.getPersonInfo(any()) } returns
+                        PdlPersonInfo(fullName = "Person Uten Oppsummering", birthDate = null)
+                    coEvery { dialogDAO.insertDialog(capture(insertedSlot)) } answers {
+                        val captured = insertedSlot.captured
+                        PersistedDialogEntity(
+                            id = 5L,
+                            title = captured.title,
+                            summary = captured.summary,
+                            fnr = captured.fnr,
+                            orgNumber = captured.orgNumber,
+                            birthDate = captured.birthDate,
+                            created = Instant.now(),
+                            updated = Instant.now(),
+                        )
+                    }
+
+                    // Act
+                    dialogService.insertDialog(doc)
+
+                    // Assert — toDialogEntity() always generates summary, regardless of document.summary
+                    insertedSlot.captured.summary shouldNotBe null
+                }
+            }
+
+            context("when document fnr and orgNumber are preserved") {
+                it("should pass fnr and orgNumber through to the dialog entity") {
+                    // Arrange
+                    val doc = document().copy(
+                        fnr = "22222222222",
+                        orgNumber = "888888888",
+                        fullName = "Preservert Person",
+                    )
+                    val insertedSlot = slot<DialogEntity>()
+
+                    coEvery { pdlService.getPersonInfo(any()) } returns
+                        PdlPersonInfo(fullName = "Preservert Person", birthDate = "2000-05-15")
                     coEvery { dialogDAO.insertDialog(capture(insertedSlot)) } returns PersistedDialogEntity(
-                        id = 5L,
-                        title = dialogEntity.title,
-                        summary = null,
-                        fnr = dialogEntity.fnr,
-                        orgNumber = dialogEntity.orgNumber,
-                        birthDate = null,
+                        id = 4L,
+                        title = "test",
+                        summary = "test",
+                        fnr = doc.fnr,
+                        orgNumber = doc.orgNumber,
+                        birthDate = LocalDate.of(2000, 5, 15),
                         created = Instant.now(),
                         updated = Instant.now(),
                     )
 
                     // Act
-                    val result = dialogService.insertDialog(dialogEntity)
+                    dialogService.insertDialog(doc)
 
                     // Assert
-                    result.summary shouldBe null
-                    insertedSlot.captured.summary shouldBe null
+                    insertedSlot.captured.fnr shouldBe "22222222222"
+                    insertedSlot.captured.orgNumber shouldBe "888888888"
+                    insertedSlot.captured.birthDate shouldBe LocalDate.of(2000, 5, 15)
                 }
             }
         }
@@ -334,7 +337,8 @@ class DialogServiceTest :
                     // Arrange
                     val existingDialog = dialogEntity().copy(birthDate = null)
                     coEvery { dialogDAO.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
-                    coEvery { pdlService.getBirthDateFor(any()) } returns "invalid-date"
+                    coEvery { pdlService.getPersonInfo(any()) } returns
+                        PdlPersonInfo(fullName = null, birthDate = "invalid-date")
 
                     // Act & Assert
                     shouldThrow<DateTimeParseException> {
@@ -343,7 +347,7 @@ class DialogServiceTest :
                             existingDialog.orgNumber,
                         )
                     }
-                    coVerify(exactly = 0) { dialogDAO.updateDialogWithBirthDate(any(), any()) }
+                    coVerify(exactly = 0) { dialogDAO.updateDialogWithBirthDate(any(), any(), any()) }
                 }
             }
 
@@ -352,8 +356,9 @@ class DialogServiceTest :
                     // Arrange
                     val existingDialog = dialogEntity().copy(birthDate = null)
                     coEvery { dialogDAO.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
-                    coEvery { pdlService.getBirthDateFor(any()) } returns "1990-01-15"
-                    coEvery { dialogDAO.updateDialogWithBirthDate(any(), any()) } throws
+                    coEvery { pdlService.getPersonInfo(any()) } returns
+                        PdlPersonInfo(fullName = "Test Person", birthDate = "1990-01-15")
+                    coEvery { dialogDAO.updateDialogWithBirthDate(any(), any(), any()) } throws
                         RuntimeException("Database error")
 
                     // Act & Assert
@@ -376,17 +381,23 @@ class DialogServiceTest :
                     shouldThrow<RuntimeException> {
                         dialogService.getAndUpdateDialogByFnrAndOrgNumber("12345678901", "123456789")
                     }
-                    coVerify(exactly = 0) { pdlService.getBirthDateFor(any()) }
+                    coVerify(exactly = 0) { pdlService.getPersonInfo(any()) }
                 }
             }
 
             context("when enriching birthDate") {
-                it("should preserve all original dialog fields in the returned copy") {
-                    // Arrange
-                    val existingDialog = dialogEntity().copy(birthDate = null)
+                it("should regenerate title and preserve other fields in the returned copy") {
+                    // Arrange — title has known pattern with fnr fallback (d-nummer case)
+                    val existingDialog = dialogEntity().copy(
+                        birthDate = null,
+                        title = "Sykefraværsoppfølging for Test Person (41011999000)",
+                    )
                     coEvery { dialogDAO.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
-                    coEvery { pdlService.getBirthDateFor(any()) } returns "1990-01-15"
-                    coEvery { dialogDAO.updateDialogWithBirthDate(any(), any()) } returns Unit
+                    coEvery { pdlService.getPersonInfo(any()) } returns
+                        PdlPersonInfo(fullName = "Test Person", birthDate = "1990-01-15")
+                    coEvery {
+                        dialogDAO.updateDialogWithBirthDate(any(), any(), any()) } returns
+                        Unit
 
                     // Act
                     val result = dialogService.getAndUpdateDialogByFnrAndOrgNumber(
@@ -394,10 +405,10 @@ class DialogServiceTest :
                         existingDialog.orgNumber,
                     )
 
-                    // Assert — all fields preserved except birthDate
+                    // Assert — title regenerated, other fields preserved
                     result shouldNotBe null
                     result?.id shouldBe existingDialog.id
-                    result?.title shouldBe existingDialog.title
+                    result?.title shouldBe "Sykefraværsoppfølging for Test Person (f. 15.01.1990)"
                     result?.summary shouldBe existingDialog.summary
                     result?.fnr shouldBe existingDialog.fnr
                     result?.orgNumber shouldBe existingDialog.orgNumber
@@ -409,4 +420,3 @@ class DialogServiceTest :
             }
         }
     })
-

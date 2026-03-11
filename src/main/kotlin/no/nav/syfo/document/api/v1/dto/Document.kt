@@ -2,11 +2,11 @@ package no.nav.syfo.document.api.v1.dto
 
 import com.fasterxml.jackson.annotation.JsonEnumDefaultValue
 import no.nav.syfo.document.api.v1.fnrToBirthDate
+import no.nav.syfo.document.api.v1.generateDialogTitle
 import no.nav.syfo.document.db.DialogEntity
 import no.nav.syfo.document.db.DocumentEntity
 import no.nav.syfo.document.db.PersistedDialogEntity
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 data class Document(
@@ -33,18 +33,10 @@ data class Document(
 
     fun toDialogEntity(): DialogEntity {
         val nameOrFnr = fullName ?: fnr
-
-        // Prefer explicit birthDate from request, fallback to fnr-derived date if possible.
         val effectiveBirthDate = birthDate ?: fnrToBirthDate(fnr)
 
-        val titleEnding = if (effectiveBirthDate != null) {
-            "(f. ${effectiveBirthDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))})"
-        } else {
-            if (!fullName.isNullOrEmpty()) "($fnr)" else ""
-        }
-
         return DialogEntity(
-            title = "Sykefraværsoppfølging for $nameOrFnr $titleEnding".trim(),
+            title = generateDialogTitle(nameOrFnr, fnr, effectiveBirthDate),
             summary = """
                 Her finner du alle dialogmøtebrev fra Nav og oppfølgingsplaner utarbeidet av nærmeste leder for $nameOrFnr.
                 Innholdet er tilgjengelig i 4 måneder fra delingsdatoen. 

@@ -3,35 +3,39 @@ package no.nav.syfo.pdl
 import no.nav.syfo.pdl.client.IPdlClient
 import no.nav.syfo.util.logger
 
+data class PdlPersonInfo(
+    val fullName: String?,
+    val birthDate: String?,
+)
+
 class PdlService(private val pdlClient: IPdlClient) {
 
     private val logger = logger()
 
-    suspend fun getNameFor(fnr: String): String? {
+    suspend fun getPersonInfo(fnr: String): PdlPersonInfo {
         val response = try {
             pdlClient.getPerson(fnr)
         } catch (e: Exception) {
             logger.error("Could not fetch person from PDL", e)
-            return null
+            return PdlPersonInfo(fullName = null, birthDate = null)
         }
-        val navn = response.data.person?.navn?.firstOrNull()
 
-        return listOfNotNull(navn?.fornavn, navn?.mellomnavn, navn?.etternavn)
+        val person = response.data.person
+
+        val navn = person?.navn?.firstOrNull()
+        val fullName = listOfNotNull(navn?.fornavn, navn?.mellomnavn, navn?.etternavn)
             .joinToString(" ")
             .ifBlank { null }
-    }
-    suspend fun getBirthDateFor(fnr: String): String? {
-        val response = try {
-            pdlClient.getPerson(fnr)
-        } catch (e: Exception) {
-            logger.error("Could not fetch person from PDL", e)
-            return null
-        }
-        logger.info(
-            "Fetched person from PDL, name: ${response.data.person?.navn}, f. ${response.data.person?.foedselsdato}"
-        )
-        val birthDate = response.data.person?.foedselsdato?.firstOrNull()?.foedselsdato?.toString()
 
-        return birthDate?.takeIf { it.isNotBlank() }
+        val birthDate = person?.foedselsdato?.firstOrNull()?.foedselsdato?.toString()
+            ?.takeIf { it.isNotBlank() }
+
+        logger.info("Fetched person from PDL, name: ${person?.navn}, f. ${person?.foedselsdato}")
+
+        return PdlPersonInfo(fullName = fullName, birthDate = birthDate)
     }
+
+    suspend fun getNameFor(fnr: String): String? = getPersonInfo(fnr).fullName
+
+    suspend fun getBirthDateFor(fnr: String): String? = getPersonInfo(fnr).birthDate
 }

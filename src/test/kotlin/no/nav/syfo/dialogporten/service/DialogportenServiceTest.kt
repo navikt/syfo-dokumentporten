@@ -17,6 +17,7 @@ import no.nav.syfo.altinn.dialogporten.service.DialogportenService
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentStatus
+import no.nav.syfo.pdl.PdlPersonInfo
 import no.nav.syfo.pdl.PdlService
 import java.time.LocalDate
 import java.util.UUID
@@ -41,8 +42,9 @@ class DialogportenServiceTest :
         beforeTest {
             clearAllMocks()
             // Default mocks for pdlService and dialogDao used in most tests
-            coEvery { pdlService.getBirthDateFor(any()) } returns "1990-01-15"
-            coEvery { dialogDao.updateDialogWithBirthDate(any(), any()) } returns Unit
+            coEvery { pdlService.getPersonInfo(any()) } returns
+                PdlPersonInfo(fullName = "Test Person", birthDate = "1990-01-15")
+            coEvery { dialogDao.updateDialogWithBirthDate(any(), any(), any()) } returns Unit
         }
 
         describe("sendDocumentsToDialogporten") {
@@ -327,8 +329,8 @@ class DialogportenServiceTest :
                     dialogportenService.sendDocumentsToDialogporten()
 
                     // Assert — PDL called once, update called once (same dialog id)
-                    coVerify(exactly = 1) { pdlService.getBirthDateFor(dialog.fnr) }
-                    coVerify(exactly = 1) { dialogDao.updateDialogWithBirthDate(dialog.id, any()) }
+                    coVerify(exactly = 1) { pdlService.getPersonInfo(dialog.fnr) }
+                    coVerify(exactly = 1) { dialogDao.updateDialogWithBirthDate(dialog.id, any(), any()) }
                 }
 
                 it("should call PDL once per distinct dialog when batch contains multiple dialogs") {
@@ -347,9 +349,9 @@ class DialogportenServiceTest :
                     dialogportenService.sendDocumentsToDialogporten()
 
                     // Assert — PDL called once for each dialog
-                    coVerify(exactly = 1) { pdlService.getBirthDateFor(dialog1.fnr) }
-                    coVerify(exactly = 1) { pdlService.getBirthDateFor(dialog2.fnr) }
-                    coVerify(exactly = 2) { dialogDao.updateDialogWithBirthDate(any(), any()) }
+                    coVerify(exactly = 1) { pdlService.getPersonInfo(dialog1.fnr) }
+                    coVerify(exactly = 1) { pdlService.getPersonInfo(dialog2.fnr) }
+                    coVerify(exactly = 2) { dialogDao.updateDialogWithBirthDate(any(), any(), any()) }
                 }
 
                 it("should skip PDL call when dialog already has birthDate") {
@@ -367,11 +369,9 @@ class DialogportenServiceTest :
                     // Act
                     dialogportenService.sendDocumentsToDialogporten()
 
-                    // Assert — no PDL call, but still updates DB with existing birthDate
-                    coVerify(exactly = 0) { pdlService.getBirthDateFor(any()) }
-                    coVerify(exactly = 1) {
-                        dialogDao.updateDialogWithBirthDate(dialog.id, LocalDate.of(1990, 5, 20))
-                    }
+                    // Assert — no PDL call, no DB update (birthDate already present)
+                    coVerify(exactly = 0) { pdlService.getPersonInfo(any()) }
+                    coVerify(exactly = 0) { dialogDao.updateDialogWithBirthDate(any(), any(), any()) }
                 }
 
                 it("should not update birthDate when PDL returns null") {
@@ -379,7 +379,8 @@ class DialogportenServiceTest :
                     val dialog = dialogEntity().copy(dialogportenUUID = null, birthDate = null)
                     val doc = documentEntity(dialog)
 
-                    coEvery { pdlService.getBirthDateFor(any()) } returns null
+                    coEvery { pdlService.getPersonInfo(any()) } returns
+                        PdlPersonInfo(fullName = null, birthDate = null)
                     coEvery { documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED) } returns listOf(doc)
                     coEvery { documentDAO.update(any()) } returns Unit
                     coEvery { dialogportenClient.createDialog(any()) } returns UUID.randomUUID()
@@ -388,8 +389,8 @@ class DialogportenServiceTest :
                     dialogportenService.sendDocumentsToDialogporten()
 
                     // Assert
-                    coVerify(exactly = 1) { pdlService.getBirthDateFor(dialog.fnr) }
-                    coVerify(exactly = 0) { dialogDao.updateDialogWithBirthDate(any(), any()) }
+                    coVerify(exactly = 1) { pdlService.getPersonInfo(dialog.fnr) }
+                    coVerify(exactly = 0) { dialogDao.updateDialogWithBirthDate(any(), any(), any()) }
                     // Document should still be sent despite missing birthDate
                     coVerify(exactly = 1) { dialogportenClient.createDialog(any()) }
                     coVerify(exactly = 1) { documentDAO.update(any()) }
@@ -402,8 +403,10 @@ class DialogportenServiceTest :
                     val doc1 = documentEntity(dialog1)
                     val doc2 = documentEntity(dialog2)
 
-                    coEvery { pdlService.getBirthDateFor(dialog1.fnr) } returns null
-                    coEvery { pdlService.getBirthDateFor(dialog2.fnr) } returns "1985-03-10"
+                    coEvery { pdlService.getPersonInfo(dialog1.fnr) } returns
+                        PdlPersonInfo(fullName = null, birthDate = null)
+                    coEvery { pdlService.getPersonInfo(dialog2.fnr) } returns
+                        PdlPersonInfo(fullName = "Person Two", birthDate = "1985-03-10")
                     coEvery { documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED) } returns
                         listOf(doc1, doc2)
                     coEvery { documentDAO.update(any()) } returns Unit
@@ -413,9 +416,9 @@ class DialogportenServiceTest :
                     dialogportenService.sendDocumentsToDialogporten()
 
                     // Assert — only dialog2 gets a birthDate update
-                    coVerify(exactly = 0) { dialogDao.updateDialogWithBirthDate(dialog1.id, any()) }
+                    coVerify(exactly = 0) { dialogDao.updateDialogWithBirthDate(dialog1.id, any(), any()) }
                     coVerify(exactly = 1) {
-                        dialogDao.updateDialogWithBirthDate(dialog2.id, LocalDate.of(1985, 3, 10))
+                        dialogDao.updateDialogWithBirthDate(dialog2.id, LocalDate.of(1985, 3, 10), any())
                     }
                     // Both documents should still be sent
                     coVerify(exactly = 2) { dialogportenClient.createDialog(any()) }

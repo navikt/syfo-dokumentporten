@@ -18,6 +18,7 @@ import no.nav.syfo.altinn.dialogporten.domain.Dialog
 import no.nav.syfo.altinn.dialogporten.domain.Transmission
 import no.nav.syfo.altinn.dialogporten.domain.Url
 import no.nav.syfo.altinn.dialogporten.domain.create
+import no.nav.syfo.document.api.v1.generateDialogTitle
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentEntity
@@ -69,17 +70,19 @@ class DialogportenService(
                     val dialogId = document.dialog.id
                     if (dialogId !in enrichedBirthDates) {
                         val fodselsdato: LocalDate? = document.dialog.birthDate ?: run {
-                            val birthDateString = pdlService.getBirthDateFor(document.dialog.fnr)
+                            val personInfo = pdlService.getPersonInfo(document.dialog.fnr)
+                            val birthDateString = personInfo.birthDate
                             if (birthDateString == null) {
                                 logger.warn("Could not find fødselsdato for dialog $dialogId")
                                 return@run null
                             }
-                            LocalDate.parse(birthDateString)
+                            val parsed = LocalDate.parse(birthDateString)
+                            val nameOrFnr = personInfo.fullName ?: document.dialog.fnr
+                            val newTitle = generateDialogTitle(nameOrFnr, document.dialog.fnr, parsed)
+                            dialogDAO.updateDialogWithBirthDate(dialogId, parsed, newTitle)
+                            parsed
                         }
                         enrichedBirthDates[dialogId] = fodselsdato
-                        if (fodselsdato != null) {
-                            dialogDAO.updateDialogWithBirthDate(dialogId, fodselsdato)
-                        }
                     }
 
                     val dialogportenId = document.dialog.dialogportenUUID
