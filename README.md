@@ -51,6 +51,32 @@ sequenceDiagram
     lps ->> dokumentporten: GET /api/v1/documents/{id}/metadata
 ```
 
+
+### Alternatively, for LPS, using collection endpoint in syfo-dokumentporten to get details for documents
+It is also possible for LPS to use the collection endpoint in syfo-dokumentporten to get details for documents added after a given timestamp, and then use one additional request per document to retrieve the PDF.
+The collection endpoint must be called for each sub-entity(virksomhet) in the organization one wants to retrieve documents for.
+```mermaid
+sequenceDiagram
+    participant lps
+    participant maskinporten
+    participant altinn
+    participant dialogporten
+    participant dokumentporten as syfo-dokumentporten
+    participant dialogmote as dialogmøte informasjon
+    participant oppfolginsplan as oppfølgingsplaner
+    
+    dialogmote ->> dokumentporten: POST /internal/api/v1/documents
+    oppfolginsplan ->> dokumentporten: POST /internal/api/v1/documents
+    lps ->> maskinporten: Get System user token
+    lps ->> altinn: Exchange token for Altinn token
+    lps ->> dokumentporten: GET /api/v1/documents?orgNumber={orgNumber}&documentType={documentType}%createAfter={createDate}
+    lps ->> dokumentporten: GET /api/v1/documents/{id}
+```
+
+### Subscribing to Altinn Dialogporten for real time updates on dialogs and transmissions
+If you want more dynamic updates of dialogs than possible with polling, you can subscribe to events from Altinn Dialogporten for updates on dialogs and transmissions.
+Consult [event documentation](https://docs.altinn.studio/en/dialogporten/getting-started/events/) from Altinn Dialogporten for more information on how to do this.
+
 ## Request flow from Syfo-dokumentporten perspective
 ```mermaid
 sequenceDiagram
