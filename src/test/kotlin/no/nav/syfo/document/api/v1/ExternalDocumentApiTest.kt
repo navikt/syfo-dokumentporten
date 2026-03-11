@@ -312,7 +312,7 @@ class ExternalDocumentApiTest :
                         // Assert
                         response.status shouldBe HttpStatusCode.OK
                         response.headers["Content-Type"] shouldBe
-                            ContentType.Application.Json.withCharset(Charsets.UTF_8).toString()
+                            ContentType.Application.Json.toString()
                         val responseBody = response.body<DocumentDetails>()
                         responseBody shouldBe document.toDocumentDetails()
 
