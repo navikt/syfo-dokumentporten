@@ -30,14 +30,15 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
 import no.nav.syfo.TestDB
-import no.nav.syfo.application.LocalEnvironment
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentEntity
+import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.document.service.ValidationService
+import no.nav.syfo.pdl.PdlService
 import no.nav.syfo.registerApiV1
 import no.nav.syfo.texas.client.TexasClient
 
@@ -47,7 +48,7 @@ class InternalDocumentApiTest :
         val documentDAOMock = mockk<DocumentDAO>()
         val dialogDAOMock = mockk<DialogDAO>()
         val documentContentDAOMock = mockk<DocumentContentDAO>()
-
+        val pdlService = mockk<PdlService>()
         beforeTest {
             clearAllMocks()
             TestDB.clearAllData()
@@ -74,6 +75,7 @@ class InternalDocumentApiTest :
                             documentContentDAOMock,
                             dialogDAOMock,
                             validationService = mockk<ValidationService>(),
+                            dialogService = DialogService(dialogDAOMock, pdlService)
                         )
                     }
                 }
@@ -87,9 +89,12 @@ class InternalDocumentApiTest :
                     val capturedSlot = slot<DocumentEntity>()
                     val capturedContent = slot<ByteArray>()
                     coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
+                    coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns Unit
                     coEvery { documentDAOMock.insert(capture(capturedSlot), capture(capturedContent)) } returns
                         documentEntity(dialogEntity())
                     texasClientMock.defaultMocks()
+                    coEvery { pdlService.getPersonInfo(any()) } returns
+                        no.nav.syfo.pdl.PdlPersonInfo(fullName = null, birthDate = "1990-01-15")
                     val document = document()
                     // Act
                     val response = client.post("/internal/api/v1/documents") {
@@ -115,6 +120,8 @@ class InternalDocumentApiTest :
                     // Arrange
                     texasClientMock.defaultMocks()
                     coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
+                    coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns Unit
+                    // coEvery { pdlService.getBirthDateFor(any()) } returns "1990-01-15"
                     coEvery { documentDAOMock.insert(any(), any()) } returns documentEntity(dialogEntity())
                     // Act
                     val response = client.post("/internal/api/v1/documents") {
@@ -136,6 +143,9 @@ class InternalDocumentApiTest :
                     // Arrange
                     texasClientMock.defaultMocks()
                     coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
+                    coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns Unit
+                    coEvery { pdlService.getPersonInfo(any()) } returns
+                        no.nav.syfo.pdl.PdlPersonInfo(fullName = null, birthDate = "1990-01-15")
                     coEvery { documentDAOMock.insert(any(), any()) } throws RuntimeException("DB error")
                     // Act
                     val response = client.post("/internal/api/v1/documents") {

@@ -34,6 +34,7 @@ fun document() = Document(
     orgNumber = faker.numerify("#########"),
     title = faker.lorem().sentence(),
     summary = faker.lorem().sentence(),
+    birthDate = null
 )
 
 fun dialogEntity() = PersistedDialogEntity(
