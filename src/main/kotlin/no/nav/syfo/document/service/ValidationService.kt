@@ -85,9 +85,7 @@ class ValidationService(
 
     private suspend fun validateHierarchicalEeregAccess(requestedOrgNumber: String, orgnumber: String) {
         val organisasjon = eregService.getOrganization(requestedOrgNumber)
-        if (organisasjon.inngaarIJuridiskEnheter?.filter { it.organisasjonsnummer == orgnumber }
-                .isNullOrEmpty()
-        ) {
+        if (!organisasjon.orgnummerSet().contains(orgnumber)) {
             logger.warn(
                 "Actual orgnumber: $orgnumber does not match requested orgnumber: $requestedOrgNumber or any parent organization."
             )
