@@ -7,7 +7,6 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
-import java.time.Instant
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.Principal
 import no.nav.syfo.application.auth.SystemPrincipal
@@ -20,6 +19,7 @@ import no.nav.syfo.texas.MaskinportenIdportenAndTokenXAuthPlugin
 import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.logger
 import org.slf4j.Logger
+import java.time.Instant
 
 fun Route.registerExternalApiV1(
     documentDAO: DocumentDAO,
@@ -82,7 +82,6 @@ fun Route.registerExternalApiV1(
                 HttpStatusCode.OK,
                 document.toDocumentDetails()
             )
-
         }
     }
 }
