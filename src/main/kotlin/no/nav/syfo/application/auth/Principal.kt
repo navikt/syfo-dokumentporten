@@ -11,4 +11,7 @@ data class SystemPrincipal(
     override val token: String,
     val systemOwner: String,
     val systemUserId: String,
-) : Principal()
+) : Principal() {
+    fun getSystemUserOrgNumber(): String = maskinportenIdToOrgnumber(ident)
+    fun getSystemOwnerOrgNumber(): String = maskinportenIdToOrgnumber(systemOwner)
+}

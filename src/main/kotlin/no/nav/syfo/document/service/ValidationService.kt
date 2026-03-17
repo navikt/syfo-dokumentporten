@@ -83,13 +83,15 @@ class ValidationService(
         validateAltinnRessursTilgang(principal, documentType)
     }
 
-    private suspend fun validateHierarchicalEeregAccess(requestedOrgNumber: String, orgnumber: String) {
+    private suspend fun validateHierarchicalEeregAccess(requestedOrgNumber: String, orgNumberFromToken: String) {
         val organisasjon = eregService.getOrganization(requestedOrgNumber)
-        if (!organisasjon.aggregerOrgnummereFraHierarki().contains(orgnumber)) {
+        if (!organisasjon.aggregerOrgnummereFraHierarki().contains(orgNumberFromToken)) {
+            val errorMessage = "Orgnumber $orgNumberFromToken from SystemUser is not found in the organization " +
+                "hierarchy of requested orgnumber $requestedOrgNumber"
             logger.warn(
-                "Actual orgnumber: $orgnumber does not match requested orgnumber: $requestedOrgNumber or any parent organization."
+                errorMessage,
             )
-            throw ApiErrorException.ForbiddenException("Access denied. Invalid organization.")
+            throw ApiErrorException.ForbiddenException(errorMessage)
         }
     }
 
