@@ -26,10 +26,10 @@ class OrganisasjonTest :
             }
         }
 
-        describe("orgnummerSet") {
+        describe("aggregerOrgnummereFraHierarki") {
             it("Fetches all orgnummer for organisasjon, including juridiske enheter and organisasjonsledd") {
                 val organization = fixtureLoader.loadOrNull<Organisasjon>("314602374.json")
-                val orgnummerSet = organization?.orgnummerSet()
+                val orgnummerSet = organization?.aggregerOrgnummereFraHierarki()
                 orgnummerSet shouldNotBe null
                 orgnummerSet!!.sorted() shouldBe listOf("314602374", "310525790", "210259902").sorted()
             }
@@ -38,7 +38,7 @@ class OrganisasjonTest :
                 "Fetches all orgnummer for organisasjon with nested organisasjonsledd, including juridiske enheter and organisasjonsledd"
             ) {
                 val organization = fixtureLoader.loadOrNull<Organisasjon>("987926279.json")
-                val orgnummerSet = organization?.orgnummerSet()
+                val orgnummerSet = organization?.aggregerOrgnummereFraHierarki()
                 orgnummerSet shouldNotBe null
                 orgnummerSet!!.sorted() shouldBe listOf(
                     "987926279",
@@ -56,7 +56,7 @@ class OrganisasjonTest :
                     organisasjonsnummer = "100000001",
                 )
 
-                organization.orgnummerSet() shouldBe setOf("100000001")
+                organization.aggregerOrgnummereFraHierarki() shouldBe setOf("100000001")
             }
 
             it("Returns own orgnummer and juridiske enheter when organisasjonsledd is missing") {
@@ -68,7 +68,7 @@ class OrganisasjonTest :
                     ),
                 )
 
-                organization.orgnummerSet() shouldBe setOf("100000002", "200000001", "200000002")
+                organization.aggregerOrgnummereFraHierarki() shouldBe setOf("100000002", "200000001", "200000002")
             }
 
             it("Includes organisasjonsledd orgnummer when organisasjonsledd has no juridiske enheter") {
@@ -83,7 +83,7 @@ class OrganisasjonTest :
                     ),
                 )
 
-                organization.orgnummerSet() shouldBe setOf("100000003", "300000001")
+                organization.aggregerOrgnummereFraHierarki() shouldBe setOf("100000003", "300000001")
             }
 
             it("Includes all juridiske enheter from an organisasjonsledd with multiple juridiske enheter") {
@@ -102,7 +102,7 @@ class OrganisasjonTest :
                     ),
                 )
 
-                organization.orgnummerSet() shouldBe setOf("100000004", "300000002", "200000003", "200000004")
+                organization.aggregerOrgnummereFraHierarki() shouldBe setOf("100000004", "300000002", "200000003", "200000004")
             }
 
             it("Includes orgnummer from multiple organisasjonsledd on the same level") {
@@ -122,7 +122,7 @@ class OrganisasjonTest :
                     ),
                 )
 
-                organization.orgnummerSet() shouldBe setOf("100000005", "300000003", "300000004")
+                organization.aggregerOrgnummereFraHierarki() shouldBe setOf("100000005", "300000003", "300000004")
             }
 
             it("Returns only own orgnummer when bestaarAvOrganisasjonsledd is empty list or null") {
@@ -135,8 +135,8 @@ class OrganisasjonTest :
                     bestaarAvOrganisasjonsledd = null,
                 )
 
-                organizationWithEmptyList.orgnummerSet() shouldBe setOf("100000006")
-                organizationWithNull.orgnummerSet() shouldBe setOf("100000007")
+                organizationWithEmptyList.aggregerOrgnummereFraHierarki() shouldBe setOf("100000006")
+                organizationWithNull.aggregerOrgnummereFraHierarki() shouldBe setOf("100000007")
             }
         }
     })
