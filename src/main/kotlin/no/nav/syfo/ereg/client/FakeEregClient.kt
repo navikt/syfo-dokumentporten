@@ -1,9 +1,14 @@
 package no.nav.syfo.ereg.client
 
+import no.nav.syfo.util.JsonFixtureLoader
 import java.util.concurrent.atomic.*
 
-class FakeEregClient : IEaregClient {
-    val organisasjoner = defaultOrganisasjoner.toMutableMap()
+class FakeEregClient(fixtureLoader: JsonFixtureLoader = defaultFixtureLoader) : IEaregClient {
+    /**
+     * Mutable map of orgnummer -> Organisasjon for test manipulation.
+     * Pre-populated from the fixture file.
+     */
+    val organisasjoner: MutableMap<String, Organisasjon> = loadOrganisasjoner(fixtureLoader).toMutableMap()
     private val failureRef = AtomicReference<Throwable?>(null)
 
     fun setFailure(failure: Throwable) {
@@ -13,11 +18,10 @@ class FakeEregClient : IEaregClient {
     fun clearFailure() = failureRef.set(null)
 
     override suspend fun getOrganisasjon(orgnummer: String): Organisasjon? {
-        if (failureRef.get() != null) {
-            throw failureRef.get()!!
-        }
-        return organisasjoner[orgnummer]?.let {
-            return it
+        failureRef.get()?.let { throw it }
+        return when (orgnummer) {
+            "314602374", "987926279" -> defaultFixtureLoader.loadOrNull<Organisasjon>("$orgnummer.json")
+            else -> organisasjoner[orgnummer]
         }
     }
 
@@ -50,5 +54,10 @@ class FakeEregClient : IEaregClient {
                 )
             )
         )
+        private const val FIXTURE_FILE = "organisasjoner.json"
+        private val defaultFixtureLoader = JsonFixtureLoader("classpath:fake-clients/ereg")
+        private fun loadOrganisasjoner(fixtureLoader: JsonFixtureLoader): Map<String, Organisasjon> =
+            fixtureLoader.loadOrNull<List<Organisasjon>>(FIXTURE_FILE)
+                ?.associateBy { it.organisasjonsnummer } ?: emptyMap()
     }
 }
