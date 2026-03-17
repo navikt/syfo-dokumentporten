@@ -102,7 +102,8 @@ class OrganisasjonTest :
                     ),
                 )
 
-                organization.aggregerOrgnummereFraHierarki() shouldBe setOf("100000004", "300000002", "200000003", "200000004")
+                organization.aggregerOrgnummereFraHierarki() shouldBe
+                    setOf("100000004", "300000002", "200000003", "200000004")
             }
 
             it("Includes orgnummer from multiple organisasjonsledd on the same level") {
