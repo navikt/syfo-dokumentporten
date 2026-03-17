@@ -19,7 +19,7 @@ data class ClientProperties(
             altinn3BaseUrl = "http://localhost:8080/dialogporten",
             pdpSubscriptionKey = "secret-key",
             pdlBaseUrl = "http://localhost:8080/pdl",
-            pdlScope = "api://dev-fss.pdl.pdl-api/.default",
+            pdlScope = "pdl",
         )
 
         fun createFromEnvVars() = ClientProperties(

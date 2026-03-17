@@ -62,6 +62,7 @@ data class Document(
         if (orgNumber != other.orgNumber) return false
         if (title != other.title) return false
         if (summary != other.summary) return false
+        if (birthDate != other.birthDate) return false
 
         return true
     }

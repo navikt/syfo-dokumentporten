@@ -102,6 +102,7 @@ spec:
       external:
         - host: "ereg-services.prod-fss-pub.nais.io"
         - host: "platform.altinn.no"
+        - host: "pdl-api.prod-fss-pub.nais.io"
 
   env:
     - name: EREG_BASE_URL

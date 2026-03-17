@@ -117,7 +117,7 @@ spec:
       external:
         - host: "ereg-services-q1.dev-fss-pub.nais.io"
         - host: "platform.tt02.altinn.no"
-
+        - host: "pdl-api.dev-fss-pub.nais.io"
   env:
     - name: EREG_BASE_URL
       value: "https://ereg-services-q1.dev-fss-pub.nais.io"
