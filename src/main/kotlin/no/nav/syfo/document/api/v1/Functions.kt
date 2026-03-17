@@ -103,4 +103,3 @@ fun generateDialogTitle(nameOrFnr: String, fnr: String, birthDate: LocalDate?): 
     }
     return "Sykefraværsoppfølging for $nameOrFnr $titleEnding".trim()
 }
-

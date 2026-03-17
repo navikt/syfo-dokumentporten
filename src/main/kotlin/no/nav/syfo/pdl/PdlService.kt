@@ -3,10 +3,7 @@ package no.nav.syfo.pdl
 import no.nav.syfo.pdl.client.IPdlClient
 import no.nav.syfo.util.logger
 
-data class PdlPersonInfo(
-    val fullName: String?,
-    val birthDate: String?,
-)
+data class PdlPersonInfo(val fullName: String?, val birthDate: String?,)
 
 class PdlService(private val pdlClient: IPdlClient) {
 

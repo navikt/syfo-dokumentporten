@@ -7,10 +7,7 @@ import no.nav.syfo.document.db.PersistedDialogEntity
 import no.nav.syfo.pdl.PdlService
 import java.time.LocalDate
 
-class DialogService(
-    private val dialogDAO: DialogDAO,
-    private val pdlService: PdlService,
-) {
+class DialogService(private val dialogDAO: DialogDAO, private val pdlService: PdlService,) {
 
     suspend fun getAndUpdateDialogByFnrAndOrgNumber(fnr: String, orgNumber: String): PersistedDialogEntity? {
         val dialog = dialogDAO.getByFnrAndOrgNumber(fnr, orgNumber)

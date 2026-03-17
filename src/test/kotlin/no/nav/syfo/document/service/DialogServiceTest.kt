@@ -396,7 +396,8 @@ class DialogServiceTest :
                     coEvery { pdlService.getPersonInfo(any()) } returns
                         PdlPersonInfo(fullName = "Test Person", birthDate = "1990-01-15")
                     coEvery {
-                        dialogDAO.updateDialogWithBirthDate(any(), any(), any()) } returns
+                        dialogDAO.updateDialogWithBirthDate(any(), any(), any())
+                    } returns
                         Unit
 
                     // Act
