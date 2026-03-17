@@ -31,6 +31,7 @@ import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.EregClient
 import no.nav.syfo.ereg.client.FakeEregClient
 import no.nav.syfo.texas.client.TexasClient
+import no.nav.syfo.util.JsonFixtureLoader
 import no.nav.syfo.util.httpClientDefault
 import org.koin.core.scope.Scope
 import org.koin.dsl.module
@@ -90,7 +91,7 @@ private fun servicesModule() = module {
     single { TexasClient(client = get(), environment = env().texas) }
     single {
         if (isLocalEnv()) {
-            FakeEregClient()
+            FakeEregClient(JsonFixtureLoader("fake-clients/ereg"))
         } else {
             EregClient(
                 eregBaseUrl = env().clientProperties.eregBaseUrl,
