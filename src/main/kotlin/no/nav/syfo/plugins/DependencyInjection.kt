@@ -23,6 +23,8 @@ import no.nav.syfo.application.database.DatabaseConfig
 import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.application.isLocalEnv
 import no.nav.syfo.application.leaderelection.LeaderElection
+import no.nav.syfo.application.valkey.EregCache
+import no.nav.syfo.application.valkey.ValkeyCache
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
@@ -47,6 +49,7 @@ fun Application.configureDependencies() {
             environmentModule(isLocalEnv()),
             httpClient(),
             databaseModule(),
+            valkeyModule(),
             servicesModule()
         )
     }
@@ -87,6 +90,15 @@ private fun databaseModule() = module {
     single { DocumentContentDAO(get()) }
 }
 
+private fun valkeyModule() = module {
+    single {
+        ValkeyCache(env().valkeyEnvironment)
+    }
+    single {
+        EregCache(get())
+    }
+}
+
 private fun servicesModule() = module {
     single { TexasClient(client = get(), environment = env().texas) }
     single {
@@ -97,11 +109,6 @@ private fun servicesModule() = module {
                 eregBaseUrl = env().clientProperties.eregBaseUrl,
             )
         }
-    }
-    single {
-        EregService(
-            eregClient = get()
-        )
     }
     single {
         if (isLocalEnv()) {

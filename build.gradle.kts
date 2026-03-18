@@ -42,6 +42,7 @@ dependencies {
     // Metrics and Prometheus
     implementation(libs.ktor.server.micrometer)
     implementation(libs.micrometer.prometheus)
+    implementation(libs.valkey.java)
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.bundles.kotest)
     testImplementation(libs.mockk)
