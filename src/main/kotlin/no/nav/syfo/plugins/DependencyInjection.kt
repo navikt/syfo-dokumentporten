@@ -154,7 +154,7 @@ private fun servicesModule() = module {
 
     single { AltinnTilgangerService(get()) }
     single { PdpService(get()) }
-    single { EregService(get()) }
+    single { EregService(get(), get()) }
     single { ValidationService(get(), get(), get()) }
     single { LeaderElection(get(), env().clientProperties.electorPath) }
     single { DialogportenService(get(), get(), env().publicIngressUrl, env().dialogportenIsApiOnly, get()) }

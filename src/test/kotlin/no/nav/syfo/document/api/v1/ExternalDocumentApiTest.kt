@@ -34,6 +34,7 @@ import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.altinntilganger.client.FakeAltinnTilgangerClient
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
+import no.nav.syfo.application.valkey.EregCache
 import no.nav.syfo.document.api.v1.dto.DocumentDetails
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.DialogDAO
@@ -58,7 +59,8 @@ class ExternalDocumentApiTest :
         val dialogDAO = mockk<DialogDAO>()
         val fakeAltinnTilgangerClient = FakeAltinnTilgangerClient()
         val fakeEregClient = FakeEregClient()
-        val eregService = EregService(fakeEregClient)
+        val eregCache = mockk<EregCache>(relaxed = true)
+        val eregService = EregService(fakeEregClient, eregCache)
         val eregServiceSpy = spyk(eregService)
         val pdpServiceMock = mockk<PdpService>()
         val validationService =
@@ -71,6 +73,7 @@ class ExternalDocumentApiTest :
             clearAllMocks()
             TestDB.clearAllData()
             coEvery { pdpServiceMock.hasAccessToResource(any(), any(), any()) } returns true
+            coEvery { eregCache.getOrganisasjon(any()) } returns null
             fakeAltinnTilgangerClient.usersWithAccess.clear()
         }
 
