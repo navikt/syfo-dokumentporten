@@ -3,6 +3,7 @@ package no.nav.syfo.document.api.v1.dto
 import document
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
+import java.time.LocalDate
 
 class DocumentTest :
     DescribeSpec({
@@ -44,12 +45,13 @@ class DocumentTest :
                 // Arrange
                 val document = document().copy(
                     fullName = "Test Person",
-                    fnr = "41011999000" // d-nummer
+                    fnr = "41011999000", // d-nummer
+                    birthDate = LocalDate.parse("2000-12-31"),
                 )
                 // Act
                 val dialog = document.toDialogEntity()
                 // Assert
-                dialog.title shouldBe "Sykefraværsoppfølging for Test Person (41011999000)"
+                dialog.title shouldBe "Sykefraværsoppfølging for Test Person (f. 31.12.2000)"
                 dialog.summary shouldBe """
                 Her finner du alle dialogmøtebrev fra Nav og oppfølgingsplaner utarbeidet av nærmeste leder for Test Person.
                 Innholdet er tilgjengelig i 4 måneder fra delingsdatoen. 
@@ -60,18 +62,18 @@ class DocumentTest :
                 // Arrange
                 val document = document().copy(
                     fullName = null,
-                    fnr = "41011999000" // d-nummer
+                    fnr = "41011999000", // d-nummer
+                    birthDate = LocalDate.parse("2000-12-31"),
                 )
                 // Act
                 val dialog = document.toDialogEntity()
                 // Assert
-                dialog.title shouldBe "Sykefraværsoppfølging for 41011999000"
+                dialog.title shouldBe "Sykefraværsoppfølging for 41011999000 (f. 31.12.2000)"
                 dialog.summary shouldBe """
                 Her finner du alle dialogmøtebrev fra Nav og oppfølgingsplaner utarbeidet av nærmeste leder for 41011999000.
                 Innholdet er tilgjengelig i 4 måneder fra delingsdatoen. 
                 """.trimIndent()
             }
-
             it("should set correct orgNumber and fnr") {
                 // Arrange
                 val document = document()

@@ -41,9 +41,12 @@ import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.Page
 import no.nav.syfo.document.db.PersistedDocumentEntity
+import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.FakeEregClient
+import no.nav.syfo.pdl.PdlService
+import no.nav.syfo.pdl.client.FakePdlClient
 import no.nav.syfo.registerApiV1
 import no.nav.syfo.texas.MASKINPORTEN_ARKIVPORTEN_SCOPE
 import no.nav.syfo.texas.MASKINPORTEN_SYFO_DOKUMENTPORTEN_SCOPE
@@ -64,6 +67,9 @@ class ExternalDocumentApiTest :
         val validationService =
             ValidationService(AltinnTilgangerService(fakeAltinnTilgangerClient), eregServiceSpy, pdpServiceMock)
         val validationServiceSpy = spyk(validationService)
+        val fakePdlClient = FakePdlClient()
+        val pdlService = PdlService(fakePdlClient)
+        val dialogService = DialogService(dialogDAO, pdlService)
         val tokenXIssuer = "https://tokenx.nav.no"
         val idportenIssuer = "https://test.idporten.no"
 
@@ -96,6 +102,7 @@ class ExternalDocumentApiTest :
                             documentContentDAO = documentContentDAO,
                             dialogDAO = dialogDAO,
                             validationService = validationServiceSpy,
+                            dialogService = dialogService,
                         )
                     }
                 }

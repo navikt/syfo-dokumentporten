@@ -1,6 +1,7 @@
 package no.nav.syfo.document.db
 
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 
 open class DialogEntity(
@@ -8,7 +9,8 @@ open class DialogEntity(
     open val summary: String?,
     open val fnr: String,
     open val orgNumber: String,
-    open val dialogportenUUID: UUID? = null
+    open val dialogportenUUID: UUID? = null,
+    open val birthDate: LocalDate? = null,
 )
 
 data class PersistedDialogEntity(
@@ -20,6 +22,7 @@ data class PersistedDialogEntity(
     override val dialogportenUUID: UUID? = null,
     val created: Instant,
     val updated: Instant,
+    override val birthDate: LocalDate? = null,
 ) : DialogEntity(
     title = title,
     summary = summary,
