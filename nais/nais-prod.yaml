@@ -102,7 +102,9 @@ spec:
       external:
         - host: "ereg-services.prod-fss-pub.nais.io"
         - host: "platform.altinn.no"
-
+  valkey:
+    - instance: felles-cache
+      access: readwrite
   env:
     - name: EREG_BASE_URL
       value: "https://ereg-services.prod-fss-pub.nais.io"

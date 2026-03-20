@@ -26,6 +26,17 @@ class OrganisasjonTest :
             }
         }
 
+        describe("getForetrukketNavn") {
+            it("getForetrukketNavn returns sammensattnavn if available") {
+                val organization = fixtureLoader.loadOrNull<Organisasjon>("314602374.json")
+                organization?.getForetrukketNavn() shouldBe "MUNTER GREI PIGGSVIN"
+            }
+            it("getForetrukketNavn returns navnlinje1 if sammensattnavn is not available") {
+                val organization = fixtureLoader.loadOrNull<Organisasjon>("987926279.json")
+                organization?.getForetrukketNavn() shouldBe "NAV REGISTERFORVALTNING"
+            }
+        }
+
         describe("aggregerOrgnummereFraHierarki") {
             it("Fetches all orgnummer for organisasjon, including juridiske enheter and organisasjonsledd") {
                 val organization = fixtureLoader.loadOrNull<Organisasjon>("314602374.json")
