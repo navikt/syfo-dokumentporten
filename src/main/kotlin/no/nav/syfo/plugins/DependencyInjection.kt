@@ -23,6 +23,8 @@ import no.nav.syfo.application.database.DatabaseConfig
 import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.application.isLocalEnv
 import no.nav.syfo.application.leaderelection.LeaderElection
+import no.nav.syfo.application.valkey.EregCache
+import no.nav.syfo.application.valkey.ValkeyCache
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
@@ -35,6 +37,7 @@ import no.nav.syfo.pdl.PdlService
 import no.nav.syfo.pdl.client.FakePdlClient
 import no.nav.syfo.pdl.client.PdlClient
 import no.nav.syfo.texas.client.TexasClient
+import no.nav.syfo.util.JsonFixtureLoader
 import no.nav.syfo.util.httpClientDefault
 import org.koin.core.scope.Scope
 import org.koin.dsl.module
@@ -50,6 +53,7 @@ fun Application.configureDependencies() {
             environmentModule(isLocalEnv()),
             httpClient(),
             databaseModule(),
+            valkeyModule(),
             servicesModule()
         )
     }
@@ -90,21 +94,25 @@ private fun databaseModule() = module {
     single { DocumentContentDAO(get()) }
 }
 
+private fun valkeyModule() = module {
+    single {
+        ValkeyCache(env().valkeyEnvironment)
+    }
+    single {
+        EregCache(get())
+    }
+}
+
 private fun servicesModule() = module {
     single { TexasClient(client = get(), environment = env().texas) }
     single {
         if (isLocalEnv()) {
-            FakeEregClient()
+            FakeEregClient(JsonFixtureLoader("fake-clients/ereg"))
         } else {
             EregClient(
                 eregBaseUrl = env().clientProperties.eregBaseUrl,
             )
         }
-    }
-    single {
-        EregService(
-            eregClient = get()
-        )
     }
     single {
         if (isLocalEnv()) {
@@ -150,6 +158,7 @@ private fun servicesModule() = module {
 
     single { AltinnTilgangerService(get()) }
     single { PdpService(get()) }
+    single { EregService(get(), get()) }
     single { ValidationService(get(), get(), get()) }
     single { LeaderElection(get(), env().clientProperties.electorPath) }
 

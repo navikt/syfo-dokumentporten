@@ -118,6 +118,9 @@ spec:
         - host: "ereg-services-q1.dev-fss-pub.nais.io"
         - host: "platform.tt02.altinn.no"
         - host: "pdl-api.dev-fss-pub.nais.io"
+  valkey:
+    - instance: felles-cache
+      access: readwrite
   env:
     - name: EREG_BASE_URL
       value: "https://ereg-services-q1.dev-fss-pub.nais.io"

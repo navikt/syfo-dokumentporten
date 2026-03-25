@@ -19,7 +19,6 @@ import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.withCharset
 import io.ktor.serialization.jackson.jackson
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
@@ -35,6 +34,7 @@ import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.altinntilganger.client.FakeAltinnTilgangerClient
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
+import no.nav.syfo.application.valkey.EregCache
 import no.nav.syfo.document.api.v1.dto.DocumentDetails
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.DialogDAO
@@ -62,7 +62,8 @@ class ExternalDocumentApiTest :
         val dialogDAO = mockk<DialogDAO>()
         val fakeAltinnTilgangerClient = FakeAltinnTilgangerClient()
         val fakeEregClient = FakeEregClient()
-        val eregService = EregService(fakeEregClient)
+        val eregCache = mockk<EregCache>(relaxed = true)
+        val eregService = EregService(fakeEregClient, eregCache)
         val eregServiceSpy = spyk(eregService)
         val pdpServiceMock = mockk<PdpService>()
         val validationService =
@@ -78,6 +79,7 @@ class ExternalDocumentApiTest :
             clearAllMocks()
             TestDB.clearAllData()
             coEvery { pdpServiceMock.hasAccessToResource(any(), any(), any()) } returns true
+            coEvery { eregCache.getOrganisasjon(any()) } returns null
             fakeAltinnTilgangerClient.usersWithAccess.clear()
         }
 
@@ -319,7 +321,7 @@ class ExternalDocumentApiTest :
                         // Assert
                         response.status shouldBe HttpStatusCode.OK
                         response.headers["Content-Type"] shouldBe
-                            ContentType.Application.Json.withCharset(Charsets.UTF_8).toString()
+                            ContentType.Application.Json.toString()
                         val responseBody = response.body<DocumentDetails>()
                         responseBody shouldBe document.toDocumentDetails()
 

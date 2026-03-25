@@ -1,4 +1,5 @@
 ---
+description: 'Ktor-spesifikke mønstre — routing, plugins, StatusPages, Koin DI'
 applyTo: "**/*.kt"
 ---
 <!-- Managed by esyfo-cli. Do not edit manually. Changes will be overwritten.
@@ -98,7 +99,7 @@ val appModule = module {
 - Use `by inject<T>()` (lazy) in `Application` extension functions for route-level dependencies
 - Use `get<T>()` for eager resolution inside Koin module definitions
 - Organize modules by domain (e.g., `databaseModule`, `serviceModule`) and compose them in `modules(…)`
-- **Always use Context7 to verify the Koin–Ktor API for the version in `build.gradle.kts`**
+
 
 ## Testing
 

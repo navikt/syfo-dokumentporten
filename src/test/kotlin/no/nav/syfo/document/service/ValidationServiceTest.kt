@@ -229,7 +229,10 @@ class ValidationServiceTest :
                                     entity.type,
                                 )
                             }
-                            exception.message shouldBe "Access denied. Invalid organization."
+                            val expectedMessage =
+                                "Orgnumber ${systemPrincipal.getSystemUserOrgNumber()} from SystemUser is not found " +
+                                    "in the organization hierarchy of requested orgnumber ${entity.dialog.orgNumber}"
+                            exception.message shouldBe expectedMessage
 
                             coVerify { eregService.getOrganization(eq(entity.dialog.orgNumber)) }
                         }

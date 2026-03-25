@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.ktor)
-    id("org.jlleitschuh.gradle.ktlint") version "14.0.1"
+    id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
 }
 
 group = "no.nav.syfo"
@@ -34,14 +34,15 @@ dependencies {
     implementation(libs.koin.logger)
     implementation(libs.logstash)
     implementation(libs.jackson.datatype.jsr310)
-    implementation("io.ktor:ktor-server-openapi:3.4.0")
-    implementation("io.ktor:ktor-server-swagger:3.4.0")
+    implementation("io.ktor:ktor-server-openapi:3.4.1")
+    implementation("io.ktor:ktor-server-swagger:3.4.1")
     implementation(libs.fasterxml.uuid)
     // Database
     implementation(libs.bundles.database)
     // Metrics and Prometheus
     implementation(libs.ktor.server.micrometer)
     implementation(libs.micrometer.prometheus)
+    implementation(libs.valkey.java)
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.bundles.kotest)
     testImplementation(libs.mockk)
