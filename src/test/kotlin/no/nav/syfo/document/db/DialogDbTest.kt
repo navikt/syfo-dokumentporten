@@ -45,6 +45,26 @@ class DialogDbTest :
                 })
             }
         }
+        describe("DialogDb -> getById") {
+            it("should retrieve the correct dialog") {
+                // Arrange
+                val dialogEntity = dialogEntity()
+                val persistedDialog = dialogDAO.insertDialog(dialogEntity)
+                // Act
+                val retrievedDialog = dialogDAO.getById(persistedDialog.id)
+                // Assert
+                retrievedDialog shouldNotBe null
+                retrievedDialog shouldBe persistedDialog
+            }
+
+            it("should return null for non-existing id") {
+                // Act
+                val retrievedDialog = dialogDAO.getById(999999L)
+                // Assert
+                retrievedDialog shouldBe null
+            }
+        }
+
         describe("DialogDb -> getByFnrAndOrgNumber") {
             it("should retrieve the correct dialog") {
                 // Arrange
