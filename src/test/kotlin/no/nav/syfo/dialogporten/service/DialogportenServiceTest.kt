@@ -45,6 +45,7 @@ class DialogportenServiceTest :
             coEvery { pdlService.getPersonInfo(any()) } returns
                 PdlPersonInfo(fullName = "Test Person", birthDate = "1990-01-15")
             coEvery { dialogDao.updateDialogWithBirthDate(any(), any(), any()) } returns Unit
+            coEvery { dialogDao.getById(any()) } returns null
         }
 
         describe("sendDocumentsToDialogporten") {

@@ -85,13 +85,17 @@ class DialogportenService(
                         enrichedBirthDates[dialogId] = fodselsdato
                     }
 
-                    val dialogportenId = document.dialog.dialogportenUUID
+                    val enrichedDocument = dialogDAO.getById(dialogId)?.let { freshDialog ->
+                        document.copy(dialog = freshDialog)
+                    } ?: document
+
+                    val dialogportenId = enrichedDocument.dialog.dialogportenUUID
                         ?: newDialogs[dialogId]
 
                     if (dialogportenId != null) {
-                        addToExistingDialog(document, dialogportenId)
+                        addToExistingDialog(enrichedDocument, dialogportenId)
                     } else {
-                        val dialogportenIdNew = addToNewDialog(document)
+                        val dialogportenIdNew = addToNewDialog(enrichedDocument)
                         newDialogs[dialogId] = dialogportenIdNew
                     }
                 } catch (ex: Exception) {

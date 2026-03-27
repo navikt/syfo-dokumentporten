@@ -157,6 +157,28 @@ class DialogDAO(private val database: DatabaseInterface) {
             }
         }
     }
+    suspend fun getById(dialogId: Long): PersistedDialogEntity? {
+        val query =
+            """
+            SELECT *
+            FROM dialog
+            WHERE id = ?
+            """.trimIndent()
+
+        return withContext(Dispatchers.IO) {
+            database.connection.use { conn ->
+                val preparedStatement = conn.prepareStatement(query)
+                preparedStatement.use { ps ->
+                    ps.setLong(1, dialogId)
+                    val resultSet = ps.executeQuery()
+                    if (resultSet.next()) {
+                        return@withContext resultSet.toDialog()
+                    }
+                    return@withContext null
+                }
+            }
+        }
+    }
 }
 
 fun ResultSet.toDialog(): PersistedDialogEntity = PersistedDialogEntity(
