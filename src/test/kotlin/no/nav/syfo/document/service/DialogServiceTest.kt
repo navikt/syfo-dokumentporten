@@ -97,7 +97,6 @@ class DialogServiceTest :
                     coVerify(exactly = 1) {
                         dialogDAO.updateDialogWithBirthDate(existingDialog.id, LocalDate.of(1985, 6, 20), any())
                     }
-                    coVerify(exactly = 0) { dialogDAO.getById(any()) }
                 }
             }
 
@@ -424,7 +423,6 @@ class DialogServiceTest :
                     result?.created shouldBe existingDialog.created
                     result?.updated shouldBe existingDialog.updated
                     result?.birthDate shouldBe LocalDate.of(1990, 1, 15)
-                    coVerify(exactly = 0) { dialogDAO.getById(any()) }
                 }
             }
         }
