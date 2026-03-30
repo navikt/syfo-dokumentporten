@@ -44,17 +44,8 @@ class DialogportenServiceTest :
             // Default mocks for pdlService and dialogDao used in most tests
             coEvery { pdlService.getPersonInfo(any()) } returns
                 PdlPersonInfo(fullName = "Test Person", birthDate = "1990-01-15")
-            coEvery { dialogDao.updateDialogWithBirthDate(any(), any(), any()) } answers {
-                val dialogId = firstArg<Long>()
-                val birthDate = secondArg<LocalDate>()
-                val title = thirdArg<String>()
-                dialogEntity().copy(
-                    id = dialogId,
-                    dialogportenUUID = null,
-                    birthDate = birthDate,
-                    title = title,
-                )
-            }
+            coEvery { dialogDao.updateDialogWithBirthDate(any(), any(), any()) } returns
+                dialogEntity().copy(dialogportenUUID = null)
         }
 
         describe("sendDocumentsToDialogporten") {

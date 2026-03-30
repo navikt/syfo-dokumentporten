@@ -90,12 +90,8 @@ class InternalDocumentApiTest :
                     val capturedContent = slot<ByteArray>()
                     val existingDialog = dialogEntity()
                     coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
-                    coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } answers {
-                        existingDialog.copy(
-                            birthDate = secondArg(),
-                            title = thirdArg(),
-                        )
-                    }
+                    coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns
+                        existingDialog
                     coEvery { documentDAOMock.insert(capture(capturedSlot), capture(capturedContent)) } returns
                         documentEntity(dialogEntity())
                     texasClientMock.defaultMocks()
@@ -127,13 +123,8 @@ class InternalDocumentApiTest :
                     texasClientMock.defaultMocks()
                     val existingDialog = dialogEntity()
                     coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
-                    coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } answers {
-                        existingDialog.copy(
-                            birthDate = secondArg(),
-                            title = thirdArg(),
-                        )
-                    }
-                    coEvery { documentDAOMock.insert(any(), any()) } returns documentEntity(dialogEntity())
+                    coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns
+                        existingDialog
                     // Act
                     val response = client.post("/internal/api/v1/documents") {
                         contentType(ContentType.Application.Json)
@@ -155,12 +146,8 @@ class InternalDocumentApiTest :
                     texasClientMock.defaultMocks()
                     val existingDialog = dialogEntity()
                     coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
-                    coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } answers {
-                        existingDialog.copy(
-                            birthDate = secondArg(),
-                            title = thirdArg(),
-                        )
-                    }
+                    coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns
+                        existingDialog
                     coEvery { pdlService.getPersonInfo(any()) } returns
                         no.nav.syfo.pdl.PdlPersonInfo(fullName = null, birthDate = "1990-01-15")
                     coEvery { documentDAOMock.insert(any(), any()) } throws RuntimeException("DB error")
