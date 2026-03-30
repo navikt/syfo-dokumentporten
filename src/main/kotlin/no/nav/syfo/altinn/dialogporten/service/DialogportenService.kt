@@ -23,6 +23,7 @@ import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentEntity
 import no.nav.syfo.document.db.DocumentStatus
+import no.nav.syfo.document.db.PersistedDialogEntity
 import no.nav.syfo.document.db.PersistedDocumentEntity
 import no.nav.syfo.pdl.PdlService
 import no.nav.syfo.util.logger
@@ -64,6 +65,7 @@ class DialogportenService(
             }
 
             val enrichedBirthDates = mutableMapOf<Long, LocalDate?>()
+            val updatedDialogs = mutableMapOf<Long, PersistedDialogEntity>()
             val newDialogs = mutableMapOf<Long, UUID>()
             for (document in documentsToSend) {
                 try {
@@ -79,14 +81,15 @@ class DialogportenService(
                             val parsed = LocalDate.parse(birthDateString)
                             val nameOrFnr = personInfo.fullName ?: document.dialog.fnr
                             val newTitle = generateDialogTitle(nameOrFnr, document.dialog.fnr, parsed)
-                            dialogDAO.updateDialogWithBirthDate(dialogId, parsed, newTitle)
+                            val updatedDialog = dialogDAO.updateDialogWithBirthDate(dialogId, parsed, newTitle)
+                            updatedDialogs[dialogId] = updatedDialog
                             parsed
                         }
                         enrichedBirthDates[dialogId] = fodselsdato
                     }
 
-                    val enrichedDocument = dialogDAO.getById(dialogId)?.let { freshDialog ->
-                        document.copy(dialog = freshDialog)
+                    val enrichedDocument = updatedDialogs[dialogId]?.let { updatedDialog ->
+                        document.copy(dialog = updatedDialog)
                     } ?: document
 
                     val dialogportenId = enrichedDocument.dialog.dialogportenUUID

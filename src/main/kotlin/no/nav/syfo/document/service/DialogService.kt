@@ -17,8 +17,7 @@ class DialogService(private val dialogDAO: DialogDAO, private val pdlService: Pd
             if (birthDate != null) {
                 val nameOrFnr = personInfo.fullName ?: fnr
                 val newTitle = generateDialogTitle(nameOrFnr, fnr, birthDate)
-                dialogDAO.updateDialogWithBirthDate(dialog.id, birthDate, newTitle)
-                return dialogDAO.getById(dialog.id)
+                return dialogDAO.updateDialogWithBirthDate(dialog.id, birthDate, newTitle)
             }
         }
         return dialog

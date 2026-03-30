@@ -44,8 +44,17 @@ class DialogportenServiceTest :
             // Default mocks for pdlService and dialogDao used in most tests
             coEvery { pdlService.getPersonInfo(any()) } returns
                 PdlPersonInfo(fullName = "Test Person", birthDate = "1990-01-15")
-            coEvery { dialogDao.updateDialogWithBirthDate(any(), any(), any()) } returns Unit
-            coEvery { dialogDao.getById(any()) } returns null
+            coEvery { dialogDao.updateDialogWithBirthDate(any(), any(), any()) } answers {
+                val dialogId = firstArg<Long>()
+                val birthDate = secondArg<LocalDate>()
+                val title = thirdArg<String>()
+                dialogEntity().copy(
+                    id = dialogId,
+                    dialogportenUUID = null,
+                    birthDate = birthDate,
+                    title = title,
+                )
+            }
         }
 
         describe("sendDocumentsToDialogporten") {
@@ -67,7 +76,10 @@ class DialogportenServiceTest :
             context("when there is one document to send") {
                 it("should send document to dialogporten with createDialog and update status to COMPLETED") {
                     // Arrange (no existing dialog, dialogportenId = null)
-                    val dialogEntity = dialogEntity().copy(dialogportenUUID = null)
+                    val dialogEntity = dialogEntity().copy(
+                        dialogportenUUID = null,
+                        birthDate = LocalDate.of(1990, 1, 15),
+                    )
                     val documentEntity = documentEntity(dialogEntity)
                     val dialogId = UUID.randomUUID()
                     val dialogSlot = slot<Dialog>()
@@ -108,7 +120,10 @@ class DialogportenServiceTest :
 
                 it("should send document to dialogporten with addTransmission and update status to COMPLETED") {
                     // Arrange (already existing dialog)
-                    val dialogEntity = dialogEntity().copy(dialogportenUUID = UUID.randomUUID())
+                    val dialogEntity = dialogEntity().copy(
+                        dialogportenUUID = UUID.randomUUID(),
+                        birthDate = LocalDate.of(1990, 1, 15),
+                    )
                     val documentEntity = documentEntity(dialogEntity)
                     val transmissionSlot = slot<Transmission>()
 

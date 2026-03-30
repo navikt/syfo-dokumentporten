@@ -46,25 +46,33 @@ class DialogDAO(private val database: DatabaseInterface) {
         }
     }
 
-    suspend fun updateDialogWithBirthDate(dialogId: Long, birthDate: LocalDate, title: String) {
-        withContext(Dispatchers.IO) {
-            database.connection.use { conn ->
-                conn.prepareStatement(
-                    """
-                    UPDATE dialog
-                    SET birth_date = ?,
-                        title      = ?,
-                        updated    = ?
-                    WHERE id = ?
-                    """.trimIndent()
-                ).use { ps ->
+    suspend fun updateDialogWithBirthDate(dialogId: Long, birthDate: LocalDate, title: String): PersistedDialogEntity {
+        val updateStatement =
+            """
+            UPDATE dialog
+            SET birth_date = ?,
+                title      = ?,
+                updated    = ?
+            WHERE id = ?
+            RETURNING *
+            """.trimIndent()
+        return withContext(Dispatchers.IO) {
+            val connection = database.connection
+            connection.use { conn ->
+                conn.prepareStatement(updateStatement).use { ps ->
                     ps.setObject(1, birthDate)
                     ps.setString(2, title)
                     ps.setTimestamp(3, Timestamp.from(Instant.now()))
                     ps.setLong(4, dialogId)
-                    ps.executeUpdate()
+                    val resultSet = ps.executeQuery()
+                    return@use if (resultSet.next()) {
+                        resultSet.toDialog()
+                    } else {
+                        throw Exception("Updating dialog birth date failed, no rows returned.")
+                    }
+                }.also {
+                    conn.commit()
                 }
-                conn.commit()
             }
         }
     }

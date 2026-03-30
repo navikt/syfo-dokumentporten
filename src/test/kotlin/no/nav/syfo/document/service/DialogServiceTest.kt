@@ -78,9 +78,9 @@ class DialogServiceTest :
                     coEvery { dialogDAO.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
                     coEvery { pdlService.getPersonInfo(existingDialog.fnr) } returns
                         PdlPersonInfo(fullName = "Test Person", birthDate = "1985-06-20")
-                    coEvery { dialogDAO.updateDialogWithBirthDate(any(), any(), any()) } returns Unit
-                    coEvery { dialogDAO.getById(existingDialog.id) } returns existingDialog.copy(
+                    coEvery { dialogDAO.updateDialogWithBirthDate(any(), any(), any()) } returns existingDialog.copy(
                         birthDate = LocalDate.of(1985, 6, 20),
+                        title = "Sykefraværsoppfølging for Test Person (f. 20.06.1985)",
                     )
 
                     // Act
@@ -97,6 +97,7 @@ class DialogServiceTest :
                     coVerify(exactly = 1) {
                         dialogDAO.updateDialogWithBirthDate(existingDialog.id, LocalDate.of(1985, 6, 20), any())
                     }
+                    coVerify(exactly = 0) { dialogDAO.getById(any()) }
                 }
             }
 
@@ -401,11 +402,10 @@ class DialogServiceTest :
                     coEvery {
                         dialogDAO.updateDialogWithBirthDate(any(), any(), any())
                     } returns
-                        Unit
-                    coEvery { dialogDAO.getById(existingDialog.id) } returns existingDialog.copy(
-                        birthDate = LocalDate.of(1990, 1, 15),
-                        title = "Sykefraværsoppfølging for Test Person (f. 15.01.1990)",
-                    )
+                        existingDialog.copy(
+                            birthDate = LocalDate.of(1990, 1, 15),
+                            title = "Sykefraværsoppfølging for Test Person (f. 15.01.1990)",
+                        )
 
                     // Act
                     val result = dialogService.getAndUpdateDialogByFnrAndOrgNumber(
@@ -424,6 +424,7 @@ class DialogServiceTest :
                     result?.created shouldBe existingDialog.created
                     result?.updated shouldBe existingDialog.updated
                     result?.birthDate shouldBe LocalDate.of(1990, 1, 15)
+                    coVerify(exactly = 0) { dialogDAO.getById(any()) }
                 }
             }
         }
