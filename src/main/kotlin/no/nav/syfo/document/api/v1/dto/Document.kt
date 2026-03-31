@@ -2,10 +2,11 @@ package no.nav.syfo.document.api.v1.dto
 
 import com.fasterxml.jackson.annotation.JsonEnumDefaultValue
 import no.nav.syfo.document.api.v1.fnrToBirthDate
+import no.nav.syfo.document.api.v1.generateDialogTitle
 import no.nav.syfo.document.db.DialogEntity
 import no.nav.syfo.document.db.DocumentEntity
 import no.nav.syfo.document.db.PersistedDialogEntity
-import java.time.format.DateTimeFormatter
+import java.time.LocalDate
 import java.util.UUID
 
 data class Document(
@@ -18,6 +19,7 @@ data class Document(
     val orgNumber: String,
     val title: String,
     val summary: String?,
+    val birthDate: LocalDate?,
 ) {
     fun toDocumentEntity(dialog: PersistedDialogEntity): DocumentEntity = DocumentEntity(
         documentId = documentId,
@@ -31,20 +33,17 @@ data class Document(
 
     fun toDialogEntity(): DialogEntity {
         val nameOrFnr = fullName ?: fnr
-        val birthDate = fnrToBirthDate(fnr)
-        val titleEnding = if (birthDate != null) {
-            "(f. ${birthDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))})"
-        } else {
-            if (!fullName.isNullOrEmpty()) "($fnr)" else ""
-        }
+        val effectiveBirthDate = birthDate ?: fnrToBirthDate(fnr)
+
         return DialogEntity(
-            title = "Sykefraværsoppfølging for $nameOrFnr $titleEnding".trim(),
+            title = generateDialogTitle(nameOrFnr, fnr, effectiveBirthDate),
             summary = """
                 Her finner du alle dialogmøtebrev fra Nav og oppfølgingsplaner utarbeidet av nærmeste leder for $nameOrFnr.
                 Innholdet er tilgjengelig i 4 måneder fra delingsdatoen. 
             """.trimIndent(),
             fnr = fnr,
             orgNumber = orgNumber,
+            birthDate = effectiveBirthDate,
         )
     }
 
@@ -63,6 +62,7 @@ data class Document(
         if (orgNumber != other.orgNumber) return false
         if (title != other.title) return false
         if (summary != other.summary) return false
+        if (birthDate != other.birthDate) return false
 
         return true
     }

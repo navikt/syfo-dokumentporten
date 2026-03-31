@@ -17,11 +17,15 @@ import no.nav.syfo.altinn.dialogporten.service.DialogportenService
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentStatus
+import no.nav.syfo.pdl.PdlPersonInfo
+import no.nav.syfo.pdl.PdlService
+import java.time.LocalDate
 import java.util.UUID
 
 class DialogportenServiceTest :
     DescribeSpec({
         val dialogportenClient = mockk<IDialogportenClient>()
+        val pdlService = mockk<PdlService>()
         val documentDAO = mockk<DocumentDAO>()
         val publicIngressUrl = "https://test.nav.no"
         val dialogDao = mockk<no.nav.syfo.document.db.DialogDAO>()
@@ -32,10 +36,16 @@ class DialogportenServiceTest :
             publicIngressUrl = publicIngressUrl,
             dialogportenIsApiOnly = true,
             dialogDAO = dialogDao,
+            pdlService = pdlService
         )
 
         beforeTest {
             clearAllMocks()
+            // Default mocks for pdlService and dialogDao used in most tests
+            coEvery { pdlService.getPersonInfo(any()) } returns
+                PdlPersonInfo(fullName = "Test Person", birthDate = "1990-01-15")
+            coEvery { dialogDao.updateDialogWithBirthDate(any(), any(), any()) } returns
+                dialogEntity().copy(dialogportenUUID = null)
         }
 
         describe("sendDocumentsToDialogporten") {
@@ -57,7 +67,10 @@ class DialogportenServiceTest :
             context("when there is one document to send") {
                 it("should send document to dialogporten with createDialog and update status to COMPLETED") {
                     // Arrange (no existing dialog, dialogportenId = null)
-                    val dialogEntity = dialogEntity().copy(dialogportenUUID = null)
+                    val dialogEntity = dialogEntity().copy(
+                        dialogportenUUID = null,
+                        birthDate = LocalDate.of(1990, 1, 15),
+                    )
                     val documentEntity = documentEntity(dialogEntity)
                     val dialogId = UUID.randomUUID()
                     val dialogSlot = slot<Dialog>()
@@ -98,7 +111,10 @@ class DialogportenServiceTest :
 
                 it("should send document to dialogporten with addTransmission and update status to COMPLETED") {
                     // Arrange (already existing dialog)
-                    val dialogEntity = dialogEntity().copy(dialogportenUUID = UUID.randomUUID())
+                    val dialogEntity = dialogEntity().copy(
+                        dialogportenUUID = UUID.randomUUID(),
+                        birthDate = LocalDate.of(1990, 1, 15),
+                    )
                     val documentEntity = documentEntity(dialogEntity)
                     val transmissionSlot = slot<Transmission>()
 
@@ -299,6 +315,120 @@ class DialogportenServiceTest :
                     coVerify(exactly = 1) { dialogportenClient.createDialog(any()) }
                     coVerify(exactly = 2) { dialogportenClient.addTransmission(any(), returnedDialogId) }
                     coVerify(exactly = 3) { documentDAO.update(any()) }
+                }
+            }
+
+            context("birth date enrichment") {
+                it("should call PDL once per unique dialog when multiple documents share the same dialog") {
+                    // Arrange
+                    val dialog = dialogEntity().copy(dialogportenUUID = null, birthDate = null)
+                    val doc1 = documentEntity(dialog)
+                    val doc2 = documentEntity(dialog)
+                    val doc3 = documentEntity(dialog)
+
+                    coEvery { documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED) } returns
+                        listOf(doc1, doc2, doc3)
+                    coEvery { documentDAO.update(any()) } returns Unit
+                    coEvery { dialogportenClient.createDialog(any()) } returns UUID.randomUUID()
+                    coEvery { dialogportenClient.addTransmission(any(), any()) } returns UUID.randomUUID()
+
+                    // Act
+                    dialogportenService.sendDocumentsToDialogporten()
+
+                    // Assert — PDL called once, update called once (same dialog id)
+                    coVerify(exactly = 1) { pdlService.getPersonInfo(dialog.fnr) }
+                    coVerify(exactly = 1) { dialogDao.updateDialogWithBirthDate(dialog.id, any(), any()) }
+                }
+
+                it("should call PDL once per distinct dialog when batch contains multiple dialogs") {
+                    // Arrange
+                    val dialog1 = dialogEntity().copy(dialogportenUUID = null, birthDate = null)
+                    val dialog2 = dialogEntity().copy(dialogportenUUID = null, birthDate = null)
+                    val doc1 = documentEntity(dialog1)
+                    val doc2 = documentEntity(dialog2)
+
+                    coEvery { documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED) } returns
+                        listOf(doc1, doc2)
+                    coEvery { documentDAO.update(any()) } returns Unit
+                    coEvery { dialogportenClient.createDialog(any()) } returns UUID.randomUUID()
+
+                    // Act
+                    dialogportenService.sendDocumentsToDialogporten()
+
+                    // Assert — PDL called once for each dialog
+                    coVerify(exactly = 1) { pdlService.getPersonInfo(dialog1.fnr) }
+                    coVerify(exactly = 1) { pdlService.getPersonInfo(dialog2.fnr) }
+                    coVerify(exactly = 2) { dialogDao.updateDialogWithBirthDate(any(), any(), any()) }
+                }
+
+                it("should skip PDL call when dialog already has birthDate") {
+                    // Arrange
+                    val dialog = dialogEntity().copy(
+                        dialogportenUUID = null,
+                        birthDate = LocalDate.of(1990, 5, 20),
+                    )
+                    val doc = documentEntity(dialog)
+
+                    coEvery { documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED) } returns listOf(doc)
+                    coEvery { documentDAO.update(any()) } returns Unit
+                    coEvery { dialogportenClient.createDialog(any()) } returns UUID.randomUUID()
+
+                    // Act
+                    dialogportenService.sendDocumentsToDialogporten()
+
+                    // Assert — no PDL call, no DB update (birthDate already present)
+                    coVerify(exactly = 0) { pdlService.getPersonInfo(any()) }
+                    coVerify(exactly = 0) { dialogDao.updateDialogWithBirthDate(any(), any(), any()) }
+                }
+
+                it("should not update birthDate when PDL returns null") {
+                    // Arrange
+                    val dialog = dialogEntity().copy(dialogportenUUID = null, birthDate = null)
+                    val doc = documentEntity(dialog)
+
+                    coEvery { pdlService.getPersonInfo(any()) } returns
+                        PdlPersonInfo(fullName = null, birthDate = null)
+                    coEvery { documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED) } returns listOf(doc)
+                    coEvery { documentDAO.update(any()) } returns Unit
+                    coEvery { dialogportenClient.createDialog(any()) } returns UUID.randomUUID()
+
+                    // Act
+                    dialogportenService.sendDocumentsToDialogporten()
+
+                    // Assert
+                    coVerify(exactly = 1) { pdlService.getPersonInfo(dialog.fnr) }
+                    coVerify(exactly = 0) { dialogDao.updateDialogWithBirthDate(any(), any(), any()) }
+                    // Document should still be sent despite missing birthDate
+                    coVerify(exactly = 1) { dialogportenClient.createDialog(any()) }
+                    coVerify(exactly = 1) { documentDAO.update(any()) }
+                }
+
+                it("should enrich each dialog independently when PDL returns null for one and value for another") {
+                    // Arrange
+                    val dialog1 = dialogEntity().copy(dialogportenUUID = null, birthDate = null)
+                    val dialog2 = dialogEntity().copy(dialogportenUUID = null, birthDate = null)
+                    val doc1 = documentEntity(dialog1)
+                    val doc2 = documentEntity(dialog2)
+
+                    coEvery { pdlService.getPersonInfo(dialog1.fnr) } returns
+                        PdlPersonInfo(fullName = null, birthDate = null)
+                    coEvery { pdlService.getPersonInfo(dialog2.fnr) } returns
+                        PdlPersonInfo(fullName = "Person Two", birthDate = "1985-03-10")
+                    coEvery { documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED) } returns
+                        listOf(doc1, doc2)
+                    coEvery { documentDAO.update(any()) } returns Unit
+                    coEvery { dialogportenClient.createDialog(any()) } returns UUID.randomUUID()
+
+                    // Act
+                    dialogportenService.sendDocumentsToDialogporten()
+
+                    // Assert — only dialog2 gets a birthDate update
+                    coVerify(exactly = 0) { dialogDao.updateDialogWithBirthDate(dialog1.id, any(), any()) }
+                    coVerify(exactly = 1) {
+                        dialogDao.updateDialogWithBirthDate(dialog2.id, LocalDate.of(1985, 3, 10), any())
+                    }
+                    // Both documents should still be sent
+                    coVerify(exactly = 2) { dialogportenClient.createDialog(any()) }
                 }
             }
         }

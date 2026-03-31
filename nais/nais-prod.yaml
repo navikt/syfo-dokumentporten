@@ -102,6 +102,8 @@ spec:
       external:
         - host: "ereg-services.prod-fss-pub.nais.io"
         - host: "platform.altinn.no"
+        - host: "pdl-api.prod-fss-pub.nais.io"
+
   valkey:
     - instance: felles-cache
       access: readwrite
@@ -118,5 +120,9 @@ spec:
       value: https://syfo-dokumentporten.nav.no
     - name: DIALOGPORTEN_API_ONLY
       value: "true"
+    - name: PDL_BASE_URL
+      value: https://pdl-api.prod-fss-pub.nais.io/graphql
+    - name: PDL_SCOPE
+      value: prod-fss.pdl.pdl-api
   envFrom:
     - secret: altinn-subscription-key
