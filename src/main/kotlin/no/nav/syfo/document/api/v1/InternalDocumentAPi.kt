@@ -7,18 +7,17 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import no.nav.syfo.application.exception.ApiErrorException
 import no.nav.syfo.document.api.v1.dto.Document
+import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentDAO
-import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.util.logger
 
-fun Route.registerInternalDocumentsApiV1(documentDAO: DocumentDAO, dialogService: DialogService) {
+fun Route.registerInternalDocumentsApiV1(documentDAO: DocumentDAO, dialogDAO: DialogDAO) {
     route("/documents") {
         post {
             val document = call.tryReceive<Document>()
             runCatching {
-                val existingDialog = dialogService.getAndUpdateDialogByFnrAndOrgNumber(document.fnr, document.orgNumber)
-                    ?: dialogService.insertDialog(document)
-
+                val existingDialog = dialogDAO.getByFnrAndOrgNumber(document.fnr, document.orgNumber)
+                    ?: dialogDAO.insertDialog(document.toDialogEntity())
                 documentDAO.insert(document.toDocumentEntity(existingDialog), document.content)
                 COUNT_DOCUMENT_RECIEVED.increment()
                 call.respond(HttpStatusCode.OK)
