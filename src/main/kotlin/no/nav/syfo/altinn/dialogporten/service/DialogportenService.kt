@@ -18,14 +18,11 @@ import no.nav.syfo.altinn.dialogporten.domain.Dialog
 import no.nav.syfo.altinn.dialogporten.domain.Transmission
 import no.nav.syfo.altinn.dialogporten.domain.Url
 import no.nav.syfo.altinn.dialogporten.domain.create
-import no.nav.syfo.document.api.v1.generateDialogTitle
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentEntity
 import no.nav.syfo.document.db.DocumentStatus
-import no.nav.syfo.document.db.PersistedDialogEntity
 import no.nav.syfo.document.db.PersistedDocumentEntity
-import no.nav.syfo.pdl.PdlService
 import no.nav.syfo.util.logger
 import java.time.Instant
 import java.time.LocalDate
@@ -41,7 +38,6 @@ class DialogportenService(
     private val publicIngressUrl: String,
     private val dialogportenIsApiOnly: Boolean,
     private val dialogDAO: DialogDAO,
-    private val pdlService: PdlService,
 ) {
     private val logger = logger()
     private val deleteDialogLimit = 100
@@ -60,46 +56,17 @@ class DialogportenService(
                 "Batch: $batchNum: Found ${documentsToSend.size} documents to send to dialogporten. First created at ${firstCreatedTimestamp ?: "N/A"}"
             )
 
-            if (documentsToSend.isEmpty()) {
-                break
-            }
-
-            val enrichedBirthDates = mutableMapOf<Long, LocalDate?>()
-            val updatedDialogs = mutableMapOf<Long, PersistedDialogEntity>()
             val newDialogs = mutableMapOf<Long, UUID>()
             for (document in documentsToSend) {
                 try {
-                    val dialogId = document.dialog.id
-                    if (dialogId !in enrichedBirthDates) {
-                        val fodselsdato: LocalDate? = document.dialog.birthDate ?: run {
-                            val personInfo = pdlService.getPersonInfo(document.dialog.fnr)
-                            val birthDateString = personInfo.birthDate
-                            if (birthDateString == null) {
-                                logger.warn("Could not find fødselsdato for dialog $dialogId")
-                                return@run null
-                            }
-                            val parsed = LocalDate.parse(birthDateString)
-                            val nameOrFnr = personInfo.fullName ?: document.dialog.fnr
-                            val newTitle = generateDialogTitle(nameOrFnr, document.dialog.fnr, parsed)
-                            val updatedDialog = dialogDAO.updateDialogWithBirthDate(dialogId, parsed, newTitle)
-                            updatedDialogs[dialogId] = updatedDialog
-                            parsed
-                        }
-                        enrichedBirthDates[dialogId] = fodselsdato
-                    }
-
-                    val enrichedDocument = updatedDialogs[dialogId]?.let { updatedDialog ->
-                        document.copy(dialog = updatedDialog)
-                    } ?: document
-
-                    val dialogportenId = enrichedDocument.dialog.dialogportenUUID
-                        ?: newDialogs[dialogId]
+                    val dialogportenId = document.dialog.dialogportenUUID
+                        ?: newDialogs[document.dialog.id]
 
                     if (dialogportenId != null) {
-                        addToExistingDialog(enrichedDocument, dialogportenId)
+                        addToExistingDialog(document, dialogportenId)
                     } else {
-                        val dialogportenIdNew = addToNewDialog(enrichedDocument)
-                        newDialogs[dialogId] = dialogportenIdNew
+                        val dialogportenId = addToNewDialog(document)
+                        newDialogs[document.dialog.id] = dialogportenId
                     }
                 } catch (ex: Exception) {
                     logger.error("Failed to send document ${document.id} to dialogporten", ex)

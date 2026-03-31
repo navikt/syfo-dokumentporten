@@ -18,7 +18,7 @@ info:
 servers:
   - url: https://syfo-dokumentporten.nav.no
     description: Prod environment
-  - url: https://syfo-dokumentporten.ekstern.dev.nav.no
+  - url: https://syfo-dokumentporten.dev.nav.no
     description: Dev environment
   - url: https://arkivporten.ekstern.dev.nav.no
     description: Dev environment(OLD)
@@ -310,11 +310,6 @@ components:
         fullName:
           type: string
           description: Full name of the person associated with the document.
-        birthDate:
-          type: string
-          format: date
-          description: Birth date of the person (ISO-8601 date format).
-          example: "1990-01-15"
         orgNumber:
           type: string
           description: Organisation number.
@@ -330,7 +325,7 @@ components:
         - type
         - content
         - contentType
-        - fnr
+        - f
         - orgNumber
         - title
         - summary

@@ -8,8 +8,6 @@ data class ClientProperties(
     val electorPath: String,
     val altinn3BaseUrl: String,
     val pdpSubscriptionKey: String,
-    val pdlBaseUrl: String,
-    val pdlScope: String,
 ) {
     companion object {
         fun createForLocal() = ClientProperties(
@@ -17,9 +15,7 @@ data class ClientProperties(
             eregBaseUrl = "",
             electorPath = "syfo-dokumentporten",
             altinn3BaseUrl = "http://localhost:8080/dialogporten",
-            pdpSubscriptionKey = "secret-key",
-            pdlBaseUrl = "http://localhost:8080/pdl",
-            pdlScope = "pdl",
+            pdpSubscriptionKey = "secret-key"
         )
 
         fun createFromEnvVars() = ClientProperties(
@@ -27,9 +23,7 @@ data class ClientProperties(
             altinnTilgangerBaseUrl = getEnvVar("ALTINN_TILGANGER_BASE_URL"),
             electorPath = getEnvVar("ELECTOR_PATH"),
             altinn3BaseUrl = getEnvVar("ALTINN_3_BASE_URL"),
-            pdpSubscriptionKey = getEnvVar("PDP_SUBSCRIPTION_KEY"),
-            pdlBaseUrl = getEnvVar("PDL_BASE_URL"),
-            pdlScope = getEnvVar("PDL_SCOPE"),
+            pdpSubscriptionKey = getEnvVar("PDP_SUBSCRIPTION_KEY")
         )
     }
 }

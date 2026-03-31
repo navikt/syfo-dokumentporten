@@ -36,9 +36,7 @@ import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentEntity
-import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.document.service.ValidationService
-import no.nav.syfo.pdl.PdlService
 import no.nav.syfo.registerApiV1
 import no.nav.syfo.texas.client.TexasClient
 
@@ -48,7 +46,7 @@ class InternalDocumentApiTest :
         val documentDAOMock = mockk<DocumentDAO>()
         val dialogDAOMock = mockk<DialogDAO>()
         val documentContentDAOMock = mockk<DocumentContentDAO>()
-        val pdlService = mockk<PdlService>()
+
         beforeTest {
             clearAllMocks()
             TestDB.clearAllData()
@@ -75,7 +73,6 @@ class InternalDocumentApiTest :
                             documentContentDAOMock,
                             dialogDAOMock,
                             validationService = mockk<ValidationService>(),
-                            dialogService = DialogService(dialogDAOMock, pdlService)
                         )
                     }
                 }
@@ -88,15 +85,10 @@ class InternalDocumentApiTest :
                     // Arrange
                     val capturedSlot = slot<DocumentEntity>()
                     val capturedContent = slot<ByteArray>()
-                    val existingDialog = dialogEntity()
-                    coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
-                    coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns
-                        existingDialog
+                    coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
                     coEvery { documentDAOMock.insert(capture(capturedSlot), capture(capturedContent)) } returns
                         documentEntity(dialogEntity())
                     texasClientMock.defaultMocks()
-                    coEvery { pdlService.getPersonInfo(any()) } returns
-                        no.nav.syfo.pdl.PdlPersonInfo(fullName = null, birthDate = "1990-01-15")
                     val document = document()
                     // Act
                     val response = client.post("/internal/api/v1/documents") {
@@ -121,10 +113,8 @@ class InternalDocumentApiTest :
                 withTestApplication {
                     // Arrange
                     texasClientMock.defaultMocks()
-                    val existingDialog = dialogEntity()
-                    coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
-                    coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns
-                        existingDialog
+                    coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
+                    coEvery { documentDAOMock.insert(any(), any()) } returns documentEntity(dialogEntity())
                     // Act
                     val response = client.post("/internal/api/v1/documents") {
                         contentType(ContentType.Application.Json)
@@ -144,12 +134,7 @@ class InternalDocumentApiTest :
                 withTestApplication {
                     // Arrange
                     texasClientMock.defaultMocks()
-                    val existingDialog = dialogEntity()
-                    coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
-                    coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns
-                        existingDialog
-                    coEvery { pdlService.getPersonInfo(any()) } returns
-                        no.nav.syfo.pdl.PdlPersonInfo(fullName = null, birthDate = "1990-01-15")
+                    coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns dialogEntity()
                     coEvery { documentDAOMock.insert(any(), any()) } throws RuntimeException("DB error")
                     // Act
                     val response = client.post("/internal/api/v1/documents") {
