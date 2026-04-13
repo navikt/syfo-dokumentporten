@@ -1,9 +1,6 @@
 package no.nav.syfo.altinn.dialogporten.service
 
 import com.fasterxml.uuid.Generators
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.isSuccess
-import kotlinx.coroutines.delay
 import no.nav.syfo.API_V1_PATH
 import no.nav.syfo.DOCUMENT_API_PATH
 import no.nav.syfo.GUI_DOCUMENT_API_PATH
@@ -18,11 +15,14 @@ import no.nav.syfo.altinn.dialogporten.domain.Dialog
 import no.nav.syfo.altinn.dialogporten.domain.Transmission
 import no.nav.syfo.altinn.dialogporten.domain.Url
 import no.nav.syfo.altinn.dialogporten.domain.create
+import no.nav.syfo.document.api.v1.generateDialogTitle
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentEntity
 import no.nav.syfo.document.db.DocumentStatus
+import no.nav.syfo.document.db.PersistedDialogEntity
 import no.nav.syfo.document.db.PersistedDocumentEntity
+import no.nav.syfo.pdl.PdlService
 import no.nav.syfo.util.logger
 import java.time.Instant
 import java.time.LocalDate
@@ -38,9 +38,9 @@ class DialogportenService(
     private val publicIngressUrl: String,
     private val dialogportenIsApiOnly: Boolean,
     private val dialogDAO: DialogDAO,
+    private val pdlService: PdlService,
 ) {
     private val logger = logger()
-    private val deleteDialogLimit = 100
     private val sendDialogLimit = 100
     suspend fun sendDocumentsToDialogporten() {
         var batchNum = 0
@@ -56,73 +56,52 @@ class DialogportenService(
                 "Batch: $batchNum: Found ${documentsToSend.size} documents to send to dialogporten. First created at ${firstCreatedTimestamp ?: "N/A"}"
             )
 
+            if (documentsToSend.isEmpty()) {
+                break
+            }
+
+            val enrichedBirthDates = mutableMapOf<Long, LocalDate?>()
+            val updatedDialogs = mutableMapOf<Long, PersistedDialogEntity>()
             val newDialogs = mutableMapOf<Long, UUID>()
             for (document in documentsToSend) {
                 try {
-                    val dialogportenId = document.dialog.dialogportenUUID
-                        ?: newDialogs[document.dialog.id]
+                    val dialogId = document.dialog.id
+                    if (dialogId !in enrichedBirthDates) {
+                        val fodselsdato: LocalDate? = document.dialog.birthDate ?: run {
+                            val personInfo = pdlService.getPersonInfo(document.dialog.fnr)
+                            val birthDateString = personInfo.birthDate
+                            if (birthDateString == null) {
+                                logger.warn("Could not find fødselsdato for dialog $dialogId")
+                                return@run null
+                            }
+                            val parsed = LocalDate.parse(birthDateString)
+                            val nameOrFnr = personInfo.fullName ?: document.dialog.fnr
+                            val newTitle = generateDialogTitle(nameOrFnr, document.dialog.fnr, parsed)
+                            val updatedDialog = dialogDAO.updateDialogWithBirthDate(dialogId, parsed, newTitle)
+                            updatedDialogs[dialogId] = updatedDialog
+                            parsed
+                        }
+                        enrichedBirthDates[dialogId] = fodselsdato
+                    }
+
+                    val enrichedDocument = updatedDialogs[dialogId]?.let { updatedDialog ->
+                        document.copy(dialog = updatedDialog)
+                    } ?: document
+
+                    val dialogportenId = enrichedDocument.dialog.dialogportenUUID
+                        ?: newDialogs[dialogId]
 
                     if (dialogportenId != null) {
-                        addToExistingDialog(document, dialogportenId)
+                        addToExistingDialog(enrichedDocument, dialogportenId)
                     } else {
-                        val dialogportenId = addToNewDialog(document)
-                        newDialogs[document.dialog.id] = dialogportenId
+                        val dialogportenIdNew = addToNewDialog(enrichedDocument)
+                        newDialogs[dialogId] = dialogportenIdNew
                     }
                 } catch (ex: Exception) {
                     logger.error("Failed to send document ${document.id} to dialogporten", ex)
                 }
             }
         } while (documentsToSend.size >= sendDialogLimit)
-    }
-
-    suspend fun deleteDialogsInDialogporten() {
-        var batchNum = 0
-        do {
-            val dialogsToDeleteInDialogporten = getDocumentsToDelete()
-            batchNum += 1
-            val firstCreatedTimestamp = if (!dialogsToDeleteInDialogporten.isEmpty()) {
-                dialogsToDeleteInDialogporten.first().created
-            } else {
-                null
-            }
-            logger.info(
-                "Batch: $batchNum: Found ${dialogsToDeleteInDialogporten.size} documents to delete from dialogporten. First created at ${firstCreatedTimestamp ?: "N/A"}"
-            )
-
-            for (dialog in dialogsToDeleteInDialogporten) {
-                try {
-                    dialog.dialogportenUUID?.let { uuid ->
-                        val status = dialogportenClient.deleteDialog(uuid)
-                        if (status.isSuccess()) {
-                            dialogDAO.updateDialogportenAfterDelete(
-                                dialog.copy(
-                                    dialogportenUUID = null,
-                                    updated = Instant.now()
-                                )
-                            )
-                        } else if (listOf(HttpStatusCode.Gone, HttpStatusCode.NotFound).contains(status)) {
-                            logger.info(
-                                "Skipping setting properties to null, dialog ${dialog.id} with dialogportenUUID $uuid already deleted in dialogporten"
-                            )
-                            dialogDAO.updateDialogportenAfterDelete(
-                                dialog.copy(
-                                    updated = Instant.now()
-                                )
-                            )
-                        } else {
-                            logger.error(
-                                "Failed to delete dialog ${dialog.id} with dialogportenUUID $uuid from dialogporten, received status $status"
-                            )
-                            throw RuntimeException("Failed to delete dialog ${dialog.id} with dialogportenUUID $uuid")
-                        }
-                    }
-                } catch (ex: Exception) {
-                    logger.error("Failed to delete dialog ${dialog.id} from dialogporten", ex)
-                    throw ex
-                }
-            }
-            delay(5000L) // small delay to avoid hammering dialogporten
-        } while (dialogsToDeleteInDialogporten.size >= deleteDialogLimit)
     }
 
     private suspend fun addToExistingDialog(document: PersistedDocumentEntity, dialogportenId: UUID) {
@@ -168,8 +147,6 @@ class DialogportenService(
     }
 
     private suspend fun getDocumentsToSend() = documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED, 100)
-    private suspend fun getDocumentsToDelete() =
-        dialogDAO.getDialogAwaitingDeletionInDialogporten(limit = deleteDialogLimit)
 
     private fun createApiDocumentLink(linkId: String): String =
         "$publicIngressUrl$API_V1_PATH$DOCUMENT_API_PATH/$linkId"

@@ -5,8 +5,8 @@ import kotlinx.coroutines.withContext
 import no.nav.syfo.application.database.DatabaseInterface
 import java.sql.ResultSet
 import java.sql.Timestamp
-import java.sql.Types
 import java.time.Instant
+import java.time.LocalDate
 
 class DialogDAO(private val database: DatabaseInterface) {
     suspend fun insertDialog(dialogEntity: DialogEntity): PersistedDialogEntity {
@@ -17,8 +17,9 @@ class DialogDAO(private val database: DatabaseInterface) {
                 summary,
                 fnr,
                 org_number,
-                dialogporten_uuid
-            ) VALUES (?, ?, ?, ?, ?)
+                dialogporten_uuid,
+                birth_date
+            ) VALUES (?, ?, ?, ?, ?, ?)
             RETURNING *
             """.trimIndent()
         return withContext(Dispatchers.IO) {
@@ -30,6 +31,7 @@ class DialogDAO(private val database: DatabaseInterface) {
                     ps.setString(3, dialogEntity.fnr)
                     ps.setString(4, dialogEntity.orgNumber)
                     ps.setObject(5, dialogEntity.dialogportenUUID)
+                    ps.setObject(6, dialogEntity.birthDate)
                     val resultSet = ps.executeQuery()
                     return@use if (resultSet.next()) {
                         resultSet.toDialog()
@@ -43,66 +45,33 @@ class DialogDAO(private val database: DatabaseInterface) {
         }
     }
 
-    suspend fun getDialogAwaitingDeletionInDialogporten(limit: Int): List<PersistedDialogEntity> {
-        val selectStatement =
+    suspend fun updateDialogWithBirthDate(dialogId: Long, birthDate: LocalDate, title: String): PersistedDialogEntity {
+        val updateStatement =
             """
-                SELECT dialog.*
-                FROM dialog
-                WHERE delete_performed is null
-                AND dialogporten_uuid IS NOT NULL
-                LIMIT ?
+            UPDATE dialog
+            SET birth_date = ?,
+                title      = ?,
+                updated    = ?
+            WHERE id = ?
+            RETURNING *
             """.trimIndent()
         return withContext(Dispatchers.IO) {
-            database.connection.use { conn ->
-                conn.prepareStatement(selectStatement).use { ps ->
-                    ps.setInt(1, limit)
+            val connection = database.connection
+            connection.use { conn ->
+                conn.prepareStatement(updateStatement).use { ps ->
+                    ps.setObject(1, birthDate)
+                    ps.setString(2, title)
+                    ps.setTimestamp(3, Timestamp.from(Instant.now()))
+                    ps.setLong(4, dialogId)
                     val resultSet = ps.executeQuery()
-                    val dialogs = mutableListOf<PersistedDialogEntity>()
-                    while (resultSet.next()) {
-                        dialogs.add(resultSet.toDialog())
+                    return@use if (resultSet.next()) {
+                        resultSet.toDialog()
+                    } else {
+                        throw Exception("Updating dialog birth date failed, no rows returned.")
                     }
-                    dialogs
+                }.also {
+                    conn.commit()
                 }
-            }
-        }
-    }
-
-    suspend fun updateDialogportenAfterDelete(entity: PersistedDialogEntity) {
-        withContext(Dispatchers.IO) {
-            database.connection.use { conn ->
-                if (entity.dialogportenUUID == null) {
-                    conn.prepareStatement(
-                        """
-                        UPDATE document
-                        SET transmission_id = ?,
-                            status          = ?
-                        WHERE dialog_id = ?
-                        """.trimIndent()
-                    ).use { ps ->
-                        ps.setObject(1, null)
-                        ps.setObject(2, DocumentStatus.RECEIVED, Types.OTHER)
-                        ps.setLong(3, entity.id)
-                        ps.executeUpdate()
-                    }
-                }
-                conn.prepareStatement(
-                    """
-                        UPDATE dialog
-                        SET dialogporten_uuid = ?,
-                            updated           = ?,
-                            delete_performed  = ?
-                        WHERE id = ?
-                    """.trimIndent()
-                ).use { ps ->
-                    with(entity) {
-                        ps.setObject(1, dialogportenUUID)
-                        ps.setTimestamp(2, Timestamp.from(updated))
-                        ps.setTimestamp(3, Timestamp.from(Instant.now()))
-                        ps.setLong(4, id)
-                    }
-                    ps.executeUpdate()
-                }
-                conn.commit()
             }
         }
     }
@@ -141,5 +110,6 @@ fun ResultSet.toDialog(): PersistedDialogEntity = PersistedDialogEntity(
     orgNumber = getString("org_number"),
     created = getTimestamp("created").toInstant(),
     updated = getTimestamp("updated").toInstant(),
-    dialogportenUUID = getObject("dialogporten_uuid", java.util.UUID::class.java)
+    dialogportenUUID = getObject("dialogporten_uuid", java.util.UUID::class.java),
+    birthDate = getObject("birth_date", LocalDate::class.java),
 )

@@ -17,6 +17,7 @@ import no.nav.syfo.application.exceptions.UnauthorizedException
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import java.time.Instant
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.UUID
 
@@ -92,4 +93,13 @@ fun fnrToBirthDate(fnr: String): LocalDate? {
     } catch (e: DateTimeParseException) {
         return null
     }
+}
+
+fun generateDialogTitle(nameOrFnr: String, fnr: String, birthDate: LocalDate?): String {
+    val titleEnding = if (birthDate != null) {
+        "(f. ${birthDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))})"
+    } else {
+        if (nameOrFnr != fnr) "($fnr)" else ""
+    }
+    return "Sykefraværsoppfølging for $nameOrFnr $titleEnding".trim()
 }
