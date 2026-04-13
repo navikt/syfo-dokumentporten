@@ -119,7 +119,7 @@ spec:
     - name: PUBLIC_INGRESS_URL
       value: https://syfo-dokumentporten.nav.no
     - name: DIALOGPORTEN_API_ONLY
-      value: "true"
+      value: "false"
     - name: PDL_BASE_URL
       value: https://pdl-api.prod-fss-pub.nais.io/graphql
     - name: PDL_SCOPE
