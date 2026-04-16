@@ -133,7 +133,7 @@ sequenceDiagram
 ```
 
 ## Wiki
-We have a [wiki](https://github.io/navikt/syfo-dokumentporten/wiki) for this project, 
+We have a [wiki](https://github.com/navikt/syfo-dokumentporten/wiki) for this project, 
 with more detailed information about how external integrations partners can get started including how to set set up organizations from Test norge and test users with Dolly.
 
 ## Running tasks with mise
