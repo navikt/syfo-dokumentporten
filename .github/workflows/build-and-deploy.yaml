@@ -13,8 +13,7 @@ on:
 
 jobs:
   jar-app:
-    # change back to @main before merging
-    uses: navikt/teamesyfo-github-actions-workflows/.github/workflows/jar-app.yaml@upgrade-codeql
+    uses: navikt/teamesyfo-github-actions-workflows/.github/workflows/jar-app.yaml@main
     permissions:
       actions: read
       contents: write
