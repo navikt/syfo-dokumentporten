@@ -325,6 +325,8 @@ components:
         summary:
           type: string
           description: Summary shown in dialog.
+        varselInstruks:
+          $ref: '#/components/schemas/VarselInstruks'
       required:
         - documentId
         - type
@@ -334,6 +336,17 @@ components:
         - orgNumber
         - title
         - summary
+      additionalProperties: false
+    VarselInstruks:
+      type: object
+      description: Instruks for varsling av arbeidsgiver ved dialogmøter uten nærmeste leder.
+      properties:
+        varselType:
+          type: string
+          description: Type dialogmøte-hendelse for arbeidsgivernotifikasjon.
+          enum: [ INNKALT, AVLYST, NYTT_TID_STED, REFERAT ]
+      required:
+        - varselType
       additionalProperties: false
     DocumentPage:
       type: object

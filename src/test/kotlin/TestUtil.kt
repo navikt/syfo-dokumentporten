@@ -9,8 +9,10 @@ import io.ktor.http.isSuccess
 import io.mockk.coEvery
 import net.datafaker.Faker
 import no.nav.syfo.application.auth.JwtIssuer
+import no.nav.syfo.document.api.v1.dto.ArbeidsgiverVarselType
 import no.nav.syfo.document.api.v1.dto.Document
 import no.nav.syfo.document.api.v1.dto.DocumentType
+import no.nav.syfo.document.api.v1.dto.VarselInstruks
 import no.nav.syfo.document.db.PersistedDialogEntity
 import no.nav.syfo.document.db.PersistedDocumentEntity
 import no.nav.syfo.ereg.client.Organisasjon
@@ -24,7 +26,7 @@ import java.util.*
 
 val faker = Faker(Random(Instant.now().epochSecond))
 
-fun document() = Document(
+fun document(varselInstruks: VarselInstruks? = null) = Document(
     documentId = UUID.randomUUID(),
     type = DocumentType.DIALOGMOTE,
     content = faker.lorem().sentence().toByteArray(),
@@ -34,7 +36,12 @@ fun document() = Document(
     orgNumber = faker.numerify("#########"),
     title = faker.lorem().sentence(),
     summary = faker.lorem().sentence(),
-    birthDate = null
+    birthDate = null,
+    varselInstruks = varselInstruks,
+)
+
+fun varselInstruks(varselType: ArbeidsgiverVarselType = ArbeidsgiverVarselType.INNKALT) = VarselInstruks(
+    varselType = varselType,
 )
 
 fun dialogEntity() = PersistedDialogEntity(

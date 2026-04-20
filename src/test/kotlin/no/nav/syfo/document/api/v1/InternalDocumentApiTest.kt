@@ -32,15 +32,20 @@ import io.mockk.slot
 import no.nav.syfo.TestDB
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
+import no.nav.syfo.document.api.v1.dto.ArbeidsgiverVarselType
+import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentEntity
+import no.nav.syfo.document.db.VarselInstruksDAO
+import no.nav.syfo.document.db.VarselInstruksEntity
 import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.pdl.PdlService
 import no.nav.syfo.registerApiV1
 import no.nav.syfo.texas.client.TexasClient
+import varselInstruks
 
 class InternalDocumentApiTest :
     DescribeSpec({
@@ -48,6 +53,7 @@ class InternalDocumentApiTest :
         val documentDAOMock = mockk<DocumentDAO>()
         val dialogDAOMock = mockk<DialogDAO>()
         val documentContentDAOMock = mockk<DocumentContentDAO>()
+        val varselInstruksDAOMock = mockk<VarselInstruksDAO>()
         val pdlService = mockk<PdlService>()
         beforeTest {
             clearAllMocks()
@@ -75,7 +81,8 @@ class InternalDocumentApiTest :
                             documentContentDAOMock,
                             dialogDAOMock,
                             validationService = mockk<ValidationService>(),
-                            dialogService = DialogService(dialogDAOMock, pdlService)
+                            dialogService = DialogService(dialogDAOMock, pdlService),
+                            varselInstruksDAO = varselInstruksDAOMock,
                         )
                     }
                 }
@@ -164,6 +171,93 @@ class InternalDocumentApiTest :
                     // Verify that the document was inserted into the database
                     coVerify(exactly = 1) {
                         documentDAOMock.insert(any(), any())
+                    }
+                }
+            }
+
+            it("should return 200 OK and persist varsel instruks when present") {
+                withTestApplication {
+                    // Arrange
+                    val existingDialog = dialogEntity()
+                    val persistedDoc = documentEntity(existingDialog)
+                    coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
+                    coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns existingDialog
+                    coEvery { documentDAOMock.insert(any(), any()) } returns persistedDoc
+                    coEvery { varselInstruksDAOMock.insert(any(), any()) } returns VarselInstruksEntity(
+                        id = 1L,
+                        documentId = persistedDoc.id,
+                        varselType = ArbeidsgiverVarselType.INNKALT,
+                        created = java.time.Instant.now(),
+                    )
+                    texasClientMock.defaultMocks()
+                    coEvery { pdlService.getPersonInfo(any()) } returns
+                        no.nav.syfo.pdl.PdlPersonInfo(fullName = null, birthDate = "1990-01-15")
+
+                    val doc = document(varselInstruks = varselInstruks())
+
+                    // Act
+                    val response = client.post("/internal/api/v1/documents") {
+                        contentType(ContentType.Application.Json)
+                        setBody(doc)
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+
+                    // Assert
+                    response.status shouldBe HttpStatusCode.OK
+                    coVerify(exactly = 1) {
+                        documentDAOMock.insert(any(), any())
+                        varselInstruksDAOMock.insert(persistedDoc.id, ArbeidsgiverVarselType.INNKALT)
+                    }
+                }
+            }
+
+            it("should return 400 when varselInstruks is set on non-DIALOGMOTE document") {
+                withTestApplication {
+                    // Arrange
+                    texasClientMock.defaultMocks()
+                    val doc = document(varselInstruks = varselInstruks()).copy(
+                        type = DocumentType.OPPFOLGINGSPLAN,
+                    )
+
+                    // Act
+                    val response = client.post("/internal/api/v1/documents") {
+                        contentType(ContentType.Application.Json)
+                        setBody(doc)
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+
+                    // Assert
+                    response.status shouldBe HttpStatusCode.BadRequest
+                    coVerify(exactly = 0) {
+                        documentDAOMock.insert(any(), any())
+                    }
+                }
+            }
+
+            it("should not call varselInstruksDAO when varselInstruks is absent") {
+                withTestApplication {
+                    // Arrange
+                    val existingDialog = dialogEntity()
+                    coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
+                    coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns existingDialog
+                    coEvery { documentDAOMock.insert(any(), any()) } returns documentEntity(existingDialog)
+                    texasClientMock.defaultMocks()
+                    coEvery { pdlService.getPersonInfo(any()) } returns
+                        no.nav.syfo.pdl.PdlPersonInfo(fullName = null, birthDate = "1990-01-15")
+
+                    val doc = document()
+
+                    // Act
+                    val response = client.post("/internal/api/v1/documents") {
+                        contentType(ContentType.Application.Json)
+                        setBody(doc)
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+
+                    // Assert
+                    response.status shouldBe HttpStatusCode.OK
+                    coVerify(exactly = 0) {
+                        varselInstruksDAOMock.insert(any(), any())
                     }
                 }
             }
