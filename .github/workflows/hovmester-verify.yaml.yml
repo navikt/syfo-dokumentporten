@@ -21,7 +21,7 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          EXPECTED_PR_AUTHOR: "my-sync-app[bot]"  # din GitHub Apps bot-login
+          EXPECTED_PR_AUTHOR: "teamesyfo-automerge[bot]"  # din GitHub Apps bot-login
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
