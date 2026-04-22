@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: read
+      contents: write
       pull-requests: write
     steps:
       - name: Verify file scope
@@ -21,7 +21,7 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          EXPECTED_PR_AUTHOR: "teamesyfo-automerge[bot]"  # din GitHub Apps bot-login
+          EXPECTED_PR_AUTHOR: "teamesyfo-automerge[bot]"
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -34,11 +34,6 @@ jobs:
           if [[ "$HEAD_REF" != "hovmester-sync" ]] || [[ "$HEAD_REPO" != "$REPO" ]]; then
             echo "Not a hovmester sync PR — skipping"
             exit 0
-          fi
-
-          if [[ -z "$EXPECTED_PR_AUTHOR" ]]; then
-            echo "::error::HOVMESTER_APP_BOT_LOGIN must be set"
-            exit 1
           fi
 
           if [[ "$PR_AUTHOR" != "$EXPECTED_PR_AUTHOR" ]]; then
@@ -80,15 +75,15 @@ jobs:
           echo "✅ All files within hovmester sync scope"
 
       - name: Create GitHub App token for merge
+        if: github.head_ref == 'hovmester-sync' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'teamesyfo-automerge[bot]'
         id: app-token
-        if: github.head_ref == 'hovmester-sync' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'my-sync-app[bot]'
         uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
         with:
           app-id: "2906300"
-          private-key: ${{ secrets.HOVMESTER_APP_PRIVATE_KEY }}
+          private-key: ${{ secrets.AUTOMERGE_APP_PRIVATE_KEY }}
 
       - name: Approve sync PR
-        if: github.head_ref == 'hovmester-sync' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'my-sync-app[bot]'
+        if: github.head_ref == 'hovmester-sync' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'teamesyfo-automerge[bot]'
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -97,7 +92,7 @@ jobs:
           gh pr review "$PR_NUMBER" --repo "$REPO" --approve --body "Auto-approved: file scope verified ✅"
 
       - name: Enable auto-merge
-        if: github.head_ref == 'hovmester-sync' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'my-sync-app[bot]'
+        if: github.head_ref == 'hovmester-sync' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'teamesyfo-automerge[bot]'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}

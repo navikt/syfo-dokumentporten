@@ -12,8 +12,8 @@ jobs:
   sync:
     uses: navikt/hovmester/.github/workflows/hovmester-sync.yml@main
     with:
-      collections: "backend"              # eller "backend", "backend,frontend"
-      github_project: "navikt/157"         # valgfritt: bytt til ditt teams GitHub Project, eller fjern linjen
-      pr_app_id: '2906300'
+      collections: "hovmester,backend"
+      github_project: "navikt/157"
+      pr_app_id: "2906300"
     secrets:
       APP_PRIVATE_KEY: ${{ secrets.AUTOMERGE_APP_PRIVATE_KEY }}
