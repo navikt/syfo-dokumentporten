@@ -9,6 +9,7 @@ import no.nav.syfo.application.auth.Principal
 import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.application.auth.maskinportenIdToOrgnumber
 import no.nav.syfo.application.exception.ApiErrorException
+import no.nav.syfo.application.isProdEnv
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.DocumentEntity
 import no.nav.syfo.ereg.EregService
@@ -91,6 +92,9 @@ class ValidationService(
             logger.warn(
                 errorMessage,
             )
+            if (!isProdEnv()) {
+                logger.warn("Orgtree found in ereg for requested orgnumber $requestedOrgNumber: ${organisasjon.aggregerOrgnummereFraHierarki()}")
+            }
             throw ApiErrorException.ForbiddenException(errorMessage)
         }
     }
