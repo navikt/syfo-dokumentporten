@@ -3,6 +3,7 @@ package no.nav.syfo.document.api.v1
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.plugins.NotFoundException
+import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -34,6 +35,7 @@ fun Route.registerExternalApiV1(
             client = texasClient
         }
         get {
+            logger.info("Received request path={} with parameters={}", call.request.path(), call.parameters)
             val orgNumber = call.getOrgNumber()
             val isRead = call.queryParameters["isRead"]?.toBoolean()
             val documentType = call.queryParameters.extractDocumentTypeParameter("documentType")
