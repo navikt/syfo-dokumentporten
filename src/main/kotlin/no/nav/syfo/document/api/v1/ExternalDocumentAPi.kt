@@ -21,6 +21,7 @@ import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.logger
 import org.slf4j.Logger
 import java.time.Instant
+import no.nav.syfo.application.isProdEnv
 
 fun Route.registerExternalApiV1(
     documentDAO: DocumentDAO,
@@ -36,12 +37,15 @@ fun Route.registerExternalApiV1(
         }
         get {
             logger.info("Received request path={} with parameters={}", call.request.path(), call.parameters)
+            val principal = call.getPrincipal()
+            if (!isProdEnv() && principal is SystemPrincipal) {
+                logger.info("Principal ident: ${principal.ident}")
+            }
             val orgNumber = call.getOrgNumber()
             val isRead = call.queryParameters["isRead"]?.toBoolean()
             val documentType = call.queryParameters.extractDocumentTypeParameter("documentType")
             val pageSize = call.getPageSize()
             val createdAfter = call.getCreatedAfter()
-            val principal = call.getPrincipal()
 
             validationService.validateDocumentsOfTypeAccess(
                 principal = principal,
