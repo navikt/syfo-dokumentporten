@@ -46,13 +46,11 @@ fun varselInstruks(
     epostTittel: String = "Du har fått et nytt varsel",
     epostBody: String = "Logg inn på Altinn for å lese.",
     smsTekst: String = "Du har fått et nytt varsel i Altinn.",
-    ressursId: String = "nav_syfo_dialogmote",
     ressursUrl: String = "https://www.altinn.no/messagebox",
     kilde: String = "dokumentporten.dialogmote",
 ) = VarselInstruks(
     type = type,
     notifikasjonInnhold = NotifikasjonInnhold(epostTittel, epostBody, smsTekst),
-    ressursId = ressursId,
     ressursUrl = ressursUrl,
     kilde = kilde,
 )
