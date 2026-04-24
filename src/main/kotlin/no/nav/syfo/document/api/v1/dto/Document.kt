@@ -84,9 +84,9 @@ data class Document(
     }
 }
 
-enum class DocumentType(val displayName: String) {
-    DIALOGMOTE("Dialogmøte"),
-    OPPFOLGINGSPLAN("Oppfølgingsplan"),
+enum class DocumentType(val displayName: String, val altinnResource: String = "") {
+    DIALOGMOTE("Dialogmøte", "nav_syfo_dialogmote"),
+    OPPFOLGINGSPLAN("Oppfølgingsplan", "nav_syfo_oppfolgingsplan"),
 
     @JsonEnumDefaultValue
     UNDEFINED("Dokument"),

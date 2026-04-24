@@ -32,7 +32,7 @@ import io.mockk.slot
 import no.nav.syfo.TestDB
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
-import no.nav.syfo.document.api.v1.dto.DocumentType
+import no.nav.syfo.document.api.v1.dto.VarselInstruks
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
@@ -177,7 +177,7 @@ class InternalDocumentApiTest :
                     // Arrange
                     val existingDialog = dialogEntity()
                     val persistedDoc = documentEntity(existingDialog)
-                    val capturedVarselInstruks = slot<no.nav.syfo.document.api.v1.dto.VarselInstruks>()
+                    val capturedVarselInstruks = slot<VarselInstruks>()
                     coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
                     coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns existingDialog
                     coEvery {
@@ -203,40 +203,6 @@ class InternalDocumentApiTest :
                     }
                     capturedVarselInstruks.captured.notifikasjonInnhold.epostTittel shouldBe
                         doc.varselInstruks?.notifikasjonInnhold?.epostTittel
-                    capturedVarselInstruks.captured.ressursId shouldBe doc.varselInstruks?.ressursId
-                }
-            }
-
-            it("should return 200 OK when varselInstruks is set on non-DIALOGMOTE document") {
-                withTestApplication {
-                    // Arrange
-                    val existingDialog = dialogEntity()
-                    coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
-                    coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns existingDialog
-                    coEvery { documentDAOMock.insert(any(), any(), any()) } returns documentEntity(existingDialog)
-                    texasClientMock.defaultMocks()
-                    coEvery { pdlService.getPersonInfo(any()) } returns
-                        no.nav.syfo.pdl.PdlPersonInfo(fullName = null, birthDate = "1990-01-15")
-                    val doc = document(varselInstruks = varselInstruks()).copy(
-                        type = DocumentType.OPPFOLGINGSPLAN,
-                    )
-
-                    // Act
-                    val response = client.post("/internal/api/v1/documents") {
-                        contentType(ContentType.Application.Json)
-                        setBody(doc)
-                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
-                    }
-
-                    // Assert
-                    response.status shouldBe HttpStatusCode.OK
-                    coVerify(exactly = 1) {
-                        documentDAOMock.insert(
-                            any(),
-                            any(),
-                            match { it.ressursId == doc.varselInstruks!!.ressursId },
-                        )
-                    }
                 }
             }
 
@@ -273,27 +239,6 @@ class InternalDocumentApiTest :
                     // Arrange
                     texasClientMock.defaultMocks()
                     val doc = document(varselInstruks = varselInstruks(epostTittel = ""))
-
-                    // Act
-                    val response = client.post("/internal/api/v1/documents") {
-                        contentType(ContentType.Application.Json)
-                        setBody(doc)
-                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
-                    }
-
-                    // Assert
-                    response.status shouldBe HttpStatusCode.BadRequest
-                    coVerify(exactly = 0) {
-                        documentDAOMock.insert(any(), any(), any())
-                    }
-                }
-            }
-
-            it("should return 400 when varselInstruks ressursId is blank") {
-                withTestApplication {
-                    // Arrange
-                    texasClientMock.defaultMocks()
-                    val doc = document(varselInstruks = varselInstruks(ressursId = ""))
 
                     // Act
                     val response = client.post("/internal/api/v1/documents") {
