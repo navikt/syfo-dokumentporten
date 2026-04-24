@@ -9,9 +9,10 @@ import io.ktor.http.isSuccess
 import io.mockk.coEvery
 import net.datafaker.Faker
 import no.nav.syfo.application.auth.JwtIssuer
-import no.nav.syfo.document.api.v1.dto.ArbeidsgiverVarselType
 import no.nav.syfo.document.api.v1.dto.Document
 import no.nav.syfo.document.api.v1.dto.DocumentType
+import no.nav.syfo.document.api.v1.dto.HendelseType
+import no.nav.syfo.document.api.v1.dto.NotifikasjonInnhold
 import no.nav.syfo.document.api.v1.dto.VarselInstruks
 import no.nav.syfo.document.db.PersistedDialogEntity
 import no.nav.syfo.document.db.PersistedDocumentEntity
@@ -40,8 +41,20 @@ fun document(varselInstruks: VarselInstruks? = null) = Document(
     varselInstruks = varselInstruks,
 )
 
-fun varselInstruks(varselType: ArbeidsgiverVarselType = ArbeidsgiverVarselType.INNKALT) = VarselInstruks(
-    varselType = varselType,
+fun varselInstruks(
+    type: HendelseType = HendelseType.AG_VARSEL_ALTINN_RESSURS,
+    epostTittel: String = "Du har fått et nytt varsel",
+    epostBody: String = "Logg inn på Altinn for å lese.",
+    smsTekst: String = "Du har fått et nytt varsel i Altinn.",
+    ressursId: String = "nav_syfo_dialogmote",
+    ressursUrl: String = "https://www.altinn.no/messagebox",
+    kilde: String = "dokumentporten.dialogmote",
+) = VarselInstruks(
+    type = type,
+    notifikasjonInnhold = NotifikasjonInnhold(epostTittel, epostBody, smsTekst),
+    ressursId = ressursId,
+    ressursUrl = ressursUrl,
+    kilde = kilde,
 )
 
 fun dialogEntity() = PersistedDialogEntity(

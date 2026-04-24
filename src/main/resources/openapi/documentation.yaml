@@ -339,14 +339,45 @@ components:
       additionalProperties: false
     VarselInstruks:
       type: object
-      description: Instruks for varsling av arbeidsgiver ved dialogmøter uten nærmeste leder.
+      description: Instruks for varsling av arbeidsgiver via Altinn 3-ressurs.
       properties:
-        varselType:
+        type:
           type: string
-          description: Type dialogmøte-hendelse for arbeidsgivernotifikasjon.
-          enum: [ INNKALT, AVLYST, NYTT_TID_STED, REFERAT ]
+          description: Type hendelse for varselet.
+          enum: [ AG_VARSEL_ALTINN_RESSURS ]
+        notifikasjonInnhold:
+          $ref: '#/components/schemas/NotifikasjonInnhold'
+        ressursId:
+          type: string
+          description: Altinn 3 ressurs-id, f.eks. "nav_syfo_dialogmote".
+        ressursUrl:
+          type: string
+          format: uri
+          description: Dyplenke til Altinn-visning for varselet.
+        kilde:
+          type: string
+          description: Identifikator for kildesystemet som sender instruksen, f.eks. "dokumentporten.dialogmote".
       required:
-        - varselType
+        - type
+        - notifikasjonInnhold
+        - ressursId
+        - ressursUrl
+        - kilde
+      additionalProperties: false
+    NotifikasjonInnhold:
+      type: object
+      description: Tekstinnhold for notifikasjon til arbeidsgiver (e-post og SMS).
+      properties:
+        epostTittel:
+          type: string
+        epostBody:
+          type: string
+        smsTekst:
+          type: string
+      required:
+        - epostTittel
+        - epostBody
+        - smsTekst
       additionalProperties: false
     DocumentPage:
       type: object

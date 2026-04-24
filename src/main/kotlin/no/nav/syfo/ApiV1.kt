@@ -9,7 +9,6 @@ import no.nav.syfo.document.api.v1.registerInternalDocumentsApiV1
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
-import no.nav.syfo.document.db.VarselInstruksDAO
 import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.texas.TexasAzureADAuthPlugin
@@ -27,13 +26,12 @@ fun Route.registerApiV1(
     dialogDAO: DialogDAO,
     validationService: ValidationService,
     dialogService: DialogService,
-    varselInstruksDAO: VarselInstruksDAO,
 ) {
     route("/internal$API_V1_PATH") {
         install(TexasAzureADAuthPlugin) {
             client = texasClient
         }
-        registerInternalDocumentsApiV1(documentDAO, dialogService, varselInstruksDAO)
+        registerInternalDocumentsApiV1(documentDAO, dialogService)
     }
     route(API_V1_PATH) {
         route(DOCUMENT_API_PATH) {
