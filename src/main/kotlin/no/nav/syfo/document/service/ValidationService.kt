@@ -85,6 +85,7 @@ class ValidationService(
     }
 
     private suspend fun validateHierarchicalEeregAccess(requestedOrgNumber: String, orgNumberFromToken: String) {
+        logger.info("Validating ereg hierarchy for org $requestedOrgNumber")
         val organisasjon = eregService.getOrganization(requestedOrgNumber)
         if (!organisasjon.aggregerOrgnummereFraHierarki().contains(orgNumberFromToken)) {
             val errorMessage = "Orgnumber $orgNumberFromToken from SystemUser is not found in the organization " +
