@@ -33,5 +33,5 @@ val COUNT_DOCUMENTS_REREAD_BY_EXTERNAL_SYSTEMUSER: Counter = Counter.builder(DOC
 
 const val VARSEL_INSTRUKS_RECEIVED = "${METRICS_NS}_varsel_instruks_received"
 val COUNT_VARSEL_INSTRUKS_RECEIVED: Counter = Counter.builder(VARSEL_INSTRUKS_RECEIVED)
-    .description("Counts the number of varsel instrukser received for dialogmøter uten nærmeste leder")
+    .description("Counts the number of varsel instrukser received")
     .register(METRICS_REGISTRY)
