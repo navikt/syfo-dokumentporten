@@ -12,10 +12,7 @@ import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.util.logger
 
-fun Route.registerInternalDocumentsApiV1(
-    documentDAO: DocumentDAO,
-    dialogService: DialogService,
-) {
+fun Route.registerInternalDocumentsApiV1(documentDAO: DocumentDAO, dialogService: DialogService,) {
     route("/documents") {
         post {
             val document = call.tryReceive<Document>()

@@ -6,16 +6,11 @@ import java.net.URI
 data class VarselInstruks(
     val type: HendelseType,
     val notifikasjonInnhold: NotifikasjonInnhold,
-    val ressursId: String,
     val ressursUrl: String,
     val kilde: String,
 )
 
-data class NotifikasjonInnhold(
-    val epostTittel: String,
-    val epostBody: String,
-    val smsTekst: String,
-)
+data class NotifikasjonInnhold(val epostTittel: String, val epostBody: String, val smsTekst: String,)
 
 enum class HendelseType {
     AG_VARSEL_ALTINN_RESSURS
@@ -32,10 +27,6 @@ fun VarselInstruks.validate() {
 
     if (notifikasjonInnhold.smsTekst.isBlank()) {
         throw ApiErrorException.BadRequestException("varselInstruks.notifikasjonInnhold.smsTekst må være satt")
-    }
-
-    if (ressursId.isBlank()) {
-        throw ApiErrorException.BadRequestException("varselInstruks.ressursId må være satt")
     }
 
     if (ressursUrl.isBlank()) {

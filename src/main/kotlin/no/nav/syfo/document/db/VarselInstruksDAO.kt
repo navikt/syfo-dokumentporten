@@ -9,7 +9,12 @@ import java.sql.ResultSet
 
 class VarselInstruksDAO(private val database: DatabaseInterface) {
 
-    fun insert(connection: Connection, documentId: Long, varselInstruks: VarselInstruks): VarselInstruksEntity {
+    fun insert(
+        connection: Connection,
+        documentId: Long,
+        ressursId: String,
+        varselInstruks: VarselInstruks
+    ): VarselInstruksEntity {
         val insertStatement =
             """
             INSERT INTO varsel_instruks (document_id, type, epost_tittel, epost_body, sms_tekst, ressurs_id, ressurs_url, kilde)
@@ -23,7 +28,7 @@ class VarselInstruksDAO(private val database: DatabaseInterface) {
             ps.setString(3, varselInstruks.notifikasjonInnhold.epostTittel)
             ps.setString(4, varselInstruks.notifikasjonInnhold.epostBody)
             ps.setString(5, varselInstruks.notifikasjonInnhold.smsTekst)
-            ps.setString(6, varselInstruks.ressursId)
+            ps.setString(6, ressursId)
             ps.setString(7, varselInstruks.ressursUrl)
             ps.setString(8, varselInstruks.kilde)
             val resultSet = ps.executeQuery()
