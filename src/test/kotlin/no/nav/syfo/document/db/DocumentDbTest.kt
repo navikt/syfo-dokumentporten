@@ -17,7 +17,8 @@ import kotlin.math.ceil
 class DocumentDbTest :
     DescribeSpec({
         val testDb = TestDB.database
-        val documentDAO = DocumentDAO(testDb)
+        val varselInstruksDAO = VarselInstruksDAO(testDb)
+        val documentDAO = DocumentDAO(testDb, varselInstruksDAO)
         val documentContentDAO = DocumentContentDAO(testDb)
         val dialogDAO = DialogDAO(testDb)
         beforeTest {

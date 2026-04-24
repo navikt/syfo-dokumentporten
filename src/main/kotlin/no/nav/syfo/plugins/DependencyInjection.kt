@@ -87,12 +87,10 @@ private fun databaseModule() = module {
             )
         )
     }
-    single {
-        DocumentDAO(get())
-    }
+    single { VarselInstruksDAO(get()) }
+    single { DocumentDAO(get(), get()) }
     single { DialogDAO(get()) }
     single { DocumentContentDAO(get()) }
-    single { VarselInstruksDAO(get()) }
 }
 
 private fun valkeyModule() = module {
