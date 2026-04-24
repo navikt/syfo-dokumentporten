@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Syfo-dokumentporten API
-  version: 1.1.1
+  version: 1.1.2
   description: |
     Public API for interacting with Syfo-Dokumentporten(Formerly Arkivporten) documents.
     
@@ -325,6 +325,8 @@ components:
         summary:
           type: string
           description: Summary shown in dialog.
+        varselInstruks:
+          $ref: '#/components/schemas/VarselInstruks'
       required:
         - documentId
         - type
@@ -334,6 +336,48 @@ components:
         - orgNumber
         - title
         - summary
+      additionalProperties: false
+    VarselInstruks:
+      type: object
+      description: Instruks for varsling av arbeidsgiver via Altinn 3-ressurs.
+      properties:
+        type:
+          type: string
+          description: Type hendelse for varselet.
+          enum: [ AG_VARSEL_ALTINN_RESSURS ]
+        notifikasjonInnhold:
+          $ref: '#/components/schemas/NotifikasjonInnhold'
+        ressursId:
+          type: string
+          description: Altinn 3 ressurs-id, f.eks. "nav_syfo_dialogmote".
+        ressursUrl:
+          type: string
+          format: uri
+          description: Dyplenke til Altinn-visning for varselet.
+        kilde:
+          type: string
+          description: Identifikator for kildesystemet som sender instruksen, f.eks. "dokumentporten.dialogmote".
+      required:
+        - type
+        - notifikasjonInnhold
+        - ressursId
+        - ressursUrl
+        - kilde
+      additionalProperties: false
+    NotifikasjonInnhold:
+      type: object
+      description: Tekstinnhold for notifikasjon til arbeidsgiver (e-post og SMS).
+      properties:
+        epostTittel:
+          type: string
+        epostBody:
+          type: string
+        smsTekst:
+          type: string
+      required:
+        - epostTittel
+        - epostBody
+        - smsTekst
       additionalProperties: false
     DocumentPage:
       type: object

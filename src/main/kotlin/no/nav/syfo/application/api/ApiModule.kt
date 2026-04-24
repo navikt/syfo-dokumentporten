@@ -39,7 +39,14 @@ fun Application.configureRouting() {
     routing {
         registerPodApi(applicationState, database)
         registerMetricApi()
-        registerApiV1(texasClient, documentDAO, documentContentDAO, dialogDAO, validationService, dialogService)
+        registerApiV1(
+            texasClient,
+            documentDAO,
+            documentContentDAO,
+            dialogDAO,
+            validationService,
+            dialogService,
+        )
         staticResources("/openapi", "openapi")
         swaggerUI(path = "swagger", swaggerFile = "openapi/documentation.yaml")
         if (!isProdEnv()) {
