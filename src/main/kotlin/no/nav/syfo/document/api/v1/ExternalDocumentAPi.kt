@@ -11,6 +11,7 @@ import io.ktor.server.routing.route
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.Principal
 import no.nav.syfo.application.auth.SystemPrincipal
+import no.nav.syfo.application.isProdEnv
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.Page
@@ -21,7 +22,6 @@ import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.logger
 import org.slf4j.Logger
 import java.time.Instant
-import no.nav.syfo.application.isProdEnv
 
 fun Route.registerExternalApiV1(
     documentDAO: DocumentDAO,

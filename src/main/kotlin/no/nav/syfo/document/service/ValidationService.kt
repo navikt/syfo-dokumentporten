@@ -94,7 +94,9 @@ class ValidationService(
                 errorMessage,
             )
             if (!isProdEnv()) {
-                logger.warn("Orgtree found in ereg for requested orgnumber $requestedOrgNumber: ${organisasjon.aggregerOrgnummereFraHierarki()}")
+                logger.warn(
+                    "Orgtree found in ereg for requested orgnumber $requestedOrgNumber: ${organisasjon.aggregerOrgnummereFraHierarki()}"
+                )
             }
             throw ApiErrorException.ForbiddenException(errorMessage)
         }
