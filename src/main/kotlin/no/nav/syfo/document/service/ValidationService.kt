@@ -27,13 +27,13 @@ class ValidationService(
         when (principal) {
             is BrukerPrincipal -> validateAltTilgang(
                 principal,
-                documentEntity.dialog.orgNumber,
+                setOf(documentEntity.dialog.orgNumber),
                 documentEntity.type
             )
 
             is SystemPrincipal -> validateMaskinportenTilgang(
                 principal,
-                documentEntity.dialog.orgNumber,
+                setOf(documentEntity.dialog.orgNumber),
                 documentEntity.type
             )
         }
@@ -41,7 +41,7 @@ class ValidationService(
 
     suspend fun validateDocumentsOfTypeAccess(
         principal: Principal,
-        requestedOrgNumber: String,
+        requestedOrgNumber: Set<String>,
         documentType: DocumentType,
     ) {
         when (principal) {
@@ -61,26 +61,26 @@ class ValidationService(
 
     private suspend fun validateAltTilgang(
         principal: BrukerPrincipal,
-        requestedOrgNumber: String,
+        requestedOrgNumbers: Set<String>,
         documentType: DocumentType
     ) {
         altinnTilgangerService.validateTilgangToOrganisasjon(
             principal,
-            requestedOrgNumber,
+            requestedOrgNumbers,
             documentType
         )
     }
 
     suspend fun validateMaskinportenTilgang(
         principal: SystemPrincipal,
-        requestedOrgNumber: String,
+        requestedOrgNumbers: Set<String>,
         documentType: DocumentType
     ) {
         val orgNumberFromToken = maskinportenIdToOrgnumber(principal.ident)
-        if (orgNumberFromToken != requestedOrgNumber) {
-            validateHierarchicalEeregAccess(requestedOrgNumber, orgNumberFromToken)
+        if (orgNumberFromToken != requestedOrgNumbers.firstOrNull()) {
+            validateHierarchicalEeregAccess(requestedOrgNumbers.firstOrNull() ?: "", orgNumberFromToken)
         }
-        validateAltinnRessursTilgang(principal, documentType)
+        validateAltinnRessursTilgang(principal, documentType, requestedOrgNumbers)
     }
 
     private suspend fun validateHierarchicalEeregAccess(requestedOrgNumber: String, orgNumberFromToken: String) {
@@ -95,19 +95,24 @@ class ValidationService(
         }
     }
 
-    private suspend fun validateAltinnRessursTilgang(principal: SystemPrincipal, documentType: DocumentType) {
+    private suspend fun validateAltinnRessursTilgang(
+        principal: SystemPrincipal,
+        documentType: DocumentType,
+        requestedOrgNumbers: Set<String>
+    ) {
         val requiredRessurs = requiredResourceByDocumentType[documentType]
             ?: throw ApiErrorException.InternalServerErrorException(
                 "Could not find resource for document type $documentType"
             )
 
         val hasAccess = pdpService.hasAccessToResource(
-            System(principal.systemUserId),
-            setOf(
-                maskinportenIdToOrgnumber(principal.ident),
-                maskinportenIdToOrgnumber(principal.systemOwner)
-            ),
-            requiredRessurs
+            bruker = System(principal.systemUserId),
+//            orgnrSet = setOf(
+//                maskinportenIdToOrgnumber(principal.ident),
+//                maskinportenIdToOrgnumber(principal.systemOwner)
+//            ),
+            orgnrSet = requestedOrgNumbers,
+            ressurs = requiredRessurs
         )
         if (!hasAccess) {
             throw ApiErrorException.ForbiddenException(

@@ -100,7 +100,7 @@ class ValidationServiceTest :
                         // Act & Assert - should not throw exception
                         validationService.validateMaskinportenTilgang(
                             systemPrincipal,
-                            documentEntity.dialog.orgNumber,
+                            setOf(documentEntity.dialog.orgNumber),
                             documentEntity.type
                         )
                         coVerify(exactly = 0) {
@@ -160,7 +160,7 @@ class ValidationServiceTest :
                             // Act & Assert - should not throw exception
                             validationService.validateMaskinportenTilgang(
                                 systemPrincipal,
-                                entity.dialog.orgNumber,
+                                setOf(entity.dialog.orgNumber),
                                 entity.type
                             )
 
@@ -195,7 +195,7 @@ class ValidationServiceTest :
                             shouldThrow<ApiErrorException.ForbiddenException> {
                                 validationService.validateMaskinportenTilgang(
                                     systemPrincipal,
-                                    entity.dialog.orgNumber,
+                                    setOf(entity.dialog.orgNumber),
                                     entity.type,
                                 )
                             }
@@ -225,7 +225,7 @@ class ValidationServiceTest :
                             val exception = shouldThrow<ApiErrorException.ForbiddenException> {
                                 validationService.validateMaskinportenTilgang(
                                     systemPrincipal,
-                                    entity.dialog.orgNumber,
+                                    setOf(entity.dialog.orgNumber),
                                     entity.type,
                                 )
                             }

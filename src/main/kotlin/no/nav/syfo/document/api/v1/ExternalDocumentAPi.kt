@@ -43,7 +43,7 @@ fun Route.registerExternalApiV1(
 
             validationService.validateDocumentsOfTypeAccess(
                 principal = principal,
-                requestedOrgNumber = orgNumber,
+                requestedOrgNumber = setOf(orgNumber),
                 documentType = documentType,
             )
 

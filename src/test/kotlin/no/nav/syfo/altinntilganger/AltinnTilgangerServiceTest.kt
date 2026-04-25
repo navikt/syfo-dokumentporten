@@ -29,7 +29,7 @@ class AltinnTilgangerServiceTest :
                 shouldThrow<ApiErrorException.ForbiddenException> {
                     altinnTilgangerService.validateTilgangToOrganisasjon(
                         brukerPrincipal,
-                        orgnummer,
+                        setOf(orgnummer),
                         DocumentType.OPPFOLGINGSPLAN
                     )
                 }
@@ -41,7 +41,7 @@ class AltinnTilgangerServiceTest :
                 shouldNotThrow<Exception> {
                     altinnTilgangerService.validateTilgangToOrganisasjon(
                         brukerPrincipal,
-                        accessPair.second,
+                        setOf(accessPair.second),
                         DocumentType.OPPFOLGINGSPLAN
                     )
                 }
@@ -57,7 +57,7 @@ class AltinnTilgangerServiceTest :
                 shouldThrow<ApiErrorException.InternalServerErrorException> {
                     altinnTilgangerServiceWithMock.validateTilgangToOrganisasjon(
                         brukerPrincipal,
-                        accessPair.second,
+                        setOf(accessPair.second),
                         DocumentType.OPPFOLGINGSPLAN
                     )
                 }
