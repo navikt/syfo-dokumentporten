@@ -34,7 +34,7 @@ fun Route.registerExternalApiV1(
             client = texasClient
         }
         get {
-            val orgNumber = call.getOrgNumber()
+            val orgNumbers = call.getOrgNumbers()
             val isRead = call.queryParameters["isRead"]?.toBoolean()
             val documentType = call.queryParameters.extractDocumentTypeParameter("documentType")
             val pageSize = call.getPageSize()
@@ -43,12 +43,12 @@ fun Route.registerExternalApiV1(
 
             validationService.validateDocumentsOfTypeAccess(
                 principal = principal,
-                requestedOrgNumber = setOf(orgNumber),
+                requestedOrgNumber = orgNumbers,
                 documentType = documentType,
             )
 
             val documentPage = documentDAO.findDocumentsByParameters(
-                orgnumber = orgNumber,
+                orgnumber = orgNumbers.firstOrNull(),
                 isRead = isRead,
                 type = documentType,
                 pageSize = pageSize ?: Page.DEFAULT_PAGE_SIZE,

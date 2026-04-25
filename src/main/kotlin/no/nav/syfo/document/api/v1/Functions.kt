@@ -58,8 +58,8 @@ fun RoutingCall.getCreatedAfter(): Instant {
 fun RoutingCall.getPageSize(): Int? = this.queryParameters["pageSize"]
     ?.toIntOrNull()
 
-fun RoutingCall.getOrgNumber(): String =
-    queryParameters["orgNumber"] ?: throw BadRequestException("Missing parameter: orgNumber")
+fun RoutingCall.getOrgNumbers(): Set<String> =
+    queryParameters["orgNumber"]?.split(",")?.toSet() ?: throw BadRequestException("Missing parameter: orgNumber")
 
 suspend inline fun <reified T : Any> RoutingCall.tryReceive() = runCatching { receive<T>() }.getOrElse {
     when {
