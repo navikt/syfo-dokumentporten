@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 data class PdpRequest(val request: XacmlJsonRequestExternal,) {
     data class XacmlJsonRequestExternal(
         val returnPolicyIdList: Boolean,
+        val combinedDecision: Boolean,
         val accessSubject: List<XacmlJsonCategoryExternal>,
         val action: List<XacmlJsonCategoryExternal>,
         val resource: List<XacmlJsonCategoryExternal>,
@@ -27,6 +28,7 @@ fun lagPdpRequest(bruker: Bruker, orgnrSet: Set<String>, ressurs: String,) = Pdp
     request =
     PdpRequest.XacmlJsonRequestExternal(
         returnPolicyIdList = true,
+        combinedDecision = false,
         accessSubject =
         listOf(
             PdpRequest.XacmlJsonCategoryExternal(
