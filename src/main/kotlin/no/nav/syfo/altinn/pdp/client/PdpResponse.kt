@@ -1,8 +1,10 @@
 package no.nav.syfo.altinn.pdp.client
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import no.nav.syfo.util.logger
 
 val logger = logger("PDPResponse")
+
 data class PdpResponse(val response: List<DecisionResult>)
 
 data class DecisionResult(
@@ -66,8 +68,8 @@ data class PolicyReference(val id: String? = null, val version: String? = null)
 // fun PdpResponse.resultat() = response.first().decision
 
 fun PdpResponse.harTilgang(): Boolean {
-
-    logger.info("PDP response unfiltered response=$response")
+    val objectMapper = ObjectMapper()
+    logger.info("PDP response unfiltered response=${objectMapper.writeValueAsString(response)}")
     val failed = response.filterNot { it.decision == Decision.Permit }
     if (failed.isNotEmpty()) {
 //        logger.info("PDP response har ikke tilgang: response=$response")
