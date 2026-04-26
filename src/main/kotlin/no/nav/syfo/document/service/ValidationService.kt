@@ -77,9 +77,9 @@ class ValidationService(
         documentType: DocumentType
     ) {
         val orgNumberFromToken = maskinportenIdToOrgnumber(principal.ident)
-        if (orgNumberFromToken != requestedOrgNumbers.firstOrNull()) {
-            validateHierarchicalEeregAccess(requestedOrgNumbers.firstOrNull() ?: "", orgNumberFromToken)
-        }
+//        if (orgNumberFromToken != requestedOrgNumbers.firstOrNull()) {
+//            validateHierarchicalEeregAccess(requestedOrgNumbers.firstOrNull() ?: "", orgNumberFromToken)
+//        }
         validateAltinnRessursTilgang(principal, documentType, requestedOrgNumbers)
     }
 
