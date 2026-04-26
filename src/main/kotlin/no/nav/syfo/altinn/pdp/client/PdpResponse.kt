@@ -66,9 +66,11 @@ data class PolicyReference(val id: String? = null, val version: String? = null)
 // fun PdpResponse.resultat() = response.first().decision
 
 fun PdpResponse.harTilgang(): Boolean {
+
+    logger.info("PDP response unfiltered response=$response")
     val failed = response.filterNot { it.decision == Decision.Permit }
     if (failed.isNotEmpty()) {
-        logger.info("PDP response har ikke tilgang: response=$response")
+//        logger.info("PDP response har ikke tilgang: response=$response")
         return false
     }
     return true
