@@ -5,7 +5,7 @@ import kotlinx.serialization.json.Json
 data class PdpRequest(val request: XacmlJsonRequestExternal) {
     data class XacmlJsonRequestExternal(
         val returnPolicyIdList: Boolean,
-        val combinedDecision: Boolean = true,
+        val combinedDecision: Boolean = false,
         val accessSubject: List<XacmlJsonCategoryExternal>,
         val action: List<XacmlJsonCategoryExternal>,
         val resource: List<XacmlJsonCategoryExternal>,
