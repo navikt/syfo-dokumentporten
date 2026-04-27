@@ -34,11 +34,17 @@ fun Parameters.extractAndValidateUUIDParameter(name: String): UUID {
 fun Parameters.extractDocumentTypeParameter(name: String): DocumentType {
     val parameter = get(name) ?: throw BadRequestException("Missing parameter: $name")
 
-    return try {
+    val type = try {
         DocumentType.valueOf(parameter)
     } catch (e: IllegalArgumentException) {
         throw ParameterConversionException("documentType", "DocumentType", e)
     }
+
+    if (type == DocumentType.UNDEFINED) {
+        throw BadRequestException("Unsupported document type: $parameter")
+    }
+
+    return type
 }
 
 fun RoutingCall.getRequiredQueryParameter(name: String): String =

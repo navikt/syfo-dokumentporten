@@ -35,7 +35,7 @@ fun Route.registerInternalDocumentsApiV1(
             }
 
             runCatching {
-                val altinnResource = documentConfig.get(document.type).altinnResource
+                val altinnResource = documentTypeConfig.altinnResource
                 val existingDialog = dialogService.getAndUpdateDialogByFnrAndOrgNumber(document.fnr, document.orgNumber)
                     ?: dialogService.insertDialog(document)
 
