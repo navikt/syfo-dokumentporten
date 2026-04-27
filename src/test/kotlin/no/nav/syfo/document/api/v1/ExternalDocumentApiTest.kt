@@ -44,7 +44,6 @@ import no.nav.syfo.document.db.Page
 import no.nav.syfo.document.db.PersistedDocumentEntity
 import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.document.service.ValidationService
-import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.FakeEregClient
 import no.nav.syfo.pdl.PdlService
 import no.nav.syfo.pdl.client.FakePdlClient
@@ -61,13 +60,10 @@ class ExternalDocumentApiTest :
         val documentContentDAO = mockk<DocumentContentDAO>(relaxed = true)
         val dialogDAO = mockk<DialogDAO>()
         val fakeAltinnTilgangerClient = FakeAltinnTilgangerClient()
-        val fakeEregClient = FakeEregClient()
         val eregCache = mockk<EregCache>(relaxed = true)
-        val eregService = EregService(fakeEregClient, eregCache)
-        val eregServiceSpy = spyk(eregService)
         val pdpServiceMock = mockk<PdpService>()
         val validationService =
-            ValidationService(AltinnTilgangerService(fakeAltinnTilgangerClient), eregServiceSpy, pdpServiceMock)
+            ValidationService(AltinnTilgangerService(fakeAltinnTilgangerClient), pdpServiceMock)
         val validationServiceSpy = spyk(validationService)
         val fakePdlClient = FakePdlClient()
         val pdlService = PdlService(fakePdlClient)
@@ -114,39 +110,9 @@ class ExternalDocumentApiTest :
         }
         describe("GET /documents") {
             describe("Maskinporten token") {
-                it("should return 200 OK for authorized token") {
-                    withTestApplication {
-                        // Arrange
-                        val document = documentEntity(dialogEntity())
-                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
-                        coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
-                        texasClientMock.defaultMocks(
-                            systemBrukerOrganisasjon = DefaultOrganization.copy(
-                                ID = "0192:${document.dialog.orgNumber}"
-                            ),
-                            scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
-                        )
-                        // Act
-                        val response = client.get("api/v1/documents/${document.linkId}") {
-                            bearerAuth(createMockToken(ident = document.dialog.orgNumber))
-                        }
-
-                        // Assert
-                        response.status shouldBe HttpStatusCode.OK
-                        response.headers["Content-Type"] shouldBe document.contentType
-                        coVerify(exactly = 1) {
-                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
-                        }
-                        coVerify(exactly = 1) {
-                            documentDAO.update(
-                                match {
-                                    it.isRead == true
-                                }
-                            )
-                        }
-                    }
-                }
-                it("should return 200 OK for authorized token for the new scope") {
+                it(
+                    "Should defer token validation to validationService and should return 200 OK when validationService accepts token"
+                ) {
                     withTestApplication {
                         // Arrange
                         val document = documentEntity(dialogEntity())
@@ -169,76 +135,12 @@ class ExternalDocumentApiTest :
                         coVerify(exactly = 1) {
                             validationServiceSpy.validateDocumentAccess(any(), eq(document))
                         }
-                    }
-                }
-
-                it("should return 200 OK for authorized token from parent org unit") {
-                    withTestApplication {
-                        // Arrange
-                        val organization = organisasjon()
-                        val document = documentEntity(dialogEntity().copy(orgNumber = organization.organisasjonsnummer))
-                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
-                        coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
-                        texasClientMock.defaultMocks(
-                            systemBrukerOrganisasjon = DefaultOrganization.copy(
-                                ID = "0192:${organization.inngaarIJuridiskEnheter!!.first().organisasjonsnummer}"
-                            ),
-                            scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
-                        )
-                        fakeEregClient.organisasjoner[document.dialog.orgNumber] = organization
-                        // Act
-                        val response = client.get("api/v1/documents/${document.linkId}") {
-                            bearerAuth(
-                                createMockToken(
-                                    ident = organization.inngaarIJuridiskEnheter.first().organisasjonsnummer
-                                )
-                            )
-                        }
-
-                        // Assert
-                        response.status shouldBe HttpStatusCode.OK
-                        response.headers["Content-Type"] shouldBe document.contentType
-                        coVerify(exactly = 1) {
-                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
-                        }
                         coVerify(exactly = 1) {
                             documentDAO.update(
                                 match {
                                     it.isRead == true
                                 }
                             )
-                        }
-                    }
-                }
-
-                it("should return 200 OK for authorized token from parent org unit with new name") {
-                    withTestApplication {
-                        // Arrange
-                        val organization = organisasjon()
-                        val document = documentEntity(dialogEntity().copy(orgNumber = organization.organisasjonsnummer))
-                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
-                        coEvery { documentContentDAO.getDocumentContentById(eq(document.id)) } returns documentContent()
-                        texasClientMock.defaultMocks(
-                            systemBrukerOrganisasjon = DefaultOrganization.copy(
-                                ID = "0192:${organization.inngaarIJuridiskEnheter!!.first().organisasjonsnummer}"
-                            ),
-                            scope = MASKINPORTEN_SYFO_DOKUMENTPORTEN_SCOPE,
-                        )
-                        fakeEregClient.organisasjoner[document.dialog.orgNumber] = organization
-                        // Act
-                        val response = client.get("api/v1/documents/${document.linkId}") {
-                            bearerAuth(
-                                createMockToken(
-                                    ident = organization.inngaarIJuridiskEnheter.first().organisasjonsnummer
-                                )
-                            )
-                        }
-
-                        // Assert
-                        response.status shouldBe HttpStatusCode.OK
-                        response.headers["Content-Type"] shouldBe document.contentType
-                        coVerify(exactly = 1) {
-                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
                         }
                     }
                 }
@@ -250,13 +152,20 @@ class ExternalDocumentApiTest :
                         val organization = organisasjon()
                         val document = documentEntity(dialogEntity().copy(orgNumber = organization.organisasjonsnummer))
                         coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
+
+                        coEvery {
+                            pdpServiceMock.hasAccessToResource(
+                                any(),
+                                setOf(document.dialog.orgNumber),
+                                any()
+                            )
+                        } returns false
                         texasClientMock.defaultMocks(
                             systemBrukerOrganisasjon = DefaultOrganization.copy(
                                 ID = "0192:$nonMatchingOrgNumber" // Different orgnumber
                             ),
                             scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
                         )
-                        fakeEregClient.organisasjoner[document.dialog.orgNumber] = organization
                         // Act
                         val response = client.get("api/v1/documents/${document.linkId}") {
                             bearerAuth(createMockToken(ident = nonMatchingOrgNumber))
@@ -655,12 +564,16 @@ class ExternalDocumentApiTest :
                     withTestApplication {
                         // Arrange
                         val requestedOrgNumber = "123456789"
+
+                        coEvery {
+                            pdpServiceMock.hasAccessToResource(
+                                any(),
+                                setOf(requestedOrgNumber),
+                                any()
+                            )
+                        } returns false
                         val tokenOrgNumber = "987654321"
                         // Add the requested org to the fake client so it's found, but without parent relationship
-                        fakeEregClient.organisasjoner[requestedOrgNumber] = organisasjon().copy(
-                            organisasjonsnummer = requestedOrgNumber,
-                            inngaarIJuridiskEnheter = emptyList() // No parent relationship to tokenOrgNumber
-                        )
                         texasClientMock.defaultMocks(
                             systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:$tokenOrgNumber"),
                             scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
