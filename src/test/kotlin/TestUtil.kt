@@ -27,9 +27,9 @@ import java.util.*
 
 val faker = Faker(Random(Instant.now().epochSecond))
 
-fun document(varselInstruks: VarselInstruks? = null) = Document(
+fun document(varselInstruks: VarselInstruks? = null, type: DocumentType = DocumentType.DIALOGMOTE) = Document(
     documentId = UUID.randomUUID(),
-    type = DocumentType.DIALOGMOTE,
+    type = type,
     content = faker.lorem().sentence().toByteArray(),
     contentType = "application/pdf",
     fnr = faker.numerify("###########"),
