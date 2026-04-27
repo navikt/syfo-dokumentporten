@@ -1,10 +1,5 @@
 package no.nav.syfo.altinn.pdp.client
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import no.nav.syfo.util.logger
-
-val logger = logger("PDPResponse")
-
 data class PdpResponse(val response: List<DecisionResult>)
 
 data class DecisionResult(
@@ -67,13 +62,23 @@ data class PolicyReference(val id: String? = null, val version: String? = null)
 
 // fun PdpResponse.resultat() = response.first().decision
 
-fun PdpResponse.harTilgang(): Boolean {
-    val objectMapper = ObjectMapper()
-    logger.info("PDP response unfiltered response=${objectMapper.writeValueAsString(response)}")
-    val failed = response.filterNot { it.decision == Decision.Permit }
-    if (failed.isNotEmpty()) {
-//        logger.info("PDP response har ikke tilgang: response=$response")
+fun PdpResponse.harTilgang(orgnrSet: Set<String>): Boolean {
+    if (orgnrSet.isEmpty()) {
         return false
     }
-    return true
+    val beslutningPerOrgnr = decisionByOrgnr()
+    if (response.size != orgnrSet.size || beslutningPerOrgnr.keys != orgnrSet) {
+        return false
+    }
+    return orgnrSet.all { orgnr -> beslutningPerOrgnr[orgnr] == Decision.Permit }
 }
+
+fun PdpResponse.decisionByOrgnr(): Map<String, Decision> = response.mapNotNull { decisionResult ->
+    decisionResult.orgnr()?.let { orgnr -> orgnr to decisionResult.decision }
+}.toMap()
+
+private fun DecisionResult.orgnr(): String? = category
+    .orEmpty()
+    .flatMap { it.attribute.orEmpty() }
+    .firstOrNull { it.attributeId == ALTINN_ORGANIZATION_IDENTIFIER_ATTRIBUTE_ID }
+    ?.value
