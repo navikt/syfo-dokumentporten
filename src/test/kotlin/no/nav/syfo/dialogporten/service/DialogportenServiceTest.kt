@@ -19,6 +19,7 @@ import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentStatus
 import no.nav.syfo.pdl.PdlPersonInfo
 import no.nav.syfo.pdl.PdlService
+import testDocumentConfig
 import java.time.LocalDate
 import java.util.UUID
 
@@ -29,6 +30,7 @@ class DialogportenServiceTest :
         val documentDAO = mockk<DocumentDAO>()
         val publicIngressUrl = "https://test.nav.no"
         val dialogDao = mockk<no.nav.syfo.document.db.DialogDAO>()
+        val documentConfig = testDocumentConfig()
 
         val dialogportenService = DialogportenService(
             dialogportenClient = dialogportenClient,
@@ -36,7 +38,8 @@ class DialogportenServiceTest :
             publicIngressUrl = publicIngressUrl,
             dialogportenIsApiOnly = true,
             dialogDAO = dialogDao,
-            pdlService = pdlService
+            pdlService = pdlService,
+            documentConfig = documentConfig,
         )
 
         beforeTest {
@@ -106,7 +109,8 @@ class DialogportenServiceTest :
                     capturedDialog.transmissions.size shouldBe 1
                     capturedDialog.transmissions.first().externalReference shouldBe documentEntity.documentId.toString()
                     capturedDialog.transmissions.first().attachments.first()
-                        .displayName.first().value shouldBe "${documentEntity.type.displayName}.pdf"
+                        .displayName.first().value shouldBe
+                        "${documentConfig.get(documentEntity.type).displayName}.pdf"
                 }
 
                 it("should send document to dialogporten with addTransmission and update status to COMPLETED") {
@@ -147,7 +151,8 @@ class DialogportenServiceTest :
                     capturedTransmission.content.summary?.value?.first()?.value shouldBe documentEntity.summary
                     capturedTransmission.attachments.size shouldBe 1
                     capturedTransmission.attachments.first()
-                        .displayName.first().value shouldBe "${documentEntity.type.displayName}.pdf"
+                        .displayName.first().value shouldBe
+                        "${documentConfig.get(documentEntity.type).displayName}.pdf"
                 }
             }
 
@@ -245,7 +250,8 @@ class DialogportenServiceTest :
                     val capturedDialog = dialogSlot.captured
                     capturedDialog.transmissions.first()
                         .attachments.first()
-                        .displayName.first().value shouldBe "${documentEntity.type.displayName}.json"
+                        .displayName.first().value shouldBe
+                        "${documentConfig.get(documentEntity.type).displayName}.json"
                 }
             }
 
@@ -265,7 +271,7 @@ class DialogportenServiceTest :
 
                     // Assert
                     val capturedDialog = dialogSlot.captured
-                    capturedDialog.serviceResource shouldBe "urn:altinn:resource:nav_syfo_dialog"
+                    capturedDialog.serviceResource shouldBe "urn:altinn:resource:${documentConfig.dialogRessurs}"
                 }
             }
 

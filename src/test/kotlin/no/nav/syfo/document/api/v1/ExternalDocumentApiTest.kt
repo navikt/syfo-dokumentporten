@@ -53,6 +53,7 @@ import no.nav.syfo.texas.MASKINPORTEN_ARKIVPORTEN_SCOPE
 import no.nav.syfo.texas.MASKINPORTEN_SYFO_DOKUMENTPORTEN_SCOPE
 import no.nav.syfo.texas.client.TexasClient
 import organisasjon
+import testDocumentConfig
 
 class ExternalDocumentApiTest :
     DescribeSpec({
@@ -60,18 +61,23 @@ class ExternalDocumentApiTest :
         val documentDAO = mockk<DocumentDAO>(relaxed = true)
         val documentContentDAO = mockk<DocumentContentDAO>(relaxed = true)
         val dialogDAO = mockk<DialogDAO>()
-        val fakeAltinnTilgangerClient = FakeAltinnTilgangerClient()
+        val documentConfig = testDocumentConfig()
+        val fakeAltinnTilgangerClient = FakeAltinnTilgangerClient(documentConfig)
         val fakeEregClient = FakeEregClient()
         val eregCache = mockk<EregCache>(relaxed = true)
         val eregService = EregService(fakeEregClient, eregCache)
         val eregServiceSpy = spyk(eregService)
         val pdpServiceMock = mockk<PdpService>()
-        val validationService =
-            ValidationService(AltinnTilgangerService(fakeAltinnTilgangerClient), eregServiceSpy, pdpServiceMock)
+        val validationService = ValidationService(
+            AltinnTilgangerService(fakeAltinnTilgangerClient, documentConfig),
+            eregServiceSpy,
+            pdpServiceMock,
+            documentConfig,
+        )
         val validationServiceSpy = spyk(validationService)
         val fakePdlClient = FakePdlClient()
         val pdlService = PdlService(fakePdlClient)
-        val dialogService = DialogService(dialogDAO, pdlService)
+        val dialogService = DialogService(dialogDAO, pdlService, documentConfig)
         val tokenXIssuer = "https://tokenx.nav.no"
         val idportenIssuer = "https://test.idporten.no"
 
@@ -106,6 +112,7 @@ class ExternalDocumentApiTest :
                             dialogDAO = dialogDAO,
                             validationService = validationServiceSpy,
                             dialogService = dialogService,
+                            documentConfig = documentConfig,
                         )
                     }
                 }

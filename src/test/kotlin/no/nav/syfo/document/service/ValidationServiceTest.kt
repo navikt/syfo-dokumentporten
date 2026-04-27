@@ -16,13 +16,20 @@ import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.application.exception.ApiErrorException
 import no.nav.syfo.ereg.EregService
 import organisasjon
+import testDocumentConfig
 
 class ValidationServiceTest :
     DescribeSpec({
         val altinnTilgangerService = mockk<AltinnTilgangerService>()
         val eregService = mockk<EregService>()
         val pdpServiceMock = mockk<PdpService>()
-        val validationService = ValidationService(altinnTilgangerService, eregService, pdpServiceMock)
+        val documentConfig = testDocumentConfig()
+        val validationService = ValidationService(
+            altinnTilgangerService,
+            eregService,
+            pdpServiceMock,
+            documentConfig,
+        )
 
         val documentEntity = documentEntity(dialogEntity())
         beforeTest {

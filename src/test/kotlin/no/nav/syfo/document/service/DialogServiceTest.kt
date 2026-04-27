@@ -16,6 +16,7 @@ import no.nav.syfo.document.db.DialogEntity
 import no.nav.syfo.document.db.PersistedDialogEntity
 import no.nav.syfo.pdl.PdlPersonInfo
 import no.nav.syfo.pdl.PdlService
+import testDocumentConfig
 import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
@@ -24,7 +25,7 @@ class DialogServiceTest :
     DescribeSpec({
         val dialogDAO = mockk<DialogDAO>()
         val pdlService = mockk<PdlService>()
-        val dialogService = DialogService(dialogDAO, pdlService)
+        val dialogService = DialogService(dialogDAO, pdlService, testDocumentConfig())
 
         beforeTest {
             clearAllMocks()

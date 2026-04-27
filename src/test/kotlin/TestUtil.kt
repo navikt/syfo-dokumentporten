@@ -8,6 +8,7 @@ import io.ktor.http.fullPath
 import io.ktor.http.isSuccess
 import io.mockk.coEvery
 import net.datafaker.Faker
+import no.nav.syfo.application.DocumentConfig
 import no.nav.syfo.application.auth.JwtIssuer
 import no.nav.syfo.document.api.v1.dto.Document
 import no.nav.syfo.document.api.v1.dto.DocumentType
@@ -39,6 +40,26 @@ fun document(varselInstruks: VarselInstruks? = null) = Document(
     summary = faker.lorem().sentence(),
     birthDate = null,
     varselInstruks = varselInstruks,
+)
+
+fun testDocumentConfig() = DocumentConfig(
+    dialogRessurs = "nav_syfo_dialog",
+    dialogSummaryTemplate = (
+        "Her finner du dokumenter fra Nav for {name}. " +
+            "Innholdet er tilgjengelig i 4 måneder fra delingsdatoen."
+        ),
+    documents = mapOf(
+        DocumentType.DIALOGMOTE to DocumentConfig.DocumentTypeDetails(
+            displayName = "Dialogmøte",
+            altinnResource = "nav_syfo_dialogmote",
+            supportVarsel = true,
+        ),
+        DocumentType.OPPFOLGINGSPLAN to DocumentConfig.DocumentTypeDetails(
+            displayName = "Oppfølgingsplan",
+            altinnResource = "nav_syfo_oppfolgingsplan",
+            supportVarsel = false,
+        ),
+    ),
 )
 
 fun varselInstruks(

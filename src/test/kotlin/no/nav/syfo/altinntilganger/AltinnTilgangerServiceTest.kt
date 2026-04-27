@@ -11,11 +11,13 @@ import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.exception.ApiErrorException
 import no.nav.syfo.application.exception.UpstreamRequestException
 import no.nav.syfo.document.api.v1.dto.DocumentType
+import testDocumentConfig
 
 class AltinnTilgangerServiceTest :
     DescribeSpec({
-        val altinnTilgangerClient = FakeAltinnTilgangerClient()
-        val altinnTilgangerService = AltinnTilgangerService(altinnTilgangerClient)
+        val documentConfig = testDocumentConfig()
+        val altinnTilgangerClient = FakeAltinnTilgangerClient(documentConfig)
+        val altinnTilgangerService = AltinnTilgangerService(altinnTilgangerClient, documentConfig)
 
         beforeTest {
             clearAllMocks()
@@ -51,7 +53,10 @@ class AltinnTilgangerServiceTest :
                 val mockAltinnTilgangerClient = mockk<FakeAltinnTilgangerClient>()
                 coEvery { mockAltinnTilgangerClient.hentTilganger(any()) } throws
                     UpstreamRequestException("Forced failure")
-                val altinnTilgangerServiceWithMock = AltinnTilgangerService(mockAltinnTilgangerClient)
+                val altinnTilgangerServiceWithMock = AltinnTilgangerService(
+                    mockAltinnTilgangerClient,
+                    documentConfig,
+                )
                 val accessPair = altinnTilgangerClient.usersWithAccess.first()
                 val brukerPrincipal = BrukerPrincipal(accessPair.first, "token")
                 shouldThrow<ApiErrorException.InternalServerErrorException> {

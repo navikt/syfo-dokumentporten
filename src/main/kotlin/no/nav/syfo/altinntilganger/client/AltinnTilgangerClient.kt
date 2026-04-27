@@ -17,9 +17,7 @@ interface IAltinnTilgangerClient {
     suspend fun hentTilganger(bruker: BrukerPrincipal,): AltinnTilgangerResponse?
 }
 
-class FakeAltinnTilgangerClient(
-    private val documentConfig: DocumentConfig,
-) : IAltinnTilgangerClient {
+class FakeAltinnTilgangerClient(private val documentConfig: DocumentConfig,) : IAltinnTilgangerClient {
     val usersWithAccess = hasAccess.toMutableList()
     override suspend fun hentTilganger(bruker: BrukerPrincipal,): AltinnTilgangerResponse {
         val faker = Faker(Random(bruker.ident.toLong()))

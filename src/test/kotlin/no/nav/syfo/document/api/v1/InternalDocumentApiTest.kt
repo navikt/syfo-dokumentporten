@@ -32,6 +32,7 @@ import io.mockk.slot
 import no.nav.syfo.TestDB
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
+import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.api.v1.dto.VarselInstruks
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
@@ -42,6 +43,7 @@ import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.pdl.PdlService
 import no.nav.syfo.registerApiV1
 import no.nav.syfo.texas.client.TexasClient
+import testDocumentConfig
 import varselInstruks
 
 class InternalDocumentApiTest :
@@ -51,6 +53,7 @@ class InternalDocumentApiTest :
         val dialogDAOMock = mockk<DialogDAO>()
         val documentContentDAOMock = mockk<DocumentContentDAO>()
         val pdlService = mockk<PdlService>()
+        val documentConfig = testDocumentConfig()
         beforeTest {
             clearAllMocks()
             TestDB.clearAllData()
@@ -77,7 +80,8 @@ class InternalDocumentApiTest :
                             documentContentDAOMock,
                             dialogDAOMock,
                             validationService = mockk<ValidationService>(),
-                            dialogService = DialogService(dialogDAOMock, pdlService),
+                            dialogService = DialogService(dialogDAOMock, pdlService, documentConfig),
+                            documentConfig = documentConfig,
                         )
                     }
                 }
@@ -90,12 +94,18 @@ class InternalDocumentApiTest :
                     // Arrange
                     val capturedSlot = slot<DocumentEntity>()
                     val capturedContent = slot<ByteArray>()
+                    val capturedAltinnResource = slot<String>()
                     val existingDialog = dialogEntity()
                     coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
                     coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns
                         existingDialog
                     coEvery {
-                        documentDAOMock.insert(capture(capturedSlot), capture(capturedContent), any())
+                        documentDAOMock.insert(
+                            capture(capturedSlot),
+                            capture(capturedContent),
+                            capture(capturedAltinnResource),
+                            any(),
+                        )
                     } returns
                         documentEntity(dialogEntity())
                     texasClientMock.defaultMocks()
@@ -113,11 +123,12 @@ class InternalDocumentApiTest :
                     response.status shouldBe HttpStatusCode.OK
                     // Verify that the document was inserted into the database
                     coVerify(exactly = 1) {
-                        documentDAOMock.insert(any(), any(), any())
+                        documentDAOMock.insert(any(), any(), any(), any())
                         capturedContent
                             .captured
                             .toString(Charsets.UTF_8) shouldBe document.content.toString(Charsets.UTF_8)
                     }
+                    capturedAltinnResource.captured shouldBe documentConfig.get(document.type).altinnResource
                 }
             }
 
@@ -140,7 +151,7 @@ class InternalDocumentApiTest :
                     response.status shouldBe HttpStatusCode.BadRequest
                     // Verify that the document was inserted into the database
                     coVerify(exactly = 0) {
-                        documentDAOMock.insert(any(), any(), any())
+                        documentDAOMock.insert(any(), any(), any(), any())
                     }
                 }
             }
@@ -154,7 +165,7 @@ class InternalDocumentApiTest :
                         existingDialog
                     coEvery { pdlService.getPersonInfo(any()) } returns
                         no.nav.syfo.pdl.PdlPersonInfo(fullName = null, birthDate = "1990-01-15")
-                    coEvery { documentDAOMock.insert(any(), any(), any()) } throws RuntimeException("DB error")
+                    coEvery { documentDAOMock.insert(any(), any(), any(), any()) } throws RuntimeException("DB error")
                     // Act
                     val response = client.post("/internal/api/v1/documents") {
                         contentType(ContentType.Application.Json)
@@ -167,7 +178,7 @@ class InternalDocumentApiTest :
                     response.body<String>() shouldNotContain "DB error"
                     // Verify that the document was inserted into the database
                     coVerify(exactly = 1) {
-                        documentDAOMock.insert(any(), any(), any())
+                        documentDAOMock.insert(any(), any(), any(), any())
                     }
                 }
             }
@@ -181,7 +192,7 @@ class InternalDocumentApiTest :
                     coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
                     coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns existingDialog
                     coEvery {
-                        documentDAOMock.insert(any(), any(), capture(capturedVarselInstruks))
+                        documentDAOMock.insert(any(), any(), any(), capture(capturedVarselInstruks))
                     } returns persistedDoc
                     texasClientMock.defaultMocks()
                     coEvery { pdlService.getPersonInfo(any()) } returns
@@ -199,7 +210,7 @@ class InternalDocumentApiTest :
                     // Assert
                     response.status shouldBe HttpStatusCode.OK
                     coVerify(exactly = 1) {
-                        documentDAOMock.insert(any(), any(), any())
+                        documentDAOMock.insert(any(), any(), any(), any())
                     }
                     capturedVarselInstruks.captured.notifikasjonInnhold.epostTittel shouldBe
                         doc.varselInstruks?.notifikasjonInnhold?.epostTittel
@@ -212,7 +223,8 @@ class InternalDocumentApiTest :
                     val existingDialog = dialogEntity()
                     coEvery { dialogDAOMock.getByFnrAndOrgNumber(any(), any()) } returns existingDialog
                     coEvery { dialogDAOMock.updateDialogWithBirthDate(any(), any(), any()) } returns existingDialog
-                    coEvery { documentDAOMock.insert(any(), any(), any()) } returns documentEntity(existingDialog)
+                    coEvery { documentDAOMock.insert(any(), any(), any(), any()) } returns
+                        documentEntity(existingDialog)
                     texasClientMock.defaultMocks()
                     coEvery { pdlService.getPersonInfo(any()) } returns
                         no.nav.syfo.pdl.PdlPersonInfo(fullName = null, birthDate = "1990-01-15")
@@ -229,7 +241,45 @@ class InternalDocumentApiTest :
                     // Assert
                     response.status shouldBe HttpStatusCode.OK
                     coVerify(exactly = 1) {
-                        documentDAOMock.insert(any(), any(), null)
+                        documentDAOMock.insert(any(), any(), any(), null)
+                    }
+                }
+            }
+
+            it("should return 400 when document type is undefined") {
+                withTestApplication {
+                    texasClientMock.defaultMocks()
+                    val doc = document().copy(type = DocumentType.UNDEFINED)
+
+                    val response = client.post("/internal/api/v1/documents") {
+                        contentType(ContentType.Application.Json)
+                        setBody(doc)
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+
+                    response.status shouldBe HttpStatusCode.BadRequest
+                    coVerify(exactly = 0) {
+                        documentDAOMock.insert(any(), any(), any(), any())
+                    }
+                }
+            }
+
+            it("should return 400 when varselInstruks is not supported for document type") {
+                withTestApplication {
+                    texasClientMock.defaultMocks()
+                    val doc = document(
+                        varselInstruks = varselInstruks(),
+                    ).copy(type = DocumentType.OPPFOLGINGSPLAN)
+
+                    val response = client.post("/internal/api/v1/documents") {
+                        contentType(ContentType.Application.Json)
+                        setBody(doc)
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+
+                    response.status shouldBe HttpStatusCode.BadRequest
+                    coVerify(exactly = 0) {
+                        documentDAOMock.insert(any(), any(), any(), any())
                     }
                 }
             }
@@ -250,7 +300,7 @@ class InternalDocumentApiTest :
                     // Assert
                     response.status shouldBe HttpStatusCode.BadRequest
                     coVerify(exactly = 0) {
-                        documentDAOMock.insert(any(), any(), any())
+                        documentDAOMock.insert(any(), any(), any(), any())
                     }
                 }
             }
@@ -265,7 +315,7 @@ class InternalDocumentApiTest :
                         bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
                     }
                     response.status shouldBe HttpStatusCode.BadRequest
-                    coVerify(exactly = 0) { documentDAOMock.insert(any(), any(), any()) }
+                    coVerify(exactly = 0) { documentDAOMock.insert(any(), any(), any(), any()) }
                 }
             }
 
@@ -285,7 +335,7 @@ class InternalDocumentApiTest :
                     // Assert
                     response.status shouldBe HttpStatusCode.BadRequest
                     coVerify(exactly = 0) {
-                        documentDAOMock.insert(any(), any(), any())
+                        documentDAOMock.insert(any(), any(), any(), any())
                     }
                 }
             }
@@ -306,7 +356,7 @@ class InternalDocumentApiTest :
                     // Assert
                     response.status shouldBe HttpStatusCode.BadRequest
                     coVerify(exactly = 0) {
-                        documentDAOMock.insert(any(), any(), any())
+                        documentDAOMock.insert(any(), any(), any(), any())
                     }
                 }
             }
@@ -327,7 +377,7 @@ class InternalDocumentApiTest :
                     // Assert
                     response.status shouldBe HttpStatusCode.BadRequest
                     coVerify(exactly = 0) {
-                        documentDAOMock.insert(any(), any(), any())
+                        documentDAOMock.insert(any(), any(), any(), any())
                     }
                 }
             }
@@ -348,7 +398,7 @@ class InternalDocumentApiTest :
                     // Assert
                     response.status shouldBe HttpStatusCode.BadRequest
                     coVerify(exactly = 0) {
-                        documentDAOMock.insert(any(), any(), any())
+                        documentDAOMock.insert(any(), any(), any(), any())
                     }
                 }
             }

@@ -10,6 +10,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import no.nav.syfo.TestDB
 import no.nav.syfo.document.api.v1.dto.DocumentType
+import testDocumentConfig
 import java.time.Instant
 import java.util.UUID
 import kotlin.math.ceil
@@ -21,6 +22,12 @@ class DocumentDbTest :
         val documentDAO = DocumentDAO(testDb, varselInstruksDAO)
         val documentContentDAO = DocumentContentDAO(testDb)
         val dialogDAO = DialogDAO(testDb)
+        val documentConfig = testDocumentConfig()
+
+        fun altinnResource(documentType: DocumentType): String = documentConfig.get(documentType).altinnResource
+        fun dialogSummary(documentName: String): String =
+            documentConfig.dialogSummaryTemplate.replace("{name}", documentName)
+
         beforeTest {
             TestDB.clearAllData()
         }
@@ -31,7 +38,11 @@ class DocumentDbTest :
                 val dialogEntity = dialogDAO.insertDialog(dialogEntity())
                 val documentEntity = document().toDocumentEntity(dialogEntity)
                 // Act
-                val id = documentDAO.insert(documentEntity, "test".toByteArray()).id
+                val id = documentDAO.insert(
+                    documentEntity,
+                    "test".toByteArray(),
+                    altinnResource(documentEntity.type)
+                ).id
                 // Assert
                 id shouldNotBe null
                 id shouldBeGreaterThan 0L
@@ -42,7 +53,11 @@ class DocumentDbTest :
                 val dialogEntity = dialogDAO.insertDialog(dialogEntity())
                 val documentEntity = document().toDocumentEntity(dialogEntity)
                 // Act
-                val id = documentDAO.insert(documentEntity, "test".toByteArray()).id
+                val id = documentDAO.insert(
+                    documentEntity,
+                    "test".toByteArray(),
+                    altinnResource(documentEntity.type)
+                ).id
                 // Assert
                 val retrievedDocument = documentDAO.getById(id)
                 retrievedDocument shouldNotBe null
@@ -55,7 +70,7 @@ class DocumentDbTest :
                 val documentEntity = document().toDocumentEntity(dialogEntity)
                 val contentBytes = "This is a test document content.".toByteArray()
                 // Act
-                val id = documentDAO.insert(documentEntity, contentBytes).id
+                val id = documentDAO.insert(documentEntity, contentBytes, altinnResource(documentEntity.type)).id
                 val retrievedContent = documentContentDAO.getDocumentContentById(id)
                 // Assert
                 retrievedContent shouldNotBe null
@@ -68,7 +83,8 @@ class DocumentDbTest :
                 val dialogEntity = dialogDAO.insertDialog(dialogEntity())
                 val documentEntity = documentDAO.insert(
                     document().toDocumentEntity(dialogEntity),
-                    "test".toByteArray()
+                    "test".toByteArray(),
+                    altinnResource(DocumentType.DIALOGMOTE),
                 )
                 // Act
                 val updatedDocumentEntity = documentEntity.copy(
@@ -95,7 +111,11 @@ class DocumentDbTest :
                 val dialogEntity = dialogDAO.insertDialog(dialogEntity())
                 val documentEntity = document().toDocumentEntity(dialogEntity)
                 // Act
-                val id = documentDAO.insert(documentEntity, "test".toByteArray()).id
+                val id = documentDAO.insert(
+                    documentEntity,
+                    "test".toByteArray(),
+                    altinnResource(documentEntity.type)
+                ).id
                 val retrievedDocument = documentDAO.getById(id)
                 // Assert
                 retrievedDocument shouldNotBe null
@@ -109,7 +129,11 @@ class DocumentDbTest :
                 val dialogEntity = dialogDAO.insertDialog(dialogEntity())
                 val documentEntity = document().toDocumentEntity(dialogEntity)
                 // Act
-                val id = documentDAO.insert(documentEntity, "test".toByteArray()).id
+                val id = documentDAO.insert(
+                    documentEntity,
+                    "test".toByteArray(),
+                    altinnResource(documentEntity.type)
+                ).id
                 val retrievedDocument = documentDAO.getByLinkId(documentEntity.linkId)
                 // Assert
                 retrievedDocument shouldNotBe null
@@ -120,7 +144,7 @@ class DocumentDbTest :
         describe("Should add document to existing dialog") {
             // Arrange
             val document = document()
-            dialogDAO.insertDialog(document.toDialogEntity())
+            dialogDAO.insertDialog(document.toDialogEntity(dialogSummary(document.fullName ?: document.fnr)))
             val existingDialog = dialogDAO.getByFnrAndOrgNumber(document.fnr, document.orgNumber)
 
             existingDialog shouldNotBe null
@@ -128,7 +152,8 @@ class DocumentDbTest :
             // Act
             val persistedDocument = documentDAO.insert(
                 document.toDocumentEntity(existingDialog!!),
-                "test".toByteArray()
+                "test".toByteArray(),
+                altinnResource(document.type),
             )
 
             // Assert
@@ -157,8 +182,16 @@ class DocumentDbTest :
                     type =
                     DocumentType.OPPFOLGINGSPLAN
                 )
-                documentDAO.insert(doc1.toDocumentEntity(dialogEntity), "test".toByteArray())
-                documentDAO.insert(doc2.toDocumentEntity(dialogEntity), "test".toByteArray())
+                documentDAO.insert(
+                    doc1.toDocumentEntity(dialogEntity),
+                    "test".toByteArray(),
+                    altinnResource(doc1.type),
+                )
+                documentDAO.insert(
+                    doc2.toDocumentEntity(dialogEntity),
+                    "test".toByteArray(),
+                    altinnResource(doc2.type),
+                )
 
                 // Act
                 val result = documentDAO.findDocumentsByParameters(
@@ -177,8 +210,18 @@ class DocumentDbTest :
                 val orgNumber2 = "987654321"
                 val dialog1 = dialogDAO.insertDialog(dialogEntity().copy(orgNumber = orgNumber1))
                 val dialog2 = dialogDAO.insertDialog(dialogEntity().copy(orgNumber = orgNumber2))
-                documentDAO.insert(document().toDocumentEntity(dialog1), "test".toByteArray())
-                documentDAO.insert(document().toDocumentEntity(dialog2), "test".toByteArray())
+                val document1 = document()
+                val document2 = document()
+                documentDAO.insert(
+                    document1.toDocumentEntity(dialog1),
+                    "test".toByteArray(),
+                    altinnResource(document1.type)
+                )
+                documentDAO.insert(
+                    document2.toDocumentEntity(dialog2),
+                    "test".toByteArray(),
+                    altinnResource(document2.type)
+                )
 
                 // Act
                 val result = documentDAO.findDocumentsByParameters(
@@ -194,7 +237,12 @@ class DocumentDbTest :
             it("should filter by date range") {
                 // Arrange
                 val dialogEntity = dialogDAO.insertDialog(dialogEntity())
-                documentDAO.insert(document().toDocumentEntity(dialogEntity), "test".toByteArray())
+                val document = document()
+                documentDAO.insert(
+                    document.toDocumentEntity(dialogEntity),
+                    "test".toByteArray(),
+                    altinnResource(document.type)
+                )
 
                 val now = Instant.now()
                 val pastDate = now.minusSeconds(3600)
@@ -223,7 +271,7 @@ class DocumentDbTest :
                 val documents = mutableListOf<PersistedDocumentEntity>()
                 repeat(5) {
                     val doc = document().toDocumentEntity(dialogEntity)
-                    documents.add(documentDAO.insert(doc, "test".toByteArray()))
+                    documents.add(documentDAO.insert(doc, "test".toByteArray(), altinnResource(doc.type)))
                 }
 
                 // Act - First page has no cursor, subsequent pages use last item's created as cursor
@@ -255,7 +303,12 @@ class DocumentDbTest :
             it("should respect row limit boundaries") {
                 // Arrange
                 val dialogEntity = dialogDAO.insertDialog(dialogEntity())
-                documentDAO.insert(document().toDocumentEntity(dialogEntity), "test".toByteArray())
+                val document = document()
+                documentDAO.insert(
+                    document.toDocumentEntity(dialogEntity),
+                    "test".toByteArray(),
+                    altinnResource(document.type)
+                )
 
                 // Act - limit too low should be coerced to 1
                 val resultLowLimit = documentDAO.findDocumentsByParameters(pageSize = 0)
@@ -273,9 +326,19 @@ class DocumentDbTest :
                 runTest {
                     // Arrange
                     val dialogEntity = dialogDAO.insertDialog(dialogEntity())
-                    val doc1 = documentDAO.insert(document().toDocumentEntity(dialogEntity), "test".toByteArray())
+                    val document1 = document()
+                    val doc1 = documentDAO.insert(
+                        document1.toDocumentEntity(dialogEntity),
+                        "test".toByteArray(),
+                        altinnResource(document1.type),
+                    )
                     delay(10) // Ensure different timestamps
-                    val doc2 = documentDAO.insert(document().toDocumentEntity(dialogEntity), "test".toByteArray())
+                    val document2 = document()
+                    val doc2 = documentDAO.insert(
+                        document2.toDocumentEntity(dialogEntity),
+                        "test".toByteArray(),
+                        altinnResource(document2.type),
+                    )
 
                     // Act
                     val result = documentDAO.findDocumentsByParameters(pageSize = 50)
@@ -290,9 +353,19 @@ class DocumentDbTest :
                 runTest {
                     // Arrange
                     val dialogEntity = dialogDAO.insertDialog(dialogEntity())
-                    val doc1 = documentDAO.insert(document().toDocumentEntity(dialogEntity), "test".toByteArray())
+                    val document1 = document()
+                    val doc1 = documentDAO.insert(
+                        document1.toDocumentEntity(dialogEntity),
+                        "test".toByteArray(),
+                        altinnResource(document1.type),
+                    )
                     delay(10) // Ensure different timestamps
-                    val doc2 = documentDAO.insert(document().toDocumentEntity(dialogEntity), "test".toByteArray())
+                    val document2 = document()
+                    val doc2 = documentDAO.insert(
+                        document2.toDocumentEntity(dialogEntity),
+                        "test".toByteArray(),
+                        altinnResource(document2.type),
+                    )
 
                     // Act
                     val result = documentDAO.findDocumentsByParameters(
@@ -318,8 +391,8 @@ class DocumentDbTest :
                     type =
                     DocumentType.OPPFOLGINGSPLAN
                 )
-                documentDAO.insert(doc1.toDocumentEntity(dialog), "test".toByteArray())
-                documentDAO.insert(doc2.toDocumentEntity(dialog), "test".toByteArray())
+                documentDAO.insert(doc1.toDocumentEntity(dialog), "test".toByteArray(), altinnResource(doc1.type))
+                documentDAO.insert(doc2.toDocumentEntity(dialog), "test".toByteArray(), altinnResource(doc2.type))
 
                 // Act
                 val result = documentDAO.findDocumentsByParameters(
