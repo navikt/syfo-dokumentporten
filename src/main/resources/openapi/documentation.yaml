@@ -347,9 +347,6 @@ components:
           enum: [ AG_VARSEL_ALTINN_RESSURS ]
         notifikasjonInnhold:
           $ref: '#/components/schemas/NotifikasjonInnhold'
-        ressursId:
-          type: string
-          description: Altinn 3 ressurs-id, f.eks. "nav_syfo_dialogmote".
         ressursUrl:
           type: string
           format: uri
@@ -360,7 +357,6 @@ components:
       required:
         - type
         - notifikasjonInnhold
-        - ressursId
         - ressursUrl
         - kilde
       additionalProperties: false

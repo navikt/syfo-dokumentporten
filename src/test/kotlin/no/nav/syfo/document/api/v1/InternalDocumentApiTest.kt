@@ -32,6 +32,7 @@ import io.mockk.slot
 import no.nav.syfo.TestDB
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
+import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.api.v1.dto.VarselInstruks
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
@@ -337,6 +338,27 @@ class InternalDocumentApiTest :
                     // Arrange
                     texasClientMock.defaultMocks()
                     val doc = document(varselInstruks = varselInstruks(ressursUrl = "https://"))
+
+                    // Act
+                    val response = client.post("/internal/api/v1/documents") {
+                        contentType(ContentType.Application.Json)
+                        setBody(doc)
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+
+                    // Assert
+                    response.status shouldBe HttpStatusCode.BadRequest
+                    coVerify(exactly = 0) {
+                        documentDAOMock.insert(any(), any(), any())
+                    }
+                }
+            }
+
+            it("should return 400 when varselInstruks is set for non-DIALOGMOTE document type") {
+                withTestApplication {
+                    // Arrange
+                    texasClientMock.defaultMocks()
+                    val doc = document(type = DocumentType.OPPFOLGINGSPLAN, varselInstruks = varselInstruks())
 
                     // Act
                     val response = client.post("/internal/api/v1/documents") {
