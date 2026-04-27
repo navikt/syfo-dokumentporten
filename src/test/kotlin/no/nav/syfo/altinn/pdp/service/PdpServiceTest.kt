@@ -15,7 +15,7 @@ import no.nav.syfo.altinn.pdp.client.Person
 class PdpServiceTest :
     DescribeSpec({
         describe("hasAccessToResource") {
-            it("returns false when authorize does not return a decision for every requested orgnummer") {
+            it("returns denied orgnumre when authorize does not return a decision for every requested orgnummer") {
                 val pdpClient = mockk<IPdpClient>()
                 coEvery {
                     pdpClient.authorize(any(), any(), any())
@@ -43,7 +43,10 @@ class PdpServiceTest :
                     bruker = Person("12345678901"),
                     orgnrSet = setOf("111111111", "222222222"),
                     ressurs = "syfo-resource",
-                ) shouldBe false
+                ) shouldBe PdpAccessResult(
+                    hasAccess = false,
+                    deniedOrgNumbers = sortedSetOf("222222222"),
+                )
             }
         }
     })

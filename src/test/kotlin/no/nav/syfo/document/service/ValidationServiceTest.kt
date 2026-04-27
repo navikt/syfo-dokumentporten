@@ -3,15 +3,16 @@ package no.nav.syfo.document.service
 import dialogEntity
 import documentEntity
 import io.kotest.assertions.throwables.shouldThrow
-import io.kotest.core.annotation.Ignored
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import no.nav.syfo.altinn.pdp.service.PdpAccessResult
 import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
+import no.nav.syfo.altinntilganger.AltinnTilgangerService.Companion.requiredResourceByDocumentType
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.application.exception.ApiErrorException
@@ -28,7 +29,9 @@ class ValidationServiceTest :
         val documentEntity = documentEntity(dialogEntity())
         beforeTest {
             clearAllMocks()
-            coEvery { pdpServiceMock.hasAccessToResource(any(), any(), any()) } returns true
+            coEvery {
+                pdpServiceMock.hasAccessToResource(any(), any(), any())
+            } returns PdpAccessResult(hasAccess = true, deniedOrgNumbers = emptySet())
         }
 
         describe("ValidationService") {
@@ -121,12 +124,21 @@ class ValidationServiceTest :
                             "systemUserId"
 
                         )
-                        coEvery { pdpServiceMock.hasAccessToResource(any(), any(), any()) } returns false
+                        coEvery {
+                            pdpServiceMock.hasAccessToResource(any(), any(), any())
+                        } returns PdpAccessResult(
+                            hasAccess = false,
+                            deniedOrgNumbers = setOf(documentEntity.dialog.orgNumber),
+                        )
 
                         // Act & Assert - should not throw exception
-                        shouldThrow<ApiErrorException.ForbiddenException> {
+                        val exception = shouldThrow<ApiErrorException.ForbiddenException> {
                             validationService.validateDocumentAccess(systemPrincipal, documentEntity)
                         }
+                        val expectedResource = requiredResourceByDocumentType[documentEntity.type]
+                        exception.message shouldBe
+                            "Access denied to resource $expectedResource, for system user systemUserId. " +
+                            "Denied orgnumbers: ${documentEntity.dialog.orgNumber}"
                         coVerify(exactly = 0) {
                             eregService.getOrganization(any())
                         }

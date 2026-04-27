@@ -62,17 +62,6 @@ data class PolicyReference(val id: String? = null, val version: String? = null)
 
 // fun PdpResponse.resultat() = response.first().decision
 
-fun PdpResponse.harTilgang(orgnrSet: Set<String>): Boolean {
-    if (orgnrSet.isEmpty()) {
-        return false
-    }
-    val beslutningPerOrgnr = decisionByOrgnr()
-    if (response.size != orgnrSet.size || beslutningPerOrgnr.keys != orgnrSet) {
-        return false
-    }
-    return orgnrSet.all { orgnr -> beslutningPerOrgnr[orgnr] == Decision.Permit }
-}
-
 fun PdpResponse.decisionByOrgnr(): Map<String, Decision> = response.mapNotNull { decisionResult ->
     decisionResult.orgnr()?.let { orgnr -> orgnr to decisionResult.decision }
 }.toMap()

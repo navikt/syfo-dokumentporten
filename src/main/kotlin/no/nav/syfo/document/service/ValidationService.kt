@@ -105,7 +105,7 @@ class ValidationService(
                 "Could not find resource for document type $documentType"
             )
 
-        val hasAccess = pdpService.hasAccessToResource(
+        val accessResult = pdpService.hasAccessToResource(
             bruker = System(principal.systemUserId),
 //            orgnrSet = setOf(
 //                maskinportenIdToOrgnumber(principal.ident),
@@ -114,9 +114,10 @@ class ValidationService(
             orgnrSet = requestedOrgNumbers,
             ressurs = requiredRessurs
         )
-        if (!hasAccess) {
+        if (!accessResult.hasAccess) {
             throw ApiErrorException.ForbiddenException(
-                "Access denied to resource $requiredRessurs, for system user ${principal.systemUserId}",
+                "Access denied to resource $requiredRessurs, for system user ${principal.systemUserId}. " +
+                    "Denied orgnumbers: ${accessResult.deniedOrgNumbers.joinToString(", ")}",
             )
         }
     }

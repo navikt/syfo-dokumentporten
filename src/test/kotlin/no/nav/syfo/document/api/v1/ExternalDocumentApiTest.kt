@@ -29,6 +29,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.spyk
 import no.nav.syfo.TestDB
+import no.nav.syfo.altinn.pdp.service.PdpAccessResult
 import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.altinntilganger.client.FakeAltinnTilgangerClient
@@ -78,7 +79,9 @@ class ExternalDocumentApiTest :
         beforeTest {
             clearAllMocks()
             TestDB.clearAllData()
-            coEvery { pdpServiceMock.hasAccessToResource(any(), any(), any()) } returns true
+            coEvery {
+                pdpServiceMock.hasAccessToResource(any(), any(), any())
+            } returns PdpAccessResult(hasAccess = true, deniedOrgNumbers = emptySet())
             coEvery { eregCache.getOrganisasjon(any()) } returns null
             fakeAltinnTilgangerClient.usersWithAccess.clear()
         }
@@ -373,7 +376,7 @@ class ExternalDocumentApiTest :
 //
 //                        // Assert
 //                        response.status shouldBe HttpStatusCode.Forbidden
-////                        response.status shouldBe HttpStatusCode.OK
+// //                        response.status shouldBe HttpStatusCode.OK
 //                        coVerify(exactly = 1) {
 //                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
 //                        }
