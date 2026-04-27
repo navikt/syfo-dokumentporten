@@ -1,13 +1,17 @@
 package no.nav.syfo.altinntilganger
 
 import no.nav.syfo.altinntilganger.client.IAltinnTilgangerClient
+import no.nav.syfo.application.DocumentConfig
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.exception.ApiErrorException
 import no.nav.syfo.application.exception.UpstreamRequestException
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.util.logger
 
-class AltinnTilgangerService(val altinnTilgangerClient: IAltinnTilgangerClient,) {
+class AltinnTilgangerService(
+    val altinnTilgangerClient: IAltinnTilgangerClient,
+    private val documentConfig: DocumentConfig,
+) {
     suspend fun validateTilgangToOrganisasjon(
         brukerPrincipal: BrukerPrincipal,
         orgnummer: String,
@@ -15,8 +19,7 @@ class AltinnTilgangerService(val altinnTilgangerClient: IAltinnTilgangerClient,)
     ) {
         try {
             val tilganger = altinnTilgangerClient.hentTilganger(brukerPrincipal)
-            val requiredResource = requiredResourceByDocumentType[documentType]
-                ?: throw ApiErrorException.InternalServerErrorException("Ukjent dokumenttype $documentType")
+            val requiredResource = documentConfig.get(documentType).altinnResource
             if (tilganger?.orgNrTilTilganger[orgnummer]?.contains(requiredResource) != true) {
                 throw ApiErrorException.ForbiddenException("Bruker har ikke tilgang til organisasjon $orgnummer")
             }
@@ -28,9 +31,5 @@ class AltinnTilgangerService(val altinnTilgangerClient: IAltinnTilgangerClient,)
 
     companion object {
         private val logger = logger()
-        val requiredResourceByDocumentType = mapOf(
-            DocumentType.OPPFOLGINGSPLAN to "nav_syfo_oppfolgingsplan",
-            DocumentType.DIALOGMOTE to "nav_syfo_dialogmote",
-        )
     }
 }

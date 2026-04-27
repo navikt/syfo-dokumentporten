@@ -5,27 +5,44 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
+import no.nav.syfo.application.DocumentConfig
 import no.nav.syfo.application.exception.ApiErrorException
 import no.nav.syfo.document.api.v1.dto.Document
+import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.api.v1.dto.validate
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.util.logger
 
-fun Route.registerInternalDocumentsApiV1(documentDAO: DocumentDAO, dialogService: DialogService,) {
+fun Route.registerInternalDocumentsApiV1(
+    documentDAO: DocumentDAO,
+    dialogService: DialogService,
+    documentConfig: DocumentConfig,
+) {
     route("/documents") {
         post {
             val document = call.tryReceive<Document>()
 
+            if (document.type == DocumentType.UNDEFINED) {
+                throw ApiErrorException.BadRequestException("type must be a supported document type")
+            }
+
+            val documentTypeConfig = documentConfig.get(document.type)
+
             document.varselInstruks?.validate()
+            if (document.varselInstruks != null && !documentTypeConfig.supportVarsel) {
+                throw ApiErrorException.BadRequestException("varselInstruks is not supported for type ${document.type}")
+            }
 
             runCatching {
+                val altinnResource = documentConfig.get(document.type).altinnResource
                 val existingDialog = dialogService.getAndUpdateDialogByFnrAndOrgNumber(document.fnr, document.orgNumber)
                     ?: dialogService.insertDialog(document)
 
                 documentDAO.insert(
                     document.toDocumentEntity(existingDialog),
                     document.content,
+                    altinnResource,
                     document.varselInstruks,
                 )
 

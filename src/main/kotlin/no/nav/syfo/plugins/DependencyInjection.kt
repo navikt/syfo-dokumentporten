@@ -2,6 +2,7 @@ package no.nav.syfo.plugins
 
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
+import io.ktor.server.config.ApplicationConfig
 import no.nav.syfo.altinn.common.AltinnTokenProvider
 import no.nav.syfo.altinn.dialogporten.client.DialogportenClient
 import no.nav.syfo.altinn.dialogporten.client.FakeDialogportenClient
@@ -14,6 +15,7 @@ import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.altinntilganger.client.AltinnTilgangerClient
 import no.nav.syfo.altinntilganger.client.FakeAltinnTilgangerClient
 import no.nav.syfo.application.ApplicationState
+import no.nav.syfo.application.DocumentConfig
 import no.nav.syfo.application.Environment
 import no.nav.syfo.application.LocalEnvironment
 import no.nav.syfo.application.NaisEnvironment
@@ -45,12 +47,15 @@ import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
 fun Application.configureDependencies() {
+    val applicationConfig = environment.config
+
     install(Koin) {
         slf4jLogger()
 
         modules(
             applicationStateModule(),
             environmentModule(isLocalEnv()),
+            configModule(applicationConfig),
             httpClient(),
             databaseModule(),
             valkeyModule(),
@@ -69,6 +74,10 @@ private fun environmentModule(isLocalEnv: Boolean) = module {
             NaisEnvironment()
         }
     }
+}
+
+private fun configModule(applicationConfig: ApplicationConfig) = module {
+    single { DocumentConfig.fromApplicationConfig(applicationConfig) }
 }
 
 private fun httpClient() = module {
@@ -115,7 +124,7 @@ private fun servicesModule() = module {
     }
     single {
         if (isLocalEnv()) {
-            FakeAltinnTilgangerClient()
+            FakeAltinnTilgangerClient(get())
         } else {
             AltinnTilgangerClient(
                 texasClient = get(),
@@ -155,10 +164,10 @@ private fun servicesModule() = module {
         }
     }
 
-    single { AltinnTilgangerService(get()) }
+    single { AltinnTilgangerService(get(), get()) }
     single { PdpService(get()) }
     single { EregService(get(), get()) }
-    single { ValidationService(get(), get(), get()) }
+    single { ValidationService(get(), get(), get(), get()) }
     single { LeaderElection(get(), env().clientProperties.electorPath) }
 
     single {
@@ -179,10 +188,11 @@ private fun servicesModule() = module {
         DialogService(
             dialogDAO = get(),
             pdlService = get(),
+            documentConfig = get(),
         )
     }
 
-    single { DialogportenService(get(), get(), env().publicIngressUrl, env().dialogportenIsApiOnly, get(), get()) }
+    single { DialogportenService(get(), get(), env().publicIngressUrl, env().dialogportenIsApiOnly, get(), get(), get()) }
     single { SendDialogTask(get(), get()) }
 }
 

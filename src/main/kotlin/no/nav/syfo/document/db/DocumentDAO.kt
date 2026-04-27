@@ -28,6 +28,7 @@ class DocumentDAO(private val database: DatabaseInterface, private val varselIns
     suspend fun insert(
         documentEntity: DocumentEntity,
         content: ByteArray,
+        altinnResource: String,
         varselInstruks: VarselInstruks? = null,
     ): PersistedDocumentEntity = withContext(Dispatchers.IO) {
         database.connection.use { connection ->
@@ -85,7 +86,7 @@ class DocumentDAO(private val database: DatabaseInterface, private val varselIns
                 varselInstruksDAO.insert(
                     connection,
                     insertedDocument.id,
-                    documentEntity.type.altinnResource,
+                    altinnResource,
                     varselInstruks
                 )
             }

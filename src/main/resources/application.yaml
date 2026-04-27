@@ -1,0 +1,14 @@
+dokumentporten:
+  dialogRessurs: "nav_syfo_dialog"
+  dialogSummaryTemplate: "Her finner du dokumenter fra Nav for {name}. Innholdet er tilgjengelig i 4 måneder fra delingsdatoen."
+  documents:
+    - name: "DIALOGMOTE"
+      displayName: "Dialogmøte"
+      altinn:
+        resource: "nav_syfo_dialogmote"
+      supportVarsel: true
+    - name: "OPPFOLGINGSPLAN"
+      displayName: "Oppfølgingsplan"
+      altinn:
+        resource: "nav_syfo_oppfolgingsplan"
+      supportVarsel: false

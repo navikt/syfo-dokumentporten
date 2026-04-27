@@ -32,16 +32,13 @@ data class Document(
         dialog = dialog,
     )
 
-    fun toDialogEntity(): DialogEntity {
+    fun toDialogEntity(summary: String): DialogEntity {
         val nameOrFnr = fullName ?: fnr
         val effectiveBirthDate = birthDate ?: fnrToBirthDate(fnr)
 
         return DialogEntity(
             title = generateDialogTitle(nameOrFnr, fnr, effectiveBirthDate),
-            summary = """
-                Her finner du alle dialogmøtebrev fra Nav og oppfølgingsplaner utarbeidet av nærmeste leder for $nameOrFnr.
-                Innholdet er tilgjengelig i 4 måneder fra delingsdatoen. 
-            """.trimIndent(),
+            summary = summary,
             fnr = fnr,
             orgNumber = orgNumber,
             birthDate = effectiveBirthDate,
@@ -84,10 +81,10 @@ data class Document(
     }
 }
 
-enum class DocumentType(val displayName: String, val altinnResource: String = "") {
-    DIALOGMOTE("Dialogmøte", "nav_syfo_dialogmote"),
-    OPPFOLGINGSPLAN("Oppfølgingsplan", "nav_syfo_oppfolgingsplan"),
+enum class DocumentType {
+    DIALOGMOTE,
+    OPPFOLGINGSPLAN,
 
     @JsonEnumDefaultValue
-    UNDEFINED("Dokument"),
+    UNDEFINED,
 }

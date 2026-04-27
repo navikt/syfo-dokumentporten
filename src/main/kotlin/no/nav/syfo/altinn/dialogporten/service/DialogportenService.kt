@@ -15,6 +15,7 @@ import no.nav.syfo.altinn.dialogporten.domain.Dialog
 import no.nav.syfo.altinn.dialogporten.domain.Transmission
 import no.nav.syfo.altinn.dialogporten.domain.Url
 import no.nav.syfo.altinn.dialogporten.domain.create
+import no.nav.syfo.application.DocumentConfig
 import no.nav.syfo.document.api.v1.generateDialogTitle
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentDAO
@@ -30,8 +31,6 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
 
-const val DIALOG_RESSURS = "nav_syfo_dialog"
-
 class DialogportenService(
     private val dialogportenClient: IDialogportenClient,
     private val documentDAO: DocumentDAO,
@@ -39,6 +38,7 @@ class DialogportenService(
     private val dialogportenIsApiOnly: Boolean,
     private val dialogDAO: DialogDAO,
     private val pdlService: PdlService,
+    private val documentConfig: DocumentConfig,
 ) {
     private val logger = logger()
     private val sendDialogLimit = 100
@@ -160,11 +160,11 @@ class DialogportenService(
             "application/json" -> "json"
             else -> throw IllegalArgumentException("Unsupported document content type ${document.contentType}")
         }
-        return "${document.type.displayName}.$fileType"
+        return "${documentConfig.get(document.type).displayName}.$fileType"
     }
 
     private fun DocumentEntity.toDialogWithTransmission(transmissionId: UUID): Dialog = Dialog(
-        serviceResource = "urn:altinn:resource:$DIALOG_RESSURS",
+        serviceResource = "urn:altinn:resource:${documentConfig.dialogRessurs}",
         party = "urn:altinn:organization:identifier-no:${dialog.orgNumber}",
         externalReference = "syfo-dokumentporten",
         content = Content.create(

@@ -3,7 +3,7 @@ package no.nav.syfo.document.service
 import no.nav.syfo.altinn.pdp.client.System
 import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
-import no.nav.syfo.altinntilganger.AltinnTilgangerService.Companion.requiredResourceByDocumentType
+import no.nav.syfo.application.DocumentConfig
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.Principal
 import no.nav.syfo.application.auth.SystemPrincipal
@@ -17,7 +17,8 @@ import no.nav.syfo.util.logger
 class ValidationService(
     private val altinnTilgangerService: AltinnTilgangerService,
     private val eregService: EregService,
-    private val pdpService: PdpService
+    private val pdpService: PdpService,
+    private val documentConfig: DocumentConfig,
 ) {
     companion object {
         val logger = logger()
@@ -96,10 +97,7 @@ class ValidationService(
     }
 
     private suspend fun validateAltinnRessursTilgang(principal: SystemPrincipal, documentType: DocumentType) {
-        val requiredRessurs = requiredResourceByDocumentType[documentType]
-            ?: throw ApiErrorException.InternalServerErrorException(
-                "Could not find resource for document type $documentType"
-            )
+        val requiredRessurs = documentConfig.get(documentType).altinnResource
 
         val hasAccess = pdpService.hasAccessToResource(
             System(principal.systemUserId),
