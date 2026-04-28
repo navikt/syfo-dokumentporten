@@ -256,6 +256,90 @@ class InternalDocumentApiTest :
                 }
             }
 
+            it("should return 400 when varselInstruks epostBody is blank") {
+                withTestApplication {
+                    texasClientMock.defaultMocks()
+                    val doc = document(varselInstruks = varselInstruks(epostBody = ""))
+                    val response = client.post("/internal/api/v1/documents") {
+                        contentType(ContentType.Application.Json)
+                        setBody(doc)
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+                    response.status shouldBe HttpStatusCode.BadRequest
+                    coVerify(exactly = 0) { documentDAOMock.insert(any(), any(), any()) }
+                }
+            }
+
+            it("should return 400 when varselInstruks smsTekst is blank") {
+                withTestApplication {
+                    texasClientMock.defaultMocks()
+                    val doc = document(varselInstruks = varselInstruks(smsTekst = ""))
+                    val response = client.post("/internal/api/v1/documents") {
+                        contentType(ContentType.Application.Json)
+                        setBody(doc)
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+                    response.status shouldBe HttpStatusCode.BadRequest
+                    coVerify(exactly = 0) { documentDAOMock.insert(any(), any(), any()) }
+                }
+            }
+
+            it("should return 400 when varselInstruks ressursUrl is empty") {
+                withTestApplication {
+                    texasClientMock.defaultMocks()
+                    val doc = document(varselInstruks = varselInstruks(ressursUrl = ""))
+                    val response = client.post("/internal/api/v1/documents") {
+                        contentType(ContentType.Application.Json)
+                        setBody(doc)
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+                    response.status shouldBe HttpStatusCode.BadRequest
+                    coVerify(exactly = 0) { documentDAOMock.insert(any(), any(), any()) }
+                }
+            }
+
+            it("should return 400 when varselInstruks epostTittel exceeds max length") {
+                withTestApplication {
+                    texasClientMock.defaultMocks()
+                    val doc = document(varselInstruks = varselInstruks(epostTittel = "x".repeat(255 + 1)))
+                    val response = client.post("/internal/api/v1/documents") {
+                        contentType(ContentType.Application.Json)
+                        setBody(doc)
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+                    response.status shouldBe HttpStatusCode.BadRequest
+                    coVerify(exactly = 0) { documentDAOMock.insert(any(), any(), any()) }
+                }
+            }
+
+            it("should return 400 when varselInstruks epostBody exceeds max length") {
+                withTestApplication {
+                    texasClientMock.defaultMocks()
+                    val doc = document(varselInstruks = varselInstruks(epostBody = "x".repeat(4000 + 1)))
+                    val response = client.post("/internal/api/v1/documents") {
+                        contentType(ContentType.Application.Json)
+                        setBody(doc)
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+                    response.status shouldBe HttpStatusCode.BadRequest
+                    coVerify(exactly = 0) { documentDAOMock.insert(any(), any(), any()) }
+                }
+            }
+
+            it("should return 400 when varselInstruks smsTekst exceeds max length") {
+                withTestApplication {
+                    texasClientMock.defaultMocks()
+                    val doc = document(varselInstruks = varselInstruks(smsTekst = "x".repeat(500 + 1)))
+                    val response = client.post("/internal/api/v1/documents") {
+                        contentType(ContentType.Application.Json)
+                        setBody(doc)
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+                    response.status shouldBe HttpStatusCode.BadRequest
+                    coVerify(exactly = 0) { documentDAOMock.insert(any(), any(), any()) }
+                }
+            }
+
             it("should return 400 when kilde is blank") {
                 withTestApplication {
                     texasClientMock.defaultMocks()
