@@ -136,6 +136,19 @@ sequenceDiagram
 We have a [wiki](https://github.com/navikt/syfo-dokumentporten/wiki) for this project, 
 with more detailed information about how external integrations partners can get started including how to set set up organizations from Test norge and test users with Dolly.
 
+## Kafka
+
+### Produserer til
+- **`team-esyfo.varselbus`** — Publiserer arbeidsgivernotifikasjoner til esyfovarsel
+  - Meldingstype: `ArbeidsgiverNotifikasjonTilAltinnRessursHendelse`
+  - Topic-eier: team-esyfo (esyfovarsel)
+  - ACL: Write-tilgang for `syfo-dokumentporten` må konfigureres av topic-eier
+
+### Avhengigheter
+- esyfovarsel må ha støtte for `AG_VARSEL_ALTINN_RESSURS` hendelsestype (PR #949)
+- `eksternReferanseId` = dokumentets UUID, brukes for deduplisering downstream
+- Altinn3-ressurser: `nav_syfo_dialogmote` (må være registrert i Altinn)
+
 ## Running tasks with mise
 We use [mise](https://mise.jdx.dev/) to simplify running common tasks.
 To run a task, use the command
