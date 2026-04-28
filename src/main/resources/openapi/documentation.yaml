@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Syfo-dokumentporten API
-  version: 1.1.2
+  version: 1.1.3
   description: |
     Public API for interacting with Syfo-Dokumentporten(Formerly Arkivporten) documents.
     
@@ -235,6 +235,10 @@ paths:
       security:
         - azuread_jwt: [ ]
       requestBody:
+        description: |
+          Payload for creating a document.
+          `varselInstruks` is only supported when `type` is `DIALOGMOTE`.
+          Requests with `varselInstruks` on other document types are rejected with `400 Bad Request`.
         required: true
         content:
           application/json:
@@ -326,7 +330,12 @@ components:
           type: string
           description: Summary shown in dialog.
         varselInstruks:
-          $ref: '#/components/schemas/VarselInstruks'
+          allOf:
+            - $ref: '#/components/schemas/VarselInstruks'
+          description: |
+            Optional instruction for employer notifications.
+            Only valid when `type` is `DIALOGMOTE`.
+            Requests with `varselInstruks` for other document types are rejected with `400 Bad Request`.
       required:
         - documentId
         - type
@@ -350,9 +359,13 @@ components:
         ressursUrl:
           type: string
           format: uri
+          minLength: 1
+          maxLength: 2000
           description: Dyplenke til Altinn-visning for varselet.
         kilde:
           type: string
+          minLength: 1
+          maxLength: 255
           description: Identifikator for kildesystemet som sender instruksen, f.eks. "dokumentporten.dialogmote".
       required:
         - type
@@ -366,10 +379,16 @@ components:
       properties:
         epostTittel:
           type: string
+          minLength: 1
+          maxLength: 255
         epostBody:
           type: string
+          minLength: 1
+          maxLength: 4000
         smsTekst:
           type: string
+          minLength: 1
+          maxLength: 500
       required:
         - epostTittel
         - epostBody

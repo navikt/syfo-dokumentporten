@@ -3,6 +3,7 @@ package no.nav.syfo.document.db
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import no.nav.syfo.application.database.DatabaseInterface
+import no.nav.syfo.document.api.v1.dto.HendelseType
 import no.nav.syfo.document.api.v1.dto.VarselInstruks
 import java.sql.Connection
 import java.sql.ResultSet
@@ -65,7 +66,7 @@ class VarselInstruksDAO(private val database: DatabaseInterface) {
 fun ResultSet.toVarselInstruksEntity(): VarselInstruksEntity = VarselInstruksEntity(
     id = getLong("id"),
     documentId = getLong("document_id"),
-    type = getString("type"),
+    type = HendelseType.valueOf(getString("type")),
     epostTittel = getString("epost_tittel"),
     epostBody = getString("epost_body"),
     smsTekst = getString("sms_tekst"),
