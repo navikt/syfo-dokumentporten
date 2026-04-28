@@ -32,6 +32,7 @@ dependencies {
     implementation("io.ktor:ktor-server-status-pages")
     implementation(libs.koin.ktor)
     implementation(libs.koin.logger)
+    implementation(libs.kafka.clients)
     implementation(libs.logstash)
     implementation(libs.jackson.datatype.jsr310)
     implementation("io.ktor:ktor-server-openapi:3.4.2")
