@@ -30,7 +30,7 @@ class EsyfovarselProducer(
         val json = objectMapper.writeValueAsString(hendelse)
         val metadata = kafkaProducer.send(ProducerRecord(topic, key, json)).get()
         logger.info(
-            "Published esyfovarsel message to topic ${metadata.topic()}, partition ${metadata.partition()}, offset ${metadata.offset()}"
+            "Published esyfovarsel message to topic ${metadata.topic()}, partition ${metadata.partition()}, offset ${metadata.offset()}, key=$key"
         )
     }
 
