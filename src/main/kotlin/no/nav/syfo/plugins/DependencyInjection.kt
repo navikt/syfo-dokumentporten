@@ -34,12 +34,20 @@ import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.EregClient
 import no.nav.syfo.ereg.client.FakeEregClient
+import no.nav.syfo.kafka.esyfovarsel.EsyfovarselProducer
+import no.nav.syfo.kafka.esyfovarsel.FakeEsyfovarselProducer
+import no.nav.syfo.kafka.esyfovarsel.IEsyfovarselProducer
+import no.nav.syfo.kafka.esyfovarsel.PublishVarselTask
+import no.nav.syfo.kafka.esyfovarsel.VarselPublishService
+import no.nav.syfo.kafka.esyfovarsel.buildKafkaProducerProperties
+import no.nav.syfo.kafka.esyfovarsel.createEsyfovarselObjectMapper
 import no.nav.syfo.pdl.PdlService
 import no.nav.syfo.pdl.client.FakePdlClient
 import no.nav.syfo.pdl.client.PdlClient
 import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.JsonFixtureLoader
 import no.nav.syfo.util.httpClientDefault
+import org.apache.kafka.clients.producer.KafkaProducer
 import org.koin.core.scope.Scope
 import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
@@ -175,6 +183,18 @@ private fun servicesModule() = module {
         }
     }
     single { PdlService(get()) }
+    single<IEsyfovarselProducer> {
+        if (isLocalEnv()) {
+            FakeEsyfovarselProducer()
+        } else {
+            EsyfovarselProducer(
+                kafkaProducer = KafkaProducer(buildKafkaProducerProperties(env().kafka)),
+                topic = env().kafka.varselbusTopic,
+                objectMapper = createEsyfovarselObjectMapper(),
+            )
+        }
+    }
+    single { VarselPublishService(get(), get()) }
 
     single {
         DialogService(
@@ -195,6 +215,7 @@ private fun servicesModule() = module {
 
     single { DialogportenService(get(), get(), env().publicIngressUrl, env().dialogportenIsApiOnly, get(), get()) }
     single { SendDialogTask(get(), get()) }
+    single { PublishVarselTask(get(), get()) }
 }
 
 private fun Scope.env() = get<Environment>()

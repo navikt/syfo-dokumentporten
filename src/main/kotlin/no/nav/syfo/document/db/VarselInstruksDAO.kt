@@ -65,7 +65,13 @@ class VarselInstruksDAO(private val database: DatabaseInterface) {
         }
     }
 
-    suspend fun getPendingForPublish(limit: Int): List<VarselInstruksPublishView> {
+    suspend fun getPendingForPublish(limit: Int): List<VarselInstruksPublishView> = withContext(Dispatchers.IO) {
+        database.connection.use { conn ->
+            getPendingForPublish(conn, limit)
+        }
+    }
+
+    fun getPendingForPublish(connection: Connection, limit: Int): List<VarselInstruksPublishView> {
         val query =
             """
             SELECT
@@ -88,19 +94,19 @@ class VarselInstruksDAO(private val database: DatabaseInterface) {
             FOR UPDATE OF vi SKIP LOCKED
             """.trimIndent()
 
-        return withContext(Dispatchers.IO) {
-            database.connection.use { conn ->
-                conn.prepareStatement(query).use { ps ->
-                    ps.setInt(1, limit)
-                    val resultSet = ps.executeQuery()
-                    buildList {
-                        while (resultSet.next()) {
-                            add(resultSet.toVarselInstruksPublishView())
-                        }
-                    }
+        return connection.prepareStatement(query).use { ps ->
+            ps.setInt(1, limit)
+            val resultSet = ps.executeQuery()
+            buildList {
+                while (resultSet.next()) {
+                    add(resultSet.toVarselInstruksPublishView())
                 }
             }
         }
+    }
+
+    suspend fun <T> withConnection(block: (Connection) -> T): T = withContext(Dispatchers.IO) {
+        database.connection.use(block)
     }
 
     fun markPublished(connection: Connection, id: Long, publishedAt: java.time.Instant) {
