@@ -35,7 +35,8 @@ class VarselPublishService(
                             val rootCause = exception.rootCause()
                             val isInfraError = rootCause is TimeoutException ||
                                 rootCause is AuthorizationException ||
-                                rootCause is ConnectException
+                                rootCause is ConnectException ||
+                                rootCause is InterruptedException
 
                             varselInstruksDAO.markPublishError(
                                 connection = connection,
