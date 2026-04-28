@@ -58,7 +58,7 @@ class VarselInstruksDAOTest :
                     retrievedVarselInstruks?.ressursId shouldBe persistedDocument.type.altinnResource
                     retrievedVarselInstruks?.ressursUrl shouldBe expectedVarselInstruks.ressursUrl
                     retrievedVarselInstruks?.kilde shouldBe expectedVarselInstruks.kilde
-                    retrievedVarselInstruks?.type shouldBe expectedVarselInstruks.type.name
+                    retrievedVarselInstruks?.type shouldBe expectedVarselInstruks.type
                     retrievedVarselInstruks?.created shouldNotBe null
                 }
             }
