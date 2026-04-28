@@ -12,6 +12,8 @@ import kotlinx.coroutines.test.runTest
 import no.nav.syfo.TestDB
 import varselInstruks
 import java.sql.SQLException
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 class VarselInstruksDAOTest :
     DescribeSpec({
@@ -62,6 +64,10 @@ class VarselInstruksDAOTest :
                     retrievedVarselInstruks?.ressursUrl shouldBe expectedRessursUrl
                     retrievedVarselInstruks?.kilde shouldBe expectedVarselInstruks.kilde
                     retrievedVarselInstruks?.type shouldBe expectedVarselInstruks.type
+                    retrievedVarselInstruks?.status shouldBe VarselInstruksStatus.PENDING
+                    retrievedVarselInstruks?.publishedAt shouldBe null
+                    retrievedVarselInstruks?.publishAttempts shouldBe 0
+                    retrievedVarselInstruks?.lastPublishError shouldBe null
                     retrievedVarselInstruks?.created shouldNotBe null
                 }
             }
@@ -98,6 +104,151 @@ class VarselInstruksDAOTest :
 
                     // Assert
                     exception.message?.lowercase() shouldContain "unique"
+                }
+            }
+
+            it("should return pending publish view with joined fields") {
+                runTest {
+                    val dialog = dialogDAO.insertDialog(dialogEntity())
+                    val document = document().copy(
+                        varselInstruks = varselInstruks(
+                            epostTittel = "Eposttittel",
+                            epostBody = "Epostbody",
+                            smsTekst = "Smstekst",
+                        )
+                    )
+                    val persistedDocument = documentDAO.insert(
+                        document.toDocumentEntity(dialog),
+                        "test".toByteArray(),
+                        document.varselInstruks,
+                    )
+                    val expectedVarselInstruks = document.varselInstruks!!
+
+                    val pending = varselInstruksDAO.getPendingForPublish(limit = 10)
+                    val pendingVarselInstruks = pending.single()
+
+                    pending shouldBe listOf(
+                        VarselInstruksPublishView(
+                            id = pendingVarselInstruks.id,
+                            documentId = persistedDocument.documentId,
+                            fnr = dialog.fnr,
+                            orgNumber = dialog.orgNumber,
+                            ressursId = persistedDocument.type.altinnResource!!,
+                            ressursUrl = expectedVarselInstruks.ressursUrl,
+                            kilde = expectedVarselInstruks.kilde,
+                            epostTittel = expectedVarselInstruks.notifikasjonInnhold.epostTittel,
+                            epostBody = expectedVarselInstruks.notifikasjonInnhold.epostBody,
+                            smsTekst = expectedVarselInstruks.notifikasjonInnhold.smsTekst,
+                        ),
+                    )
+                }
+            }
+
+            it("should mark varsel instruks as published") {
+                runTest {
+                    val dialog = dialogDAO.insertDialog(dialogEntity())
+                    val persistedDocument = documentDAO.insert(
+                        document().toDocumentEntity(dialog),
+                        "test".toByteArray(),
+                    )
+                    val insertedVarselInstruks = testDb.connection.use { connection ->
+                        val inserted = varselInstruksDAO.insert(
+                            connection,
+                            persistedDocument.id,
+                            persistedDocument.type.altinnResource!!,
+                            varselInstruks(),
+                        )
+                        connection.commit()
+                        inserted
+                    }
+                    val publishedAt = Instant.now().truncatedTo(ChronoUnit.MICROS)
+
+                    testDb.connection.use { connection ->
+                        varselInstruksDAO.markPublished(connection, insertedVarselInstruks.id, publishedAt)
+                        connection.commit()
+                    }
+
+                    val updated = varselInstruksDAO.getByDocumentId(persistedDocument.id)
+
+                    updated?.status shouldBe VarselInstruksStatus.PUBLISHED
+                    updated?.publishedAt shouldBe publishedAt
+                    updated?.publishAttempts shouldBe 1
+                }
+            }
+
+            it("should keep varsel instruks pending on infra error") {
+                runTest {
+                    val dialog = dialogDAO.insertDialog(dialogEntity())
+                    val persistedDocument = documentDAO.insert(
+                        document().toDocumentEntity(dialog),
+                        "test".toByteArray(),
+                    )
+                    val insertedVarselInstruks = testDb.connection.use { connection ->
+                        val inserted = varselInstruksDAO.insert(
+                            connection,
+                            persistedDocument.id,
+                            persistedDocument.type.altinnResource!!,
+                            varselInstruks(),
+                        )
+                        connection.commit()
+                        inserted
+                    }
+
+                    repeat(10) {
+                        testDb.connection.use { connection ->
+                            varselInstruksDAO.markPublishError(
+                                connection = connection,
+                                id = insertedVarselInstruks.id,
+                                error = "Infrafeil",
+                                isInfraError = true,
+                            )
+                            connection.commit()
+                        }
+                    }
+
+                    val updated = varselInstruksDAO.getByDocumentId(persistedDocument.id)
+
+                    updated?.status shouldBe VarselInstruksStatus.PENDING
+                    updated?.publishAttempts shouldBe 10
+                    updated?.lastPublishError shouldBe "Infrafeil"
+                }
+            }
+
+            it("should mark varsel instruks as error after 10 non-infra errors") {
+                runTest {
+                    val dialog = dialogDAO.insertDialog(dialogEntity())
+                    val persistedDocument = documentDAO.insert(
+                        document().toDocumentEntity(dialog),
+                        "test".toByteArray(),
+                    )
+                    val insertedVarselInstruks = testDb.connection.use { connection ->
+                        val inserted = varselInstruksDAO.insert(
+                            connection,
+                            persistedDocument.id,
+                            persistedDocument.type.altinnResource!!,
+                            varselInstruks(),
+                        )
+                        connection.commit()
+                        inserted
+                    }
+
+                    repeat(10) {
+                        testDb.connection.use { connection ->
+                            varselInstruksDAO.markPublishError(
+                                connection = connection,
+                                id = insertedVarselInstruks.id,
+                                error = "Valideringsfeil",
+                                isInfraError = false,
+                            )
+                            connection.commit()
+                        }
+                    }
+
+                    val updated = varselInstruksDAO.getByDocumentId(persistedDocument.id)
+
+                    updated?.status shouldBe VarselInstruksStatus.ERROR
+                    updated?.publishAttempts shouldBe 10
+                    updated?.lastPublishError shouldBe "Valideringsfeil"
                 }
             }
         }
