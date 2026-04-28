@@ -40,7 +40,7 @@ class VarselInstruksDAOTest :
                         val inserted = varselInstruksDAO.insert(
                             connection,
                             persistedDocument.id,
-                            persistedDocument.type.altinnResource,
+                            persistedDocument.type.altinnResource!!,
                             expectedVarselInstruks
                         )
                         connection.commit()
@@ -78,7 +78,7 @@ class VarselInstruksDAOTest :
                             varselInstruksDAO.insert(
                                 connection,
                                 persistedDocument.id,
-                                persistedDocument.type.altinnResource,
+                                persistedDocument.type.altinnResource!!,
                                 varselInstruks()
                             )
                             varselInstruksDAO.insert(

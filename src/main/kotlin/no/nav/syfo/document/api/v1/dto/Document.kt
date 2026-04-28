@@ -84,10 +84,14 @@ data class Document(
     }
 }
 
-enum class DocumentType(val displayName: String, val altinnResource: String = "") {
+enum class DocumentType(val displayName: String, val altinnResource: String? = null) {
     DIALOGMOTE("Dialogmøte", "nav_syfo_dialogmote"),
     OPPFOLGINGSPLAN("Oppfølgingsplan", "nav_syfo_oppfolgingsplan"),
 
     @JsonEnumDefaultValue
-    UNDEFINED("Dokument"),
+    UNDEFINED("Dokument");
+
+    companion object {
+        fun getAltinnResources() = entries.mapNotNull { it.altinnResource }
+    }
 }

@@ -83,7 +83,7 @@ class DocumentDAO(private val database: DatabaseInterface, private val varselIns
 
             if (varselInstruks != null) {
                 val altinnResource = documentEntity.type.altinnResource
-                if (altinnResource.isBlank()) {
+                if (altinnResource == null) {
                     connection.rollback()
                     throw DocumentInsertException(
                         "varselInstruks er kun støttet for dokumenttyper med en Altinn-ressurs (type=${documentEntity.type})"
