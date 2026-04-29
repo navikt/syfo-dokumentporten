@@ -208,6 +208,7 @@ private fun servicesModule() = module {
             documentDAO = get(),
             varselInstruksDAO = get(),
             dialogService = get(),
+            varselPublishService = get(),
             database = get(),
             publicIngressUrl = env().publicIngressUrl,
         )

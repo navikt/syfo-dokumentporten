@@ -1,5 +1,6 @@
 package no.nav.syfo.document.service
 
+import io.ktor.utils.io.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import no.nav.syfo.API_V1_PATH
@@ -13,13 +14,16 @@ import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.api.v1.dto.validate
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentInsertException
+import no.nav.syfo.document.db.PersistedDocumentEntity
 import no.nav.syfo.document.db.VarselInstruksDAO
+import no.nav.syfo.kafka.esyfovarsel.VarselPublishService
 import no.nav.syfo.util.logger
 
 class DocumentService(
     private val documentDAO: DocumentDAO,
     private val varselInstruksDAO: VarselInstruksDAO,
     private val dialogService: DialogService,
+    private val varselPublishService: VarselPublishService,
     private val database: DatabaseInterface,
     private val publicIngressUrl: String,
 ) {
@@ -39,7 +43,7 @@ class DocumentService(
 
         val documentEntity = document.toDocumentEntity(existingDialog)
 
-        withContext(Dispatchers.IO) {
+        val persistedDocument = withContext(Dispatchers.IO) {
             database.connection.use { connection ->
                 runCatching {
                     val insertedDocument = documentDAO.insert(connection, documentEntity, document.content)
@@ -62,18 +66,32 @@ class DocumentService(
                     }
 
                     connection.commit()
+                    insertedDocument
                 }.onFailure { ex ->
                     connection.rollback()
                     logger.error("Failed to insert document: ${ex.message}", ex)
                     throw ApiErrorException.InternalServerErrorException("Failed to insert document")
-                }
+                }.getOrThrow()
             }
         }
 
         if (document.varselInstruks != null) {
             COUNT_VARSEL_INSTRUKS_RECEIVED.increment()
+            tryPublishVarsel(persistedDocument)
         }
         COUNT_DOCUMENT_RECIEVED.increment()
+    }
+
+    private suspend fun tryPublishVarsel(document: PersistedDocumentEntity) {
+        try {
+            varselPublishService.publishVarselForDocument(document)
+        } catch (exception: Exception) {
+            logger.warn(
+                "Fire-and-forget varsel publish failed for document ${document.id}, will be retried by scheduled job",
+                exception,
+            )
+            if (exception is CancellationException) throw exception
+        }
     }
 
     private fun createGuiDocumentLink(linkId: String): String =

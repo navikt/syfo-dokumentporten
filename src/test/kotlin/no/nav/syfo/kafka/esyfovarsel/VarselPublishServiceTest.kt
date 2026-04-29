@@ -26,9 +26,30 @@ class VarselPublishServiceTest :
         val testDb = TestDB.database
         val dialogDAO = DialogDAO(testDb)
         val varselInstruksDAO = VarselInstruksDAO(testDb)
-        val documentDAO = DocumentDAO(testDb, varselInstruksDAO)
+        val documentDAO = DocumentDAO(testDb)
         val esyfovarselProducer = mockk<IEsyfovarselProducer>()
         val varselPublishService = VarselPublishService(varselInstruksDAO, esyfovarselProducer)
+
+        suspend fun insertDocumentWithVarsel(
+            document: no.nav.syfo.document.api.v1.dto.Document,
+            dialog: no.nav.syfo.document.db.PersistedDialogEntity,
+        ): no.nav.syfo.document.db.PersistedDocumentEntity = testDb.connection.use { connection ->
+            val persistedDocument = documentDAO.insert(
+                connection,
+                document.toDocumentEntity(dialog),
+                "test".toByteArray(),
+            )
+            if (document.varselInstruks != null) {
+                varselInstruksDAO.insert(
+                    connection = connection,
+                    documentId = persistedDocument.id,
+                    ressursUrl = "https://test.nav.no/api/v1/gui/documents/${persistedDocument.linkId}",
+                    varselInstruks = document.varselInstruks,
+                )
+            }
+            connection.commit()
+            persistedDocument
+        }
 
         beforeTest {
             TestDB.clearAllData()
@@ -40,10 +61,9 @@ class VarselPublishServiceTest :
                 runTest {
                     val dialog = dialogDAO.insertDialog(dialogEntity())
                     val document = document(varselInstruks = varselInstruks())
-                    val persistedDocument = documentDAO.insert(
-                        document.toDocumentEntity(dialog),
-                        "test".toByteArray(),
-                        document.varselInstruks,
+                    val persistedDocument = insertDocumentWithVarsel(
+                        document,
+                        dialog,
                     )
                     val hendelseSlot = slot<EsyfovarselHendelse>()
                     every {
@@ -82,10 +102,9 @@ class VarselPublishServiceTest :
                 runTest {
                     val dialog = dialogDAO.insertDialog(dialogEntity())
                     val document = document(varselInstruks = varselInstruks())
-                    val persistedDocument = documentDAO.insert(
-                        document.toDocumentEntity(dialog),
-                        "test".toByteArray(),
-                        document.varselInstruks,
+                    val persistedDocument = insertDocumentWithVarsel(
+                        document,
+                        dialog,
                     )
                     every {
                         esyfovarselProducer.publish(any(), any())
@@ -110,10 +129,9 @@ class VarselPublishServiceTest :
                 runTest {
                     val dialog = dialogDAO.insertDialog(dialogEntity())
                     val document = document(varselInstruks = varselInstruks())
-                    val persistedDocument = documentDAO.insert(
-                        document.toDocumentEntity(dialog),
-                        "test".toByteArray(),
-                        document.varselInstruks,
+                    val persistedDocument = insertDocumentWithVarsel(
+                        document,
+                        dialog,
                     )
                     val insertedVarselInstruks = varselInstruksDAO.getByDocumentId(persistedDocument.id)!!
 
@@ -152,10 +170,9 @@ class VarselPublishServiceTest :
                 runTest {
                     val dialog = dialogDAO.insertDialog(dialogEntity())
                     val document = document(varselInstruks = varselInstruks())
-                    val persistedDocument = documentDAO.insert(
-                        document.toDocumentEntity(dialog),
-                        "test".toByteArray(),
-                        document.varselInstruks,
+                    val persistedDocument = insertDocumentWithVarsel(
+                        document,
+                        dialog,
                     )
 
                     every {
@@ -185,10 +202,9 @@ class VarselPublishServiceTest :
                 runTest {
                     val dialog = dialogDAO.insertDialog(dialogEntity())
                     val document = document(varselInstruks = varselInstruks())
-                    val persistedDocument = documentDAO.insert(
-                        document.toDocumentEntity(dialog),
-                        "test".toByteArray(),
-                        document.varselInstruks,
+                    val persistedDocument = insertDocumentWithVarsel(
+                        document,
+                        dialog,
                     )
 
                     every {
@@ -209,9 +225,9 @@ class VarselPublishServiceTest :
                 runTest {
                     val dialog = dialogDAO.insertDialog(dialogEntity())
                     val document = document()
-                    val persistedDocument = documentDAO.insert(
-                        document.toDocumentEntity(dialog),
-                        "test".toByteArray(),
+                    val persistedDocument = insertDocumentWithVarsel(
+                        document,
+                        dialog,
                     )
 
                     varselPublishService.publishVarselForDocument(persistedDocument)
