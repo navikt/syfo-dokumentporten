@@ -15,6 +15,17 @@ private const val EPOST_BODY_MAX_LENGTH = 4000
 private const val SMS_TEKST_MAX_LENGTH = 500
 private const val KILDE_MAX_LENGTH = 255
 
+fun VarselInstruks.trimmed(): VarselInstruks = copy(
+    notifikasjonInnhold = notifikasjonInnhold.trimmed(),
+    kilde = kilde.trim(),
+)
+
+fun NotifikasjonInnhold.trimmed(): NotifikasjonInnhold = copy(
+    epostTittel = epostTittel.trim(),
+    epostBody = epostBody.trim(),
+    smsTekst = smsTekst.trim(),
+)
+
 fun VarselInstruks.validate() {
     if (notifikasjonInnhold.epostTittel.isBlank()) {
         throw ApiErrorException.BadRequestException("varselInstruks.notifikasjonInnhold.epostTittel må være satt")

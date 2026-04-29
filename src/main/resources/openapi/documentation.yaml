@@ -248,12 +248,21 @@ paths:
               sample:
                 value:
                   documentId: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
-                  type: "Dialogmøte"
+                  type: "DIALOGMOTE"
                   content: "JVBERi0xLjQKJ..."              # base64-encoded binary
                   contentType: "application/pdf"
+                  fnr: "12345678901"
+                  fullName: "Ola Nordmann"
                   orgNumber: "123456789"
-                  dialogTitle: "Innkalling til dialogmøte"
-                  dialogSummary: "Kort oppsummering av dokumentinnhold."
+                  title: "Innkalling til dialogmøte"
+                  summary: "Kort oppsummering av dokumentinnhold."
+                  varselInstruks:
+                    type: "AG_VARSEL_ALTINN_RESSURS"
+                    notifikasjonInnhold:
+                      epostTittel: "Du har fått et nytt varsel"
+                      epostBody: "Logg inn på Altinn for å lese."
+                      smsTekst: "Du har fått et nytt varsel i Altinn."
+                    kilde: "dokumentporten.dialogmote"
       responses:
         '200':
           description: Created

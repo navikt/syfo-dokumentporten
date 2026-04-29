@@ -10,6 +10,7 @@ import no.nav.syfo.document.api.v1.COUNT_DOCUMENT_RECIEVED
 import no.nav.syfo.document.api.v1.COUNT_VARSEL_INSTRUKS_RECEIVED
 import no.nav.syfo.document.api.v1.dto.Document
 import no.nav.syfo.document.api.v1.dto.DocumentType
+import no.nav.syfo.document.api.v1.dto.trimmed
 import no.nav.syfo.document.api.v1.dto.validate
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentInsertException
@@ -32,7 +33,9 @@ class DocumentService(
             )
         }
 
-        document.varselInstruks?.validate()
+        val trimmedVarselInstruks = document.varselInstruks?.trimmed()
+
+        trimmedVarselInstruks?.validate()
 
         val existingDialog = dialogService.getAndUpdateDialogByFnrAndOrgNumber(document.fnr, document.orgNumber)
             ?: dialogService.insertDialog(document)
@@ -44,7 +47,7 @@ class DocumentService(
                 runCatching {
                     val insertedDocument = documentDAO.insert(connection, documentEntity, document.content)
 
-                    if (document.varselInstruks != null) {
+                    if (trimmedVarselInstruks != null) {
                         val altinnResource = documentEntity.type.altinnResource
                             ?: throw DocumentInsertException(
                                 "varselInstruks er kun støttet for dokumenttyper med en Altinn-ressurs (type=${documentEntity.type})"
@@ -57,7 +60,7 @@ class DocumentService(
                             documentId = insertedDocument.id,
                             ressursId = altinnResource,
                             ressursUrl = ressursUrl,
-                            varselInstruks = document.varselInstruks,
+                            varselInstruks = trimmedVarselInstruks,
                         )
                     }
 
@@ -65,12 +68,12 @@ class DocumentService(
                 }.onFailure { ex ->
                     connection.rollback()
                     logger.error("Failed to insert document: ${ex.message}", ex)
-                    throw ApiErrorException.InternalServerErrorException("Failed to insert document")
+                    throw ApiErrorException.InternalServerErrorException("Failed to insert document", cause = ex)
                 }
             }
         }
 
-        if (document.varselInstruks != null) {
+        if (trimmedVarselInstruks != null) {
             COUNT_VARSEL_INSTRUKS_RECEIVED.increment()
         }
         COUNT_DOCUMENT_RECIEVED.increment()
