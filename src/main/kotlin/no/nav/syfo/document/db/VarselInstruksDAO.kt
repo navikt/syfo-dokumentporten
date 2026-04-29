@@ -3,6 +3,7 @@ package no.nav.syfo.document.db
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import no.nav.syfo.application.database.DatabaseInterface
+import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.api.v1.dto.HendelseType
 import no.nav.syfo.document.api.v1.dto.VarselInstruks
 import java.sql.Connection
@@ -79,7 +80,7 @@ class VarselInstruksDAO(private val database: DatabaseInterface) {
                 doc.document_id,
                 dialog.fnr,
                 dialog.org_number,
-                vi.ressurs_id,
+                doc.type AS document_type,
                 vi.ressurs_url,
                 vi.kilde,
                 vi.epost_tittel,
@@ -171,8 +172,9 @@ fun ResultSet.toVarselInstruksPublishView(): VarselInstruksPublishView = VarselI
     documentId = getObject("document_id", UUID::class.java),
     fnr = getString("fnr"),
     orgNumber = getString("org_number"),
-    ressursId = getString("ressurs_id"),
-    ressursUrl = getString("ressurs_url"),
+    ressursId = DocumentType.valueOf(getString("document_type")).altinnResource
+        ?: error("Document type has no altinnResource"),
+    dokumentUrl = getString("ressurs_url"),
     kilde = getString("kilde"),
     epostTittel = getString("epost_tittel"),
     epostBody = getString("epost_body"),

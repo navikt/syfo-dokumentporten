@@ -17,8 +17,8 @@ class EsyfovarselHendelseTest :
                     fnr = document.fnr,
                     orgNumber = document.orgNumber,
                     ressursId = "nav_syfo_dialog",
-                    ressursUrl = document.varselInstruks!!.ressursUrl,
-                    kilde = document.varselInstruks.kilde,
+                    dokumentUrl = "https://test.nav.no/api/v1/gui/documents/test-link",
+                    kilde = document.varselInstruks!!.kilde,
                     epostTittel = document.varselInstruks.notifikasjonInnhold.epostTittel,
                     epostBody = document.varselInstruks.notifikasjonInnhold.epostBody,
                     smsTekst = document.varselInstruks.notifikasjonInnhold.smsTekst,
@@ -33,7 +33,7 @@ class EsyfovarselHendelseTest :
                 hendelse.kilde shouldBe document.varselInstruks.kilde
                 hendelse.orgnummer shouldBe document.orgNumber
                 hendelse.ressursId shouldBe "nav_syfo_dialog"
-                hendelse.ressursUrl shouldBe document.varselInstruks.ressursUrl
+                hendelse.ressursUrl shouldBe "https://test.nav.no/api/v1/gui/documents/test-link"
                 hendelse.data?.notifikasjonInnhold?.epostTittel shouldBe
                     document.varselInstruks.notifikasjonInnhold.epostTittel
                 hendelse.data?.notifikasjonInnhold?.epostBody shouldBe

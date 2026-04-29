@@ -118,11 +118,22 @@ class VarselInstruksDAOTest :
                             smsTekst = "Smstekst",
                         )
                     )
-                    val persistedDocument = documentDAO.insert(
-                        document.toDocumentEntity(dialog),
-                        "test".toByteArray(),
-                        document.varselInstruks,
-                    )
+                    val expectedRessursUrl = "https://test.nav.no/api/v1/gui/documents/test-link"
+                    val persistedDocument = testDb.connection.use { connection ->
+                        val doc = documentDAO.insert(
+                            connection,
+                            document.toDocumentEntity(dialog),
+                            "test".toByteArray(),
+                        )
+                        varselInstruksDAO.insert(
+                            connection,
+                            doc.id,
+                            expectedRessursUrl,
+                            document.varselInstruks!!,
+                        )
+                        connection.commit()
+                        doc
+                    }
                     val expectedVarselInstruks = document.varselInstruks!!
                     setVarselCreatedAt(
                         testDb = testDb,
@@ -140,7 +151,7 @@ class VarselInstruksDAOTest :
                             fnr = dialog.fnr,
                             orgNumber = dialog.orgNumber,
                             ressursId = persistedDocument.type.altinnResource!!,
-                            ressursUrl = expectedVarselInstruks.ressursUrl,
+                            dokumentUrl = expectedRessursUrl,
                             kilde = expectedVarselInstruks.kilde,
                             epostTittel = expectedVarselInstruks.notifikasjonInnhold.epostTittel,
                             epostBody = expectedVarselInstruks.notifikasjonInnhold.epostBody,
@@ -154,11 +165,20 @@ class VarselInstruksDAOTest :
                 runTest {
                     val dialog = dialogDAO.insertDialog(dialogEntity())
                     val document = document(varselInstruks = varselInstruks())
-                    documentDAO.insert(
-                        document.toDocumentEntity(dialog),
-                        "test".toByteArray(),
-                        document.varselInstruks,
-                    )
+                    testDb.connection.use { connection ->
+                        val doc = documentDAO.insert(
+                            connection,
+                            document.toDocumentEntity(dialog),
+                            "test".toByteArray(),
+                        )
+                        varselInstruksDAO.insert(
+                            connection,
+                            doc.id,
+                            "https://test.nav.no/api/v1/gui/documents/${doc.linkId}",
+                            document.varselInstruks!!,
+                        )
+                        connection.commit()
+                    }
 
                     val pending = varselInstruksDAO.getPendingForPublish(limit = 10)
 
@@ -169,19 +189,20 @@ class VarselInstruksDAOTest :
             it("should mark varsel instruks as published") {
                 runTest {
                     val dialog = dialogDAO.insertDialog(dialogEntity())
-                    val persistedDocument = documentDAO.insert(
-                        document().toDocumentEntity(dialog),
-                        "test".toByteArray(),
-                    )
-                    val insertedVarselInstruks = testDb.connection.use { connection ->
+                    val (persistedDocument, insertedVarselInstruks) = testDb.connection.use { connection ->
+                        val doc = documentDAO.insert(
+                            connection,
+                            document().toDocumentEntity(dialog),
+                            "test".toByteArray(),
+                        )
                         val inserted = varselInstruksDAO.insert(
                             connection,
-                            persistedDocument.id,
-                            persistedDocument.type.altinnResource!!,
+                            doc.id,
+                            doc.type.altinnResource!!,
                             varselInstruks(),
                         )
                         connection.commit()
-                        inserted
+                        doc to inserted
                     }
                     val publishedAt = Instant.now().truncatedTo(ChronoUnit.MICROS)
 
@@ -201,19 +222,20 @@ class VarselInstruksDAOTest :
             it("should keep varsel instruks pending on infra error") {
                 runTest {
                     val dialog = dialogDAO.insertDialog(dialogEntity())
-                    val persistedDocument = documentDAO.insert(
-                        document().toDocumentEntity(dialog),
-                        "test".toByteArray(),
-                    )
-                    val insertedVarselInstruks = testDb.connection.use { connection ->
+                    val (persistedDocument, insertedVarselInstruks) = testDb.connection.use { connection ->
+                        val doc = documentDAO.insert(
+                            connection,
+                            document().toDocumentEntity(dialog),
+                            "test".toByteArray(),
+                        )
                         val inserted = varselInstruksDAO.insert(
                             connection,
-                            persistedDocument.id,
-                            persistedDocument.type.altinnResource!!,
+                            doc.id,
+                            doc.type.altinnResource!!,
                             varselInstruks(),
                         )
                         connection.commit()
-                        inserted
+                        doc to inserted
                     }
 
                     repeat(10) {
@@ -239,19 +261,20 @@ class VarselInstruksDAOTest :
             it("should mark varsel instruks as error after 10 non-infra errors") {
                 runTest {
                     val dialog = dialogDAO.insertDialog(dialogEntity())
-                    val persistedDocument = documentDAO.insert(
-                        document().toDocumentEntity(dialog),
-                        "test".toByteArray(),
-                    )
-                    val insertedVarselInstruks = testDb.connection.use { connection ->
+                    val (persistedDocument, insertedVarselInstruks) = testDb.connection.use { connection ->
+                        val doc = documentDAO.insert(
+                            connection,
+                            document().toDocumentEntity(dialog),
+                            "test".toByteArray(),
+                        )
                         val inserted = varselInstruksDAO.insert(
                             connection,
-                            persistedDocument.id,
-                            persistedDocument.type.altinnResource!!,
+                            doc.id,
+                            doc.type.altinnResource!!,
                             varselInstruks(),
                         )
                         connection.commit()
-                        inserted
+                        doc to inserted
                     }
 
                     repeat(10) {

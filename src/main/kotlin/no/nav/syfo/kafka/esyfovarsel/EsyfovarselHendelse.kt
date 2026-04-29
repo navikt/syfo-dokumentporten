@@ -53,5 +53,5 @@ fun VarselInstruksPublishView.toEsyfovarselHendelse(): ArbeidsgiverNotifikasjonT
         kilde = kilde,
         orgnummer = orgNumber,
         ressursId = ressursId,
-        ressursUrl = ressursUrl,
+        ressursUrl = dokumentUrl,
     )
