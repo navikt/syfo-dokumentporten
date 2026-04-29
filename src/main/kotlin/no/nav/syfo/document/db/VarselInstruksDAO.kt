@@ -14,6 +14,7 @@ class VarselInstruksDAO(private val database: DatabaseInterface) {
         connection: Connection,
         documentId: Long,
         ressursId: String,
+        ressursUrl: String,
         varselInstruks: VarselInstruks
     ): VarselInstruksEntity {
         val insertStatement =
@@ -30,7 +31,7 @@ class VarselInstruksDAO(private val database: DatabaseInterface) {
             ps.setString(4, varselInstruks.notifikasjonInnhold.epostBody)
             ps.setString(5, varselInstruks.notifikasjonInnhold.smsTekst)
             ps.setString(6, ressursId)
-            ps.setString(7, varselInstruks.ressursUrl)
+            ps.setString(7, ressursUrl)
             ps.setString(8, varselInstruks.kilde)
             val resultSet = ps.executeQuery()
             if (resultSet.next()) {

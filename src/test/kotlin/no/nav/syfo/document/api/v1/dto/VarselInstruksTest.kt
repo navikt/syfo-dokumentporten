@@ -36,15 +36,6 @@ class VarselInstruksTest :
                     "varselInstruks.notifikasjonInnhold.smsTekst kan ikke være lengre enn 500 tegn"
             }
 
-            it("should throw max length error for ressursUrl before URL validation") {
-                val exception = shouldThrow<ApiErrorException.BadRequestException> {
-                    varselInstruks(ressursUrl = "a".repeat(2001)).validate()
-                }
-
-                exception.errorMessage shouldBe
-                    "varselInstruks.ressursUrl kan ikke være lengre enn 2000 tegn"
-            }
-
             it("should throw when kilde exceeds max length") {
                 val exception = shouldThrow<ApiErrorException.BadRequestException> {
                     varselInstruks(kilde = "a".repeat(256)).validate()

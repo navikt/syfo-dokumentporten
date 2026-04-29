@@ -15,7 +15,7 @@ import no.nav.syfo.application.metric.registerMetricApi
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
-import no.nav.syfo.document.service.DialogService
+import no.nav.syfo.document.service.DocumentService
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.registerApiV1
 import no.nav.syfo.texas.client.TexasClient
@@ -30,7 +30,7 @@ fun Application.configureRouting() {
     val dialogDAO by inject<DialogDAO>()
     val validationService by inject<ValidationService>()
     val altinnTokenProvider by inject<AltinnTokenProvider>()
-    val dialogService by inject<DialogService>()
+    val documentService by inject<DocumentService>()
 
     installCallId()
     installContentNegotiation()
@@ -45,7 +45,7 @@ fun Application.configureRouting() {
             documentContentDAO,
             dialogDAO,
             validationService,
-            dialogService,
+            documentService,
         )
         staticResources("/openapi", "openapi")
         swaggerUI(path = "swagger", swaggerFile = "openapi/documentation.yaml")
