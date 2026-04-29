@@ -5,7 +5,6 @@ CREATE TABLE varsel_instruks (
     epost_tittel    TEXT        NOT NULL,
     epost_body      TEXT        NOT NULL,
     sms_tekst       TEXT        NOT NULL,
-    ressurs_id      TEXT        NOT NULL,
     ressurs_url     TEXT        NOT NULL,
     kilde           TEXT        NOT NULL,
     created         TIMESTAMPTZ NOT NULL DEFAULT NOW()

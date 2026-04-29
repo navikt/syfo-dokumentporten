@@ -42,7 +42,6 @@ class VarselInstruksDAOTest :
                         val inserted = varselInstruksDAO.insert(
                             connection,
                             doc.id,
-                            doc.type.altinnResource!!,
                             expectedRessursUrl,
                             expectedVarselInstruks,
                         )
@@ -58,7 +57,6 @@ class VarselInstruksDAOTest :
                     retrievedVarselInstruks?.epostTittel shouldBe expectedVarselInstruks.notifikasjonInnhold.epostTittel
                     retrievedVarselInstruks?.epostBody shouldBe expectedVarselInstruks.notifikasjonInnhold.epostBody
                     retrievedVarselInstruks?.smsTekst shouldBe expectedVarselInstruks.notifikasjonInnhold.smsTekst
-                    retrievedVarselInstruks?.ressursId shouldBe persistedDocument.type.altinnResource
                     retrievedVarselInstruks?.ressursUrl shouldBe expectedRessursUrl
                     retrievedVarselInstruks?.kilde shouldBe expectedVarselInstruks.kilde
                     retrievedVarselInstruks?.type shouldBe expectedVarselInstruks.type
@@ -82,14 +80,12 @@ class VarselInstruksDAOTest :
                             varselInstruksDAO.insert(
                                 connection,
                                 persistedDocument.id,
-                                persistedDocument.type.altinnResource!!,
                                 "https://test.nav.no/link1",
                                 varselInstruks(),
                             )
                             varselInstruksDAO.insert(
                                 connection,
                                 persistedDocument.id,
-                                persistedDocument.type.altinnResource,
                                 "https://test.nav.no/link2",
                                 varselInstruks(),
                             )
