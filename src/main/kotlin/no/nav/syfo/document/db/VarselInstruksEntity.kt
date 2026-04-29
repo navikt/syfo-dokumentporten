@@ -6,6 +6,7 @@ import java.util.UUID
 
 enum class VarselInstruksStatus {
     PENDING,
+    PROCESSING,
     PUBLISHED,
     ERROR,
 }

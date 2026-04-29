@@ -3,7 +3,6 @@ package no.nav.syfo.document.db
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import no.nav.syfo.application.database.DatabaseInterface
-import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.api.v1.dto.HendelseType
 import no.nav.syfo.document.api.v1.dto.VarselInstruks
 import java.sql.Connection
@@ -68,32 +67,61 @@ class VarselInstruksDAO(private val database: DatabaseInterface) {
 
     suspend fun getPendingForPublish(limit: Int): List<VarselInstruksPublishView> = withContext(Dispatchers.IO) {
         database.connection.use { conn ->
-            getPendingForPublish(conn, limit)
+            try {
+                val pendingVarsler = getPendingForPublish(conn, limit)
+                conn.commit()
+                pendingVarsler
+            } catch (exception: Exception) {
+                conn.rollback()
+                throw exception
+            }
         }
     }
 
     fun getPendingForPublish(connection: Connection, limit: Int): List<VarselInstruksPublishView> {
         val query =
             """
+            WITH pending AS (
+                SELECT
+                    vi.id
+                FROM varsel_instruks vi
+                WHERE vi.status = 'PENDING'
+                AND vi.created < NOW() - INTERVAL '1 minute'
+                ORDER BY vi.created
+                LIMIT ?
+                FOR UPDATE OF vi SKIP LOCKED
+            ),
+            claimed AS (
+                UPDATE varsel_instruks vi
+                SET status = 'PROCESSING'
+                FROM pending
+                WHERE vi.id = pending.id
+                RETURNING
+                    vi.id,
+                    vi.document_id,
+                    vi.ressurs_id,
+                    vi.ressurs_url,
+                    vi.kilde,
+                    vi.epost_tittel,
+                    vi.epost_body,
+                    vi.sms_tekst,
+                    vi.created
+            )
             SELECT
-                vi.id,
+                claimed.id,
                 doc.document_id,
                 dialog.fnr,
                 dialog.org_number,
-                doc.type AS document_type,
-                vi.ressurs_url,
-                vi.kilde,
-                vi.epost_tittel,
-                vi.epost_body,
-                vi.sms_tekst
-            FROM varsel_instruks vi
-            INNER JOIN document doc ON vi.document_id = doc.id
+                claimed.ressurs_id,
+                claimed.ressurs_url,
+                claimed.kilde,
+                claimed.epost_tittel,
+                claimed.epost_body,
+                claimed.sms_tekst
+            FROM claimed
+            INNER JOIN document doc ON claimed.document_id = doc.id
             INNER JOIN dialog ON doc.dialog_id = dialog.id
-            WHERE vi.status = 'PENDING'
-            AND vi.created < NOW() - INTERVAL '1 minute'
-            ORDER BY vi.created
-            LIMIT ?
-            FOR UPDATE OF vi SKIP LOCKED
+            ORDER BY claimed.created
             """.trimIndent()
 
         return connection.prepareStatement(query).use { ps ->
@@ -172,8 +200,7 @@ fun ResultSet.toVarselInstruksPublishView(): VarselInstruksPublishView = VarselI
     documentId = getObject("document_id", UUID::class.java),
     fnr = getString("fnr"),
     orgNumber = getString("org_number"),
-    ressursId = DocumentType.valueOf(getString("document_type")).altinnResource
-        ?: error("Document type has no altinnResource"),
+    ressursId = getString("ressurs_id"),
     dokumentUrl = getString("ressurs_url"),
     kilde = getString("kilde"),
     epostTittel = getString("epost_tittel"),

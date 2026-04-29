@@ -23,20 +23,11 @@ class VarselPublishService(
         var batchSize: Int
 
         do {
-            batchSize = varselInstruksDAO.withConnection { connection ->
-                try {
-                    val pendingVarsler = varselInstruksDAO.getPendingForPublish(connection, PUBLISH_VARSEL_BATCH_LIMIT)
+            val pendingVarsler = varselInstruksDAO.getPendingForPublish(PUBLISH_VARSEL_BATCH_LIMIT)
+            batchSize = pendingVarsler.size
 
-                    pendingVarsler.forEach { view ->
-                        publishVarsel(view, connection)
-                    }
-
-                    connection.commit()
-                    pendingVarsler.size
-                } catch (exception: Exception) {
-                    connection.rollback()
-                    throw exception
-                }
+            pendingVarsler.forEach { view ->
+                publishPendingVarsel(view)
             }
         } while (batchSize >= PUBLISH_VARSEL_BATCH_LIMIT)
     }
@@ -85,6 +76,18 @@ class VarselPublishService(
                 "Failed to publish varsel_instruks ${view.id} to esyfovarsel. infraError=$isInfraError",
                 exception,
             )
+        }
+    }
+
+    private suspend fun publishPendingVarsel(view: VarselInstruksPublishView) {
+        varselInstruksDAO.withConnection { connection ->
+            try {
+                publishVarsel(view, connection)
+                connection.commit()
+            } catch (exception: Exception) {
+                connection.rollback()
+                throw exception
+            }
         }
     }
 }

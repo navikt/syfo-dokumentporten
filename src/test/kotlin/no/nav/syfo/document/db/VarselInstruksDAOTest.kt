@@ -125,10 +125,11 @@ class VarselInstruksDAOTest :
                             document.toDocumentEntity(dialog),
                             "test".toByteArray(),
                         )
+                        val storedRessursId = "custom-ressurs-id"
                         varselInstruksDAO.insert(
                             connection,
                             doc.id,
-                            doc.type.altinnResource!!,
+                            storedRessursId,
                             expectedRessursUrl,
                             document.varselInstruks!!,
                         )
@@ -151,7 +152,7 @@ class VarselInstruksDAOTest :
                             documentId = persistedDocument.documentId,
                             fnr = dialog.fnr,
                             orgNumber = dialog.orgNumber,
-                            ressursId = persistedDocument.type.altinnResource!!,
+                            ressursId = "custom-ressurs-id",
                             dokumentUrl = expectedRessursUrl,
                             kilde = expectedVarselInstruks.kilde,
                             epostTittel = expectedVarselInstruks.notifikasjonInnhold.epostTittel,
