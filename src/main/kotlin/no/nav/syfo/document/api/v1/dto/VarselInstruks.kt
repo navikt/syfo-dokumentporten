@@ -1,14 +1,8 @@
 package no.nav.syfo.document.api.v1.dto
 
 import no.nav.syfo.application.exception.ApiErrorException
-import java.net.URI
 
-data class VarselInstruks(
-    val type: HendelseType,
-    val notifikasjonInnhold: NotifikasjonInnhold,
-    val ressursUrl: String,
-    val kilde: String,
-)
+data class VarselInstruks(val type: HendelseType, val notifikasjonInnhold: NotifikasjonInnhold, val kilde: String,)
 
 data class NotifikasjonInnhold(val epostTittel: String, val epostBody: String, val smsTekst: String,)
 
@@ -19,7 +13,6 @@ enum class HendelseType {
 private const val EPOST_TITTEL_MAX_LENGTH = 255
 private const val EPOST_BODY_MAX_LENGTH = 4000
 private const val SMS_TEKST_MAX_LENGTH = 500
-private const val RESSURS_URL_MAX_LENGTH = 2000
 private const val KILDE_MAX_LENGTH = 255
 
 fun VarselInstruks.validate() {
@@ -33,10 +26,6 @@ fun VarselInstruks.validate() {
 
     if (notifikasjonInnhold.smsTekst.isBlank()) {
         throw ApiErrorException.BadRequestException("varselInstruks.notifikasjonInnhold.smsTekst må være satt")
-    }
-
-    if (ressursUrl.isBlank()) {
-        throw ApiErrorException.BadRequestException("varselInstruks.ressursUrl må være satt")
     }
 
     if (kilde.isBlank()) {
@@ -59,27 +48,10 @@ fun VarselInstruks.validate() {
         maxLength = SMS_TEKST_MAX_LENGTH,
     )
     validateMaxLength(
-        fieldName = "varselInstruks.ressursUrl",
-        value = ressursUrl,
-        maxLength = RESSURS_URL_MAX_LENGTH,
-    )
-    validateMaxLength(
         fieldName = "varselInstruks.kilde",
         value = kilde,
         maxLength = KILDE_MAX_LENGTH,
     )
-
-    val uri = runCatching { URI(ressursUrl) }.getOrElse {
-        throw ApiErrorException.BadRequestException("varselInstruks.ressursUrl må være en gyldig URL")
-    }
-
-    if (uri.scheme?.lowercase() !in setOf("http", "https")) {
-        throw ApiErrorException.BadRequestException("varselInstruks.ressursUrl må være en gyldig URL")
-    }
-
-    if (uri.host.isNullOrBlank()) {
-        throw ApiErrorException.BadRequestException("varselInstruks.ressursUrl må ha et host")
-    }
 }
 
 private fun validateMaxLength(fieldName: String, value: String, maxLength: Int) {

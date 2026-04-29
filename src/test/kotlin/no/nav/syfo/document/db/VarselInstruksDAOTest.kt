@@ -18,7 +18,7 @@ class VarselInstruksDAOTest :
         val testDb = TestDB.database
         val dialogDAO = DialogDAO(testDb)
         val varselInstruksDAO = VarselInstruksDAO(testDb)
-        val documentDAO = DocumentDAO(testDb, varselInstruksDAO)
+        val documentDAO = DocumentDAO(testDb)
 
         beforeTest {
             TestDB.clearAllData()
@@ -29,22 +29,25 @@ class VarselInstruksDAOTest :
                 runTest {
                     // Arrange
                     val dialog = dialogDAO.insertDialog(dialogEntity())
-                    val persistedDocument = documentDAO.insert(
-                        document().toDocumentEntity(dialog),
-                        "test".toByteArray(),
-                    )
                     val expectedVarselInstruks = varselInstruks()
+                    val expectedRessursUrl = "https://test.nav.no/api/v1/gui/documents/test-link"
 
                     // Act
-                    val insertedVarselInstruks = testDb.connection.use { connection ->
+                    val (persistedDocument, insertedVarselInstruks) = testDb.connection.use { connection ->
+                        val doc = documentDAO.insert(
+                            connection,
+                            document().toDocumentEntity(dialog),
+                            "test".toByteArray(),
+                        )
                         val inserted = varselInstruksDAO.insert(
                             connection,
-                            persistedDocument.id,
-                            persistedDocument.type.altinnResource!!,
-                            expectedVarselInstruks
+                            doc.id,
+                            doc.type.altinnResource!!,
+                            expectedRessursUrl,
+                            expectedVarselInstruks,
                         )
                         connection.commit()
-                        inserted
+                        doc to inserted
                     }
                     val retrievedVarselInstruks = varselInstruksDAO.getByDocumentId(persistedDocument.id)
 
@@ -56,7 +59,7 @@ class VarselInstruksDAOTest :
                     retrievedVarselInstruks?.epostBody shouldBe expectedVarselInstruks.notifikasjonInnhold.epostBody
                     retrievedVarselInstruks?.smsTekst shouldBe expectedVarselInstruks.notifikasjonInnhold.smsTekst
                     retrievedVarselInstruks?.ressursId shouldBe persistedDocument.type.altinnResource
-                    retrievedVarselInstruks?.ressursUrl shouldBe expectedVarselInstruks.ressursUrl
+                    retrievedVarselInstruks?.ressursUrl shouldBe expectedRessursUrl
                     retrievedVarselInstruks?.kilde shouldBe expectedVarselInstruks.kilde
                     retrievedVarselInstruks?.type shouldBe expectedVarselInstruks.type
                     retrievedVarselInstruks?.created shouldNotBe null
@@ -67,24 +70,27 @@ class VarselInstruksDAOTest :
                 runTest {
                     // Arrange
                     val dialog = dialogDAO.insertDialog(dialogEntity())
-                    val persistedDocument = documentDAO.insert(
-                        document().toDocumentEntity(dialog),
-                        "test".toByteArray(),
-                    )
 
                     // Act
                     val exception = shouldThrow<SQLException> {
                         testDb.connection.use { connection ->
+                            val persistedDocument = documentDAO.insert(
+                                connection,
+                                document().toDocumentEntity(dialog),
+                                "test".toByteArray(),
+                            )
                             varselInstruksDAO.insert(
                                 connection,
                                 persistedDocument.id,
                                 persistedDocument.type.altinnResource!!,
-                                varselInstruks()
+                                "https://test.nav.no/link1",
+                                varselInstruks(),
                             )
                             varselInstruksDAO.insert(
                                 connection,
                                 persistedDocument.id,
                                 persistedDocument.type.altinnResource,
+                                "https://test.nav.no/link2",
                                 varselInstruks(),
                             )
                         }

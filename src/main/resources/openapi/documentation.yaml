@@ -356,12 +356,6 @@ components:
           enum: [ AG_VARSEL_ALTINN_RESSURS ]
         notifikasjonInnhold:
           $ref: '#/components/schemas/NotifikasjonInnhold'
-        ressursUrl:
-          type: string
-          format: uri
-          minLength: 1
-          maxLength: 2000
-          description: Dyplenke til Altinn-visning for varselet.
         kilde:
           type: string
           minLength: 1
@@ -370,7 +364,6 @@ components:
       required:
         - type
         - notifikasjonInnhold
-        - ressursUrl
         - kilde
       additionalProperties: false
     NotifikasjonInnhold:
