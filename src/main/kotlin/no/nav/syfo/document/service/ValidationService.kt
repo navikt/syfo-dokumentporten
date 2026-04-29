@@ -10,11 +10,13 @@ import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.application.exception.ApiErrorException
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.DocumentEntity
+import no.nav.syfo.ereg.EregService
 import no.nav.syfo.util.logger
 
 class ValidationService(
     private val altinnTilgangerService: AltinnTilgangerService,
-    private val pdpService: PdpService
+    private val pdpService: PdpService,
+    private val eregService: EregService,
 ) {
     companion object {
         val logger = logger()
@@ -55,14 +57,37 @@ class ValidationService(
             )
 
         val hasAccess = pdpService.hasAccessToResource(
-            System(principal.systemUserId),
-            setOf(requestedOrgNumber),
-            requiredRessurs
+            bruker = System(principal.systemUserId),
+            orgnrSet = setOf(requestedOrgNumber),
+            ressurs = requiredRessurs
         )
         if (!hasAccess) {
-            throw ApiErrorException.ForbiddenException(
-                "Access denied to resource $requiredRessurs, for system user ${principal.systemUserId}",
+            val hasAccessThroughPrincipal =
+                accessThroughPrincipalOrgnumber(requestedOrgNumber, principal, requiredRessurs)
+            if (!hasAccessThroughPrincipal) {
+                throw ApiErrorException.ForbiddenException(
+                    "Access denied to resource $requiredRessurs, for system user ${principal.systemUserId}",
+                )
+            }
+        }
+    }
+
+    private suspend fun accessThroughPrincipalOrgnumber(
+        requestedOrgnumber: String,
+        principal: SystemPrincipal,
+        requiredRessurs: String
+    ): Boolean {
+        val organisasjon = eregService.getOrganization(requestedOrgnumber)
+        val orgnummerList = organisasjon.aggregerOrgnummereFraHierarki()
+        val matchesPrincipal = orgnummerList.contains(principal.getSystemUserOrgNumber())
+        return if (matchesPrincipal) {
+            pdpService.hasAccessToResource(
+                bruker = System(principal.systemUserId),
+                orgnrSet = setOf(principal.getSystemUserOrgNumber()),
+                ressurs = requiredRessurs,
             )
+        } else {
+            false
         }
     }
 }

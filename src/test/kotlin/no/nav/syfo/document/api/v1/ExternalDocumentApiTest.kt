@@ -44,6 +44,7 @@ import no.nav.syfo.document.db.Page
 import no.nav.syfo.document.db.PersistedDocumentEntity
 import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.document.service.ValidationService
+import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.FakeEregClient
 import no.nav.syfo.pdl.PdlService
 import no.nav.syfo.pdl.client.FakePdlClient
@@ -60,10 +61,13 @@ class ExternalDocumentApiTest :
         val documentContentDAO = mockk<DocumentContentDAO>(relaxed = true)
         val dialogDAO = mockk<DialogDAO>()
         val fakeAltinnTilgangerClient = FakeAltinnTilgangerClient()
+        val fakeEregClient = FakeEregClient()
         val eregCache = mockk<EregCache>(relaxed = true)
+        val eregService = EregService(fakeEregClient, eregCache)
+        val eregServiceSpy = spyk(eregService)
         val pdpServiceMock = mockk<PdpService>()
         val validationService =
-            ValidationService(AltinnTilgangerService(fakeAltinnTilgangerClient), pdpServiceMock)
+            ValidationService(AltinnTilgangerService(fakeAltinnTilgangerClient), pdpServiceMock, eregServiceSpy)
         val validationServiceSpy = spyk(validationService)
         val fakePdlClient = FakePdlClient()
         val pdlService = PdlService(fakePdlClient)
@@ -160,6 +164,7 @@ class ExternalDocumentApiTest :
                                 any()
                             )
                         } returns false
+                        coEvery { eregCache.getOrganisasjon(any()) } returns organisasjon()
                         texasClientMock.defaultMocks(
                             systemBrukerOrganisasjon = DefaultOrganization.copy(
                                 ID = "0192:$nonMatchingOrgNumber" // Different orgnumber
@@ -563,19 +568,28 @@ class ExternalDocumentApiTest :
                 it("should return 403 Forbidden for unauthorized organization") {
                     withTestApplication {
                         // Arrange
-                        val requestedOrgNumber = "123456789"
+                        val organisasjon = organisasjon()
+                        val requestedOrgNumber = organisasjon.organisasjonsnummer
+                        val hovedenhet = organisasjon.inngaarIJuridiskEnheter!!.first().organisasjonsnummer
 
                         coEvery {
                             pdpServiceMock.hasAccessToResource(
                                 any(),
-                                setOf(requestedOrgNumber),
+                                setOf(organisasjon.organisasjonsnummer),
                                 any()
                             )
                         } returns false
-                        val tokenOrgNumber = "987654321"
+                        coEvery {
+                            pdpServiceMock.hasAccessToResource(
+                                any(),
+                                setOf(hovedenhet),
+                                any()
+                            )
+                        } returns false
+                        coEvery { eregCache.getOrganisasjon(any()) } returns organisasjon
                         // Add the requested org to the fake client so it's found, but without parent relationship
                         texasClientMock.defaultMocks(
-                            systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:$tokenOrgNumber"),
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(ID = "0192:$hovedenhet"),
                             scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
                         )
 
@@ -584,7 +598,7 @@ class ExternalDocumentApiTest :
                             client.get(
                                 "api/v1/documents?orgNumber=$requestedOrgNumber&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z"
                             ) {
-                                bearerAuth(createMockToken(ident = tokenOrgNumber))
+                                bearerAuth(createMockToken(ident = hovedenhet))
                             }
 
                         // Assert

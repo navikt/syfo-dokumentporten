@@ -13,12 +13,15 @@ import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.application.exception.ApiErrorException
+import no.nav.syfo.ereg.EregService
+import organisasjon
 
 class ValidationServiceTest :
     DescribeSpec({
         val altinnTilgangerService = mockk<AltinnTilgangerService>()
+        val eregService = mockk<EregService>()
         val pdpServiceMock = mockk<PdpService>()
-        val validationService = ValidationService(altinnTilgangerService, pdpServiceMock)
+        val validationService = ValidationService(altinnTilgangerService, pdpServiceMock, eregService)
 
         val documentEntity = documentEntity(dialogEntity())
         beforeTest {
@@ -96,15 +99,16 @@ class ValidationServiceTest :
 
                         it("should throw ForbiddenException when PDP denies access") {
                             // Arrange
+                            val organisasjon = organisasjon()
                             val systemPrincipal = SystemPrincipal(
                                 "0192:${documentEntity.dialog.orgNumber}",
                                 "token",
                                 "0192:systemOwner",
-                                "systemUserId"
+                                organisasjon.inngaarIJuridiskEnheter!!.first().organisasjonsnummer
 
                             )
                             coEvery { pdpServiceMock.hasAccessToResource(any(), any(), any()) } returns false
-
+                            coEvery { eregService.getOrganization((any())) } returns organisasjon
                             // Act & Assert - should not throw exception
                             shouldThrow<ApiErrorException.ForbiddenException> {
                                 validationService.validateDocumentAccess(systemPrincipal, documentEntity)
