@@ -45,17 +45,17 @@ class DocumentService(
                     val insertedDocument = documentDAO.insert(connection, documentEntity, document.content)
 
                     if (document.varselInstruks != null) {
-                        if (documentEntity.type.altinnResource == null) {
-                            throw DocumentInsertException(
+                        val altinnResource = documentEntity.type.altinnResource
+                            ?: throw DocumentInsertException(
                                 "varselInstruks er kun støttet for dokumenttyper med en Altinn-ressurs (type=${documentEntity.type})"
                             )
-                        }
 
                         val ressursUrl = createGuiDocumentLink(insertedDocument.linkId.toString())
 
                         varselInstruksDAO.insert(
                             connection = connection,
                             documentId = insertedDocument.id,
+                            ressursId = altinnResource,
                             ressursUrl = ressursUrl,
                             varselInstruks = document.varselInstruks,
                         )

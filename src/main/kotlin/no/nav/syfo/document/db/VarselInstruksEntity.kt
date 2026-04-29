@@ -10,6 +10,7 @@ data class VarselInstruksEntity(
     val epostTittel: String,
     val epostBody: String,
     val smsTekst: String,
+    val ressursId: String,
     val ressursUrl: String,
     val created: Instant,
     val kilde: String,

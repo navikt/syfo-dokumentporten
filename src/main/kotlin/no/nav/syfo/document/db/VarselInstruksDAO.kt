@@ -13,13 +13,14 @@ class VarselInstruksDAO(private val database: DatabaseInterface) {
     fun insert(
         connection: Connection,
         documentId: Long,
+        ressursId: String,
         ressursUrl: String,
         varselInstruks: VarselInstruks
     ): VarselInstruksEntity {
         val insertStatement =
             """
-            INSERT INTO varsel_instruks (document_id, type, epost_tittel, epost_body, sms_tekst, ressurs_url, kilde)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO varsel_instruks (document_id, type, epost_tittel, epost_body, sms_tekst, ressurs_id, ressurs_url, kilde)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING *
             """.trimIndent()
 
@@ -29,8 +30,9 @@ class VarselInstruksDAO(private val database: DatabaseInterface) {
             ps.setString(3, varselInstruks.notifikasjonInnhold.epostTittel)
             ps.setString(4, varselInstruks.notifikasjonInnhold.epostBody)
             ps.setString(5, varselInstruks.notifikasjonInnhold.smsTekst)
-            ps.setString(6, ressursUrl)
-            ps.setString(7, varselInstruks.kilde)
+            ps.setString(6, ressursId)
+            ps.setString(7, ressursUrl)
+            ps.setString(8, varselInstruks.kilde)
             val resultSet = ps.executeQuery()
             if (resultSet.next()) {
                 resultSet.toVarselInstruksEntity()
@@ -69,6 +71,7 @@ fun ResultSet.toVarselInstruksEntity(): VarselInstruksEntity = VarselInstruksEnt
     epostTittel = getString("epost_tittel"),
     epostBody = getString("epost_body"),
     smsTekst = getString("sms_tekst"),
+    ressursId = getString("ressurs_id"),
     ressursUrl = getString("ressurs_url"),
     kilde = getString("kilde"),
     created = getTimestamp("created").toInstant(),
