@@ -62,7 +62,7 @@ class VarselInstruksDAOTest :
                     retrievedVarselInstruks?.epostBody shouldBe expectedVarselInstruks.notifikasjonInnhold.epostBody
                     retrievedVarselInstruks?.smsTekst shouldBe expectedVarselInstruks.notifikasjonInnhold.smsTekst
                     retrievedVarselInstruks?.ressursId shouldBe persistedDocument.type.altinnResource
-                    retrievedVarselInstruks?.ressursUrl shouldBe expectedRessursUrl
+                    retrievedVarselInstruks?.dokumentUrl shouldBe expectedRessursUrl
                     retrievedVarselInstruks?.kilde shouldBe expectedVarselInstruks.kilde
                     retrievedVarselInstruks?.type shouldBe expectedVarselInstruks.type
                     retrievedVarselInstruks?.status shouldBe VarselInstruksStatus.PENDING
@@ -128,6 +128,7 @@ class VarselInstruksDAOTest :
                         varselInstruksDAO.insert(
                             connection,
                             doc.id,
+                            doc.type.altinnResource!!,
                             expectedRessursUrl,
                             document.varselInstruks!!,
                         )
@@ -174,6 +175,7 @@ class VarselInstruksDAOTest :
                         varselInstruksDAO.insert(
                             connection,
                             doc.id,
+                            doc.type.altinnResource!!,
                             "https://test.nav.no/api/v1/gui/documents/${doc.linkId}",
                             document.varselInstruks!!,
                         )
@@ -199,6 +201,7 @@ class VarselInstruksDAOTest :
                             connection,
                             doc.id,
                             doc.type.altinnResource!!,
+                            "https://test.nav.no/api/v1/gui/documents/${doc.linkId}",
                             varselInstruks(),
                         )
                         connection.commit()
@@ -232,6 +235,7 @@ class VarselInstruksDAOTest :
                             connection,
                             doc.id,
                             doc.type.altinnResource!!,
+                            "https://test.nav.no/api/v1/gui/documents/${doc.linkId}",
                             varselInstruks(),
                         )
                         connection.commit()
@@ -271,6 +275,7 @@ class VarselInstruksDAOTest :
                             connection,
                             doc.id,
                             doc.type.altinnResource!!,
+                            "https://test.nav.no/api/v1/gui/documents/${doc.linkId}",
                             varselInstruks(),
                         )
                         connection.commit()
