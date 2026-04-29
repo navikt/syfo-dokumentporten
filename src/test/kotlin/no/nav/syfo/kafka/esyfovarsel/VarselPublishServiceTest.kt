@@ -16,8 +16,8 @@ import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.VarselInstruksDAO
 import no.nav.syfo.document.db.VarselInstruksStatus
 import org.apache.kafka.common.errors.TimeoutException
+import setVarselCreatedAt
 import varselInstruks
-import java.sql.Timestamp
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -240,24 +240,3 @@ class VarselPublishServiceTest :
             }
         }
     })
-
-private fun setVarselCreatedAt(
-    testDb: no.nav.syfo.application.database.DatabaseInterface,
-    documentId: Long,
-    created: Instant,
-) {
-    testDb.connection.use { connection ->
-        connection.prepareStatement(
-            """
-            UPDATE varsel_instruks
-            SET created = ?
-            WHERE document_id = ?
-            """.trimIndent()
-        ).use { preparedStatement ->
-            preparedStatement.setTimestamp(1, Timestamp.from(created))
-            preparedStatement.setLong(2, documentId)
-            preparedStatement.executeUpdate()
-        }
-        connection.commit()
-    }
-}

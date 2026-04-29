@@ -10,9 +10,9 @@ import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
 import kotlinx.coroutines.test.runTest
 import no.nav.syfo.TestDB
+import setVarselCreatedAt
 import varselInstruks
 import java.sql.SQLException
-import java.sql.Timestamp
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -304,24 +304,3 @@ class VarselInstruksDAOTest :
             }
         }
     })
-
-private fun setVarselCreatedAt(
-    testDb: no.nav.syfo.application.database.DatabaseInterface,
-    documentId: Long,
-    created: Instant,
-) {
-    testDb.connection.use { connection ->
-        connection.prepareStatement(
-            """
-            UPDATE varsel_instruks
-            SET created = ?
-            WHERE document_id = ?
-            """.trimIndent()
-        ).use { preparedStatement ->
-            preparedStatement.setTimestamp(1, Timestamp.from(created))
-            preparedStatement.setLong(2, documentId)
-            preparedStatement.executeUpdate()
-        }
-        connection.commit()
-    }
-}
