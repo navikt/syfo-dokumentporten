@@ -43,6 +43,7 @@ class VarselPublishServiceTest :
                 varselInstruksDAO.insert(
                     connection = connection,
                     documentId = persistedDocument.id,
+                    ressursId = persistedDocument.type.altinnResource!!,
                     ressursUrl = "https://test.nav.no/api/v1/gui/documents/${persistedDocument.linkId}",
                     varselInstruks = document.varselInstruks,
                 )
