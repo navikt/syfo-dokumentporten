@@ -39,3 +39,16 @@ data class VarselInstruksPublishView(
     val epostBody: String,
     val smsTekst: String,
 )
+
+fun VarselInstruksEntity.toPublishView(document: PersistedDocumentEntity) = VarselInstruksPublishView(
+    id = id,
+    documentId = document.documentId,
+    fnr = document.dialog.fnr,
+    orgNumber = document.dialog.orgNumber,
+    ressursId = ressursId,
+    ressursUrl = ressursUrl,
+    kilde = kilde,
+    epostTittel = epostTittel,
+    epostBody = epostBody,
+    smsTekst = smsTekst,
+)
