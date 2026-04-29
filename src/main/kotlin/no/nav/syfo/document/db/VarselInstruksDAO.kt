@@ -89,6 +89,7 @@ class VarselInstruksDAO(private val database: DatabaseInterface) {
             INNER JOIN document doc ON vi.document_id = doc.id
             INNER JOIN dialog ON doc.dialog_id = dialog.id
             WHERE vi.status = 'PENDING'
+            AND vi.created < NOW() - INTERVAL '1 minute'
             ORDER BY vi.created
             LIMIT ?
             FOR UPDATE OF vi SKIP LOCKED
