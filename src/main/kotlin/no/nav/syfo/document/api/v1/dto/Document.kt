@@ -20,6 +20,7 @@ data class Document(
     val title: String,
     val summary: String?,
     val birthDate: LocalDate?,
+    val varselInstruks: VarselInstruks? = null,
 ) {
     fun toDocumentEntity(dialog: PersistedDialogEntity): DocumentEntity = DocumentEntity(
         documentId = documentId,
@@ -63,6 +64,7 @@ data class Document(
         if (title != other.title) return false
         if (summary != other.summary) return false
         if (birthDate != other.birthDate) return false
+        if (varselInstruks != other.varselInstruks) return false
 
         return true
     }
@@ -77,14 +79,19 @@ data class Document(
         result = 31 * result + orgNumber.hashCode()
         result = 31 * result + title.hashCode()
         result = 31 * result + (summary?.hashCode() ?: 0)
+        result = 31 * result + (varselInstruks?.hashCode() ?: 0)
         return result
     }
 }
 
-enum class DocumentType(val displayName: String) {
-    DIALOGMOTE("Dialogmøte"),
-    OPPFOLGINGSPLAN("Oppfølgingsplan"),
+enum class DocumentType(val displayName: String, val altinnResource: String? = null) {
+    DIALOGMOTE("Dialogmøte", "nav_syfo_dialogmote"),
+    OPPFOLGINGSPLAN("Oppfølgingsplan", "nav_syfo_oppfolgingsplan"),
 
     @JsonEnumDefaultValue
-    UNDEFINED("Dokument"),
+    UNDEFINED("Dokument");
+
+    companion object {
+        fun getAltinnResources() = entries.mapNotNull { it.altinnResource }
+    }
 }
