@@ -27,17 +27,27 @@ import no.nav.syfo.application.valkey.ValkeyCache
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
+import no.nav.syfo.document.db.VarselInstruksDAO
 import no.nav.syfo.document.service.DialogService
+import no.nav.syfo.document.service.DocumentService
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.EregClient
 import no.nav.syfo.ereg.client.FakeEregClient
+import no.nav.syfo.kafka.esyfovarsel.EsyfovarselProducer
+import no.nav.syfo.kafka.esyfovarsel.FakeEsyfovarselProducer
+import no.nav.syfo.kafka.esyfovarsel.IEsyfovarselProducer
+import no.nav.syfo.kafka.esyfovarsel.PublishVarselTask
+import no.nav.syfo.kafka.esyfovarsel.VarselPublishService
+import no.nav.syfo.kafka.esyfovarsel.buildKafkaProducerProperties
+import no.nav.syfo.kafka.esyfovarsel.createEsyfovarselObjectMapper
 import no.nav.syfo.pdl.PdlService
 import no.nav.syfo.pdl.client.FakePdlClient
 import no.nav.syfo.pdl.client.PdlClient
 import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.JsonFixtureLoader
 import no.nav.syfo.util.httpClientDefault
+import org.apache.kafka.clients.producer.KafkaProducer
 import org.koin.core.scope.Scope
 import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
@@ -86,9 +96,8 @@ private fun databaseModule() = module {
             )
         )
     }
-    single {
-        DocumentDAO(get())
-    }
+    single { VarselInstruksDAO(get()) }
+    single { DocumentDAO(get()) }
     single { DialogDAO(get()) }
     single { DocumentContentDAO(get()) }
 }
@@ -174,6 +183,18 @@ private fun servicesModule() = module {
         }
     }
     single { PdlService(get()) }
+    single<IEsyfovarselProducer> {
+        if (isLocalEnv()) {
+            FakeEsyfovarselProducer()
+        } else {
+            EsyfovarselProducer(
+                kafkaProducer = KafkaProducer(buildKafkaProducerProperties(env().kafka)),
+                topic = env().kafka.varselbusTopic,
+                objectMapper = createEsyfovarselObjectMapper(),
+            )
+        }
+    }
+    single { VarselPublishService(get(), get()) }
 
     single {
         DialogService(
@@ -182,8 +203,20 @@ private fun servicesModule() = module {
         )
     }
 
+    single {
+        DocumentService(
+            documentDAO = get(),
+            varselInstruksDAO = get(),
+            dialogService = get(),
+            varselPublishService = get(),
+            database = get(),
+            publicIngressUrl = env().publicIngressUrl,
+        )
+    }
+
     single { DialogportenService(get(), get(), env().publicIngressUrl, env().dialogportenIsApiOnly, get(), get()) }
     single { SendDialogTask(get(), get()) }
+    single { PublishVarselTask(get(), get()) }
 }
 
 private fun Scope.env() = get<Environment>()

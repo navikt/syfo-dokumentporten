@@ -11,6 +11,9 @@ import net.datafaker.Faker
 import no.nav.syfo.application.auth.JwtIssuer
 import no.nav.syfo.document.api.v1.dto.Document
 import no.nav.syfo.document.api.v1.dto.DocumentType
+import no.nav.syfo.document.api.v1.dto.HendelseType
+import no.nav.syfo.document.api.v1.dto.NotifikasjonInnhold
+import no.nav.syfo.document.api.v1.dto.VarselInstruks
 import no.nav.syfo.document.db.PersistedDialogEntity
 import no.nav.syfo.document.db.PersistedDocumentEntity
 import no.nav.syfo.ereg.client.Organisasjon
@@ -24,9 +27,9 @@ import java.util.*
 
 val faker = Faker(Random(Instant.now().epochSecond))
 
-fun document() = Document(
+fun document(varselInstruks: VarselInstruks? = null, type: DocumentType = DocumentType.DIALOGMOTE) = Document(
     documentId = UUID.randomUUID(),
-    type = DocumentType.DIALOGMOTE,
+    type = type,
     content = faker.lorem().sentence().toByteArray(),
     contentType = "application/pdf",
     fnr = faker.numerify("###########"),
@@ -34,7 +37,20 @@ fun document() = Document(
     orgNumber = faker.numerify("#########"),
     title = faker.lorem().sentence(),
     summary = faker.lorem().sentence(),
-    birthDate = null
+    birthDate = null,
+    varselInstruks = varselInstruks,
+)
+
+fun varselInstruks(
+    type: HendelseType = HendelseType.AG_VARSEL_ALTINN_RESSURS,
+    epostTittel: String = "Du har fått et nytt varsel",
+    epostBody: String = "Logg inn på Altinn for å lese.",
+    smsTekst: String = "Du har fått et nytt varsel i Altinn.",
+    kilde: String = "dokumentporten.dialogmote",
+) = VarselInstruks(
+    type = type,
+    notifikasjonInnhold = NotifikasjonInnhold(epostTittel, epostBody, smsTekst),
+    kilde = kilde,
 )
 
 fun dialogEntity() = PersistedDialogEntity(

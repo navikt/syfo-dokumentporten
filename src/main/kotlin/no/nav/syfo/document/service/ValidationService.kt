@@ -3,7 +3,6 @@ package no.nav.syfo.document.service
 import no.nav.syfo.altinn.pdp.client.System
 import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
-import no.nav.syfo.altinntilganger.AltinnTilgangerService.Companion.requiredResourceByDocumentType
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.Principal
 import no.nav.syfo.application.auth.SystemPrincipal
@@ -96,7 +95,7 @@ class ValidationService(
     }
 
     private suspend fun validateAltinnRessursTilgang(principal: SystemPrincipal, documentType: DocumentType) {
-        val requiredRessurs = requiredResourceByDocumentType[documentType]
+        val requiredRessurs = documentType.altinnResource
             ?: throw ApiErrorException.InternalServerErrorException(
                 "Could not find resource for document type $documentType"
             )
