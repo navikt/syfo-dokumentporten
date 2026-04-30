@@ -79,6 +79,7 @@ class TestDB private constructor() {
         fun clearAllData() = database.connection.use {
             it.prepareStatement(
                 """
+                        DELETE FROM varsel_instruks;
                         DELETE FROM document_content;
                         DELETE FROM document;
                         DELETE FROM dialog;
