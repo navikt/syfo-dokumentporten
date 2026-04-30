@@ -2,6 +2,7 @@ package no.nav.syfo.document.service
 
 import dialogEntity
 import documentEntity
+import io.kotest.assertions.throwables.shouldNotThrow
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
@@ -9,233 +10,287 @@ import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.slot
+import no.nav.syfo.altinn.pdp.client.System
 import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.SystemPrincipal
 import no.nav.syfo.application.exception.ApiErrorException
+import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.ereg.EregService
-import organisasjon
+import no.nav.syfo.ereg.client.Organisasjon
 
 class ValidationServiceTest :
     DescribeSpec({
         val altinnTilgangerService = mockk<AltinnTilgangerService>()
         val eregService = mockk<EregService>()
-        val pdpServiceMock = mockk<PdpService>()
-        val validationService = ValidationService(altinnTilgangerService, eregService, pdpServiceMock)
+        val pdpService = mockk<PdpService>()
+        val validationService = ValidationService(altinnTilgangerService, pdpService, eregService)
 
-        val documentEntity = documentEntity(dialogEntity())
+        val persistedDocument = documentEntity(dialogEntity())
+
+        fun systemPrincipal(systemUserOrgNumber: String, systemUserId: String = "system-user-id",) = SystemPrincipal(
+            ident = "0192:$systemUserOrgNumber",
+            token = "token",
+            systemOwner = "0192:999999999",
+            systemUserId = systemUserId,
+        )
+
+        // slot captures the last matching invocation — safe here because expectedOrgnrSet
+        // uniquely identifies which PDP call is being verified in tests with multiple calls.
+        fun verifyPdpCall(
+            expectedSystemUserId: String,
+            expectedOrgnrSet: Set<String>,
+            expectedRessurs: String,
+            exactly: Int = 1,
+        ) {
+            val brukerSlot = slot<System>()
+            coVerify(exactly = exactly) {
+                pdpService.hasAccessToResource(
+                    bruker = capture(brukerSlot),
+                    orgnrSet = expectedOrgnrSet,
+                    ressurs = expectedRessurs,
+                )
+            }
+            brukerSlot.captured.id shouldBe expectedSystemUserId
+            brukerSlot.captured.attributeId shouldBe "urn:altinn:systemuser:uuid"
+        }
+
         beforeTest {
             clearAllMocks()
-            coEvery { pdpServiceMock.hasAccessToResource(any(), any(), any()) } returns true
+            coEvery { pdpService.hasAccessToResource(any(), any(), any()) } returns true
         }
 
         describe("ValidationService") {
             describe("validateDocumentAccess") {
                 context("when principal is BrukerPrincipal") {
-                    it("should validate Altinn tilgang and not throw for valid access") {
-                        // Arrange
-                        val brukerPrincipal = BrukerPrincipal("12345678901", "token")
-                        coEvery { altinnTilgangerService.validateTilgangToOrganisasjon(any(), any(), any()) } returns
-                            Unit
-
-                        // Act
-                        validationService.validateDocumentAccess(brukerPrincipal, documentEntity)
-
-                        // Assert
-                        coVerify(exactly = 1) {
-                            altinnTilgangerService.validateTilgangToOrganisasjon(
-                                any(),
-                                any(),
-                                any()
-                            )
-                        }
-                        coVerify(exactly = 0) {
-                            eregService.getOrganization(any())
-                        }
-                    }
-
-                    it("should validate Altinn tilgang and pass through exception from AltinnTilgangerService") {
-                        // Arrange
+                    it("should validate Altinn tilgang with document values") {
                         val brukerPrincipal = BrukerPrincipal("12345678901", "token")
                         coEvery {
                             altinnTilgangerService.validateTilgangToOrganisasjon(
-                                any(),
-                                any(),
-                                any()
+                                brukerPrincipal = brukerPrincipal,
+                                orgnummer = persistedDocument.dialog.orgNumber,
+                                documentType = persistedDocument.type,
+                            )
+                        } returns Unit
+
+                        validationService.validateDocumentAccess(brukerPrincipal, persistedDocument)
+
+                        coVerify(exactly = 1) {
+                            altinnTilgangerService.validateTilgangToOrganisasjon(
+                                brukerPrincipal = brukerPrincipal,
+                                orgnummer = persistedDocument.dialog.orgNumber,
+                                documentType = persistedDocument.type,
+                            )
+                        }
+                        coVerify(exactly = 0) { pdpService.hasAccessToResource(any(), any(), any()) }
+                        coVerify(exactly = 0) { eregService.getOrganization(any()) }
+                    }
+
+                    it("should pass through forbidden exception from AltinnTilgangerService") {
+                        val brukerPrincipal = BrukerPrincipal("12345678901", "token")
+                        coEvery {
+                            altinnTilgangerService.validateTilgangToOrganisasjon(
+                                brukerPrincipal = brukerPrincipal,
+                                orgnummer = persistedDocument.dialog.orgNumber,
+                                documentType = persistedDocument.type,
                             )
                         } throws ApiErrorException.ForbiddenException("No access")
 
-                        // Act
                         shouldThrow<ApiErrorException.ForbiddenException> {
-                            validationService.validateDocumentAccess(brukerPrincipal, documentEntity)
+                            validationService.validateDocumentAccess(brukerPrincipal, persistedDocument)
                         }
-                        // Assert
+
                         coVerify(exactly = 1) {
                             altinnTilgangerService.validateTilgangToOrganisasjon(
-                                any(),
-                                any(),
-                                any()
+                                brukerPrincipal = brukerPrincipal,
+                                orgnummer = persistedDocument.dialog.orgNumber,
+                                documentType = persistedDocument.type,
                             )
                         }
-                        coVerify(exactly = 0) {
-                            eregService.getOrganization(any())
-                        }
+                        coVerify(exactly = 0) { pdpService.hasAccessToResource(any(), any(), any()) }
+                        coVerify(exactly = 0) { eregService.getOrganization(any()) }
                     }
                 }
-            }
 
-            describe("validateMaskinportenTilgang") {
-                context("when orgnumber from token matches document orgnumber") {
-                    it("should allow access without checking ereg when Principal matches document orgnumber") {
-                        // Arrange
-                        val systemPrincipal = SystemPrincipal(
-                            "0192:${documentEntity.dialog.orgNumber}",
-                            "token",
-                            "0192:systemOwner",
-                            "systemUserId"
+                context("when principal is SystemPrincipal") {
+                    it("should allow access when PDP grants direct access to requested orgnumber") {
+                        val requestedOrgNumber = persistedDocument.dialog.orgNumber
+                        val principal = systemPrincipal(systemUserOrgNumber = "111111111")
 
+                        validationService.validateDocumentsOfTypeAccess(
+                            principal = principal,
+                            requestedOrgNumber = requestedOrgNumber,
+                            documentType = DocumentType.DIALOGMOTE,
                         )
 
-                        // Act & Assert - should not throw exception
-                        validationService.validateMaskinportenTilgang(
-                            systemPrincipal,
-                            documentEntity.dialog.orgNumber,
-                            documentEntity.type
-                        )
-                        coVerify(exactly = 0) {
-                            eregService.getOrganization(any())
-                        }
+                        verifyPdpCall(principal.systemUserId, setOf(requestedOrgNumber), "nav_syfo_dialogmote")
+                        coVerify(exactly = 0) { eregService.getOrganization(any()) }
                         coVerify(exactly = 0) {
                             altinnTilgangerService.validateTilgangToOrganisasjon(any(), any(), any())
                         }
                     }
 
-                    it("should throw ForbiddenException when PDP denies access") {
-                        // Arrange
-                        val systemPrincipal = SystemPrincipal(
-                            "0192:${documentEntity.dialog.orgNumber}",
-                            "token",
-                            "0192:systemOwner",
-                            "systemUserId"
+                    it("should use oppfolgingsplan resource when checking PDP access") {
+                        val requestedOrgNumber = "123456789"
+                        val principal = systemPrincipal(systemUserOrgNumber = "111111111")
 
+                        validationService.validateDocumentsOfTypeAccess(
+                            principal = principal,
+                            requestedOrgNumber = requestedOrgNumber,
+                            documentType = DocumentType.OPPFOLGINGSPLAN,
                         )
-                        coEvery { pdpServiceMock.hasAccessToResource(any(), any(), any()) } returns false
 
-                        // Act & Assert - should not throw exception
-                        shouldThrow<ApiErrorException.ForbiddenException> {
-                            validationService.validateDocumentAccess(systemPrincipal, documentEntity)
-                        }
-                        coVerify(exactly = 0) {
-                            eregService.getOrganization(any())
-                        }
-                        coVerify(exactly = 0) {
-                            altinnTilgangerService.validateTilgangToOrganisasjon(any(), any(), any())
-                        }
+                        verifyPdpCall(principal.systemUserId, setOf(requestedOrgNumber), "nav_syfo_oppfolgingsplan")
+                        coVerify(exactly = 0) { eregService.getOrganization(any()) }
+                    }
+
+                    it("should extract orgNumber and type from documentEntity for SystemPrincipal") {
+                        val principal = systemPrincipal(
+                            systemUserOrgNumber = persistedDocument.dialog.orgNumber,
+                        )
+
+                        validationService.validateDocumentAccess(principal, persistedDocument)
+
                         coVerify(exactly = 1) {
-                            pdpServiceMock.hasAccessToResource(any(), any(), any())
+                            pdpService.hasAccessToResource(
+                                bruker = any(),
+                                orgnrSet = setOf(persistedDocument.dialog.orgNumber),
+                                ressurs = "nav_syfo_dialogmote",
+                            )
                         }
+                        coVerify(exactly = 0) { eregService.getOrganization(any()) }
                     }
-                }
 
-                context("when orgnumber from token does not match document orgnumber") {
-                    context("and organization has parent organization with matching orgnumber") {
-                        it("should allow access") {
-                            // Arrange
-                            val organization = organisasjon()
-                            val entity = documentEntity.copy(
-                                dialog = documentEntity.dialog.copy(
-                                    orgNumber = organization.organisasjonsnummer
-                                ),
+                    context("when PDP denies direct access") {
+                        it("should allow access through principal orgnumber in ereg hierarchy") {
+                            val requestedOrgNumber = "123456789"
+                            val principalOrgNumber = "987654321"
+                            val principal = systemPrincipal(systemUserOrgNumber = principalOrgNumber)
+                            val organisasjon = Organisasjon(
+                                organisasjonsnummer = requestedOrgNumber,
+                                inngaarIJuridiskEnheter = listOf(
+                                    Organisasjon(organisasjonsnummer = principalOrgNumber)
+                                )
                             )
+                            coEvery {
+                                pdpService.hasAccessToResource(
+                                    bruker = any(),
+                                    orgnrSet = setOf(requestedOrgNumber),
+                                    ressurs = "nav_syfo_dialogmote",
+                                )
+                            } returns false
+                            coEvery { eregService.getOrganization(requestedOrgNumber) } returns organisasjon
+                            coEvery {
+                                pdpService.hasAccessToResource(
+                                    bruker = any(),
+                                    orgnrSet = setOf(principalOrgNumber),
+                                    ressurs = "nav_syfo_dialogmote",
+                                )
+                            } returns true
 
-                            val systemPrincipal = SystemPrincipal(
-                                "0192:${organization.inngaarIJuridiskEnheter!!.first().organisasjonsnummer}",
-                                "token",
-                                "0192:systemOwner",
-                                "systemUserId"
-                            )
-                            coEvery { eregService.getOrganization(entity.dialog.orgNumber) } returns organization
-
-                            // Act & Assert - should not throw exception
-                            validationService.validateMaskinportenTilgang(
-                                systemPrincipal,
-                                entity.dialog.orgNumber,
-                                entity.type
-                            )
-
-                            coVerify(exactly = 1) {
-                                eregService.getOrganization(eq(entity.dialog.orgNumber))
+                            shouldNotThrow<Exception> {
+                                validationService.validateDocumentsOfTypeAccess(
+                                    principal = principal,
+                                    requestedOrgNumber = requestedOrgNumber,
+                                    documentType = DocumentType.DIALOGMOTE,
+                                )
                             }
+
+                            verifyPdpCall(principal.systemUserId, setOf(requestedOrgNumber), "nav_syfo_dialogmote")
+                            coVerify(exactly = 1) { eregService.getOrganization(requestedOrgNumber) }
+                            verifyPdpCall(principal.systemUserId, setOf(principalOrgNumber), "nav_syfo_dialogmote")
+                            coVerify(exactly = 2) { pdpService.hasAccessToResource(any(), any(), any()) }
                         }
-                    }
 
-                    context("and organization has no parent organizations") {
-                        it("should deny access") {
-                            // Arrange
-                            val organization = organisasjon()
-                            val entity = documentEntity.copy(
-                                dialog = documentEntity.dialog.copy(
-                                    orgNumber = organization.organisasjonsnummer
-                                ),
+                        it(
+                            "should throw ForbiddenException when hierarchy matches but PDP denies principal orgnumber"
+                        ) {
+                            val requestedOrgNumber = "123456789"
+                            val principalOrgNumber = "987654321"
+                            val principal = systemPrincipal(systemUserOrgNumber = principalOrgNumber)
+                            val organisasjon = Organisasjon(
+                                organisasjonsnummer = requestedOrgNumber,
+                                inngaarIJuridiskEnheter = listOf(
+                                    Organisasjon(organisasjonsnummer = principalOrgNumber)
+                                )
                             )
+                            coEvery {
+                                pdpService.hasAccessToResource(
+                                    bruker = any(),
+                                    orgnrSet = setOf(requestedOrgNumber),
+                                    ressurs = "nav_syfo_dialogmote",
+                                )
+                            } returns false
+                            coEvery { eregService.getOrganization(requestedOrgNumber) } returns organisasjon
+                            coEvery {
+                                pdpService.hasAccessToResource(
+                                    bruker = any(),
+                                    orgnrSet = setOf(principalOrgNumber),
+                                    ressurs = "nav_syfo_dialogmote",
+                                )
+                            } returns false
 
-                            val systemPrincipal = SystemPrincipal(
-                                "0192:${organization.inngaarIJuridiskEnheter!!.first().organisasjonsnummer}",
-                                "token",
-                                "0192:systemOwner",
-                                "systemUserId"
-
-                            )
-                            coEvery { eregService.getOrganization(entity.dialog.orgNumber) } returns organization.copy(
-                                inngaarIJuridiskEnheter = null
-                            )
-
-                            // Act & Assert
                             shouldThrow<ApiErrorException.ForbiddenException> {
-                                validationService.validateMaskinportenTilgang(
-                                    systemPrincipal,
-                                    entity.dialog.orgNumber,
-                                    entity.type,
+                                validationService.validateDocumentsOfTypeAccess(
+                                    principal = principal,
+                                    requestedOrgNumber = requestedOrgNumber,
+                                    documentType = DocumentType.DIALOGMOTE,
                                 )
                             }
-                            coVerify { eregService.getOrganization(entity.dialog.orgNumber) }
+
+                            verifyPdpCall(principal.systemUserId, setOf(requestedOrgNumber), "nav_syfo_dialogmote")
+                            coVerify(exactly = 1) { eregService.getOrganization(requestedOrgNumber) }
+                            verifyPdpCall(principal.systemUserId, setOf(principalOrgNumber), "nav_syfo_dialogmote")
+                            coVerify(exactly = 2) { pdpService.hasAccessToResource(any(), any(), any()) }
+                        }
+
+                        it("should throw ForbiddenException when principal orgnumber is not in ereg hierarchy") {
+                            val requestedOrgNumber = "123456789"
+                            val principal = systemPrincipal(systemUserOrgNumber = "987654321")
+                            val organisasjon = Organisasjon(
+                                organisasjonsnummer = requestedOrgNumber,
+                                inngaarIJuridiskEnheter = listOf(
+                                    Organisasjon(organisasjonsnummer = "222222222")
+                                )
+                            )
+                            coEvery {
+                                pdpService.hasAccessToResource(
+                                    bruker = any(),
+                                    orgnrSet = setOf(requestedOrgNumber),
+                                    ressurs = "nav_syfo_dialogmote",
+                                )
+                            } returns false
+                            coEvery { eregService.getOrganization(requestedOrgNumber) } returns organisasjon
+
+                            shouldThrow<ApiErrorException.ForbiddenException> {
+                                validationService.validateDocumentsOfTypeAccess(
+                                    principal = principal,
+                                    requestedOrgNumber = requestedOrgNumber,
+                                    documentType = DocumentType.DIALOGMOTE,
+                                )
+                            }
+
+                            verifyPdpCall(principal.systemUserId, setOf(requestedOrgNumber), "nav_syfo_dialogmote")
+                            coVerify(exactly = 1) { eregService.getOrganization(requestedOrgNumber) }
+                            coVerify(exactly = 1) { pdpService.hasAccessToResource(any(), any(), any()) }
                         }
                     }
 
-                    context("and organization has parent organizations but none match token orgnumber") {
-                        it("should deny access") {
-                            // Arrange
-                            val organization = organisasjon()
-                            val entity = documentEntity.copy(
-                                dialog = documentEntity.dialog.copy(
-                                    orgNumber = organization.organisasjonsnummer
-                                ),
+                    it("should throw InternalServerErrorException for unsupported document type") {
+                        val principal = systemPrincipal(systemUserOrgNumber = "111111111")
+
+                        shouldThrow<ApiErrorException.InternalServerErrorException> {
+                            validationService.validateDocumentsOfTypeAccess(
+                                principal = principal,
+                                requestedOrgNumber = "123456789",
+                                documentType = DocumentType.UNDEFINED,
                             )
-
-                            val systemPrincipal = SystemPrincipal(
-                                "0192:123456789",
-                                "token",
-                                "0192:systemOwner",
-                                "systemUserId"
-                            )
-                            coEvery { eregService.getOrganization(entity.dialog.orgNumber) } returns organization
-
-                            // Act & Assert
-                            val exception = shouldThrow<ApiErrorException.ForbiddenException> {
-                                validationService.validateMaskinportenTilgang(
-                                    systemPrincipal,
-                                    entity.dialog.orgNumber,
-                                    entity.type,
-                                )
-                            }
-                            val expectedMessage =
-                                "Orgnumber ${systemPrincipal.getSystemUserOrgNumber()} from SystemUser is not found " +
-                                    "in the organization hierarchy of requested orgnumber ${entity.dialog.orgNumber}"
-                            exception.message shouldBe expectedMessage
-
-                            coVerify { eregService.getOrganization(eq(entity.dialog.orgNumber)) }
                         }
+
+                        coVerify(exactly = 0) { pdpService.hasAccessToResource(any(), any(), any()) }
+                        coVerify(exactly = 0) { eregService.getOrganization(any()) }
                     }
                 }
             }
