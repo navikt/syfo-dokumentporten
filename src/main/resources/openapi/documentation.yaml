@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Syfo-dokumentporten API
-  version: 1.1.1
+  version: 1.1.3
   description: |
     Public API for interacting with Syfo-Dokumentporten(Formerly Arkivporten) documents.
     
@@ -235,6 +235,10 @@ paths:
       security:
         - azuread_jwt: [ ]
       requestBody:
+        description: |
+          Payload for creating a document.
+          `varselInstruks` is only supported when `type` is `DIALOGMOTE`.
+          Requests with `varselInstruks` on other document types are rejected with `400 Bad Request`.
         required: true
         content:
           application/json:
@@ -244,12 +248,21 @@ paths:
               sample:
                 value:
                   documentId: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
-                  type: "Dialogmøte"
+                  type: "DIALOGMOTE"
                   content: "JVBERi0xLjQKJ..."              # base64-encoded binary
                   contentType: "application/pdf"
+                  fnr: "12345678901"
+                  fullName: "Ola Nordmann"
                   orgNumber: "123456789"
-                  dialogTitle: "Innkalling til dialogmøte"
-                  dialogSummary: "Kort oppsummering av dokumentinnhold."
+                  title: "Innkalling til dialogmøte"
+                  summary: "Kort oppsummering av dokumentinnhold."
+                  varselInstruks:
+                    type: "AG_VARSEL_ALTINN_RESSURS"
+                    notifikasjonInnhold:
+                      epostTittel: "Du har fått et nytt varsel"
+                      epostBody: "Logg inn på Altinn for å lese."
+                      smsTekst: "Du har fått et nytt varsel i Altinn."
+                    kilde: "dokumentporten.dialogmote"
       responses:
         '200':
           description: Created
@@ -325,6 +338,13 @@ components:
         summary:
           type: string
           description: Summary shown in dialog.
+        varselInstruks:
+          allOf:
+            - $ref: '#/components/schemas/VarselInstruks'
+          description: |
+            Optional instruction for employer notifications.
+            Only valid when `type` is `DIALOGMOTE`.
+            Requests with `varselInstruks` for other document types are rejected with `400 Bad Request`.
       required:
         - documentId
         - type
@@ -334,6 +354,47 @@ components:
         - orgNumber
         - title
         - summary
+      additionalProperties: false
+    VarselInstruks:
+      type: object
+      description: Instruks for varsling av arbeidsgiver via Altinn 3-ressurs.
+      properties:
+        type:
+          type: string
+          description: Type hendelse for varselet.
+          enum: [ AG_VARSEL_ALTINN_RESSURS ]
+        notifikasjonInnhold:
+          $ref: '#/components/schemas/NotifikasjonInnhold'
+        kilde:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Identifikator for kildesystemet som sender instruksen, f.eks. "dokumentporten.dialogmote".
+      required:
+        - type
+        - notifikasjonInnhold
+        - kilde
+      additionalProperties: false
+    NotifikasjonInnhold:
+      type: object
+      description: Tekstinnhold for notifikasjon til arbeidsgiver (e-post og SMS).
+      properties:
+        epostTittel:
+          type: string
+          minLength: 1
+          maxLength: 255
+        epostBody:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        smsTekst:
+          type: string
+          minLength: 1
+          maxLength: 500
+      required:
+        - epostTittel
+        - epostBody
+        - smsTekst
       additionalProperties: false
     DocumentPage:
       type: object
