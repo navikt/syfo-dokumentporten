@@ -36,7 +36,6 @@ class DialogportenService(
     private val dialogportenClient: IDialogportenClient,
     private val documentDAO: DocumentDAO,
     private val publicIngressUrl: String,
-    private val dialogportenIsApiOnly: Boolean,
     private val dialogDAO: DialogDAO,
     private val pdlService: PdlService,
 ) {
@@ -171,7 +170,7 @@ class DialogportenService(
             title = dialog.title,
             summary = dialog.summary,
         ),
-        isApiOnly = dialogportenIsApiOnly,
+        isApiOnly = false,
         transmissions = listOf(
             toTransmission(transmissionId)
         )

@@ -8,5 +8,5 @@ data class Dialog(
     val content: Content,
     val transmissions: List<Transmission> = emptyList(),
     val attachments: List<Attachment> = emptyList(),
-    val isApiOnly: Boolean? = true,
+    val isApiOnly: Boolean? = false,
 )
