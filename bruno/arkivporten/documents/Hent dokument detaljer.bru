@@ -1,0 +1,37 @@
+meta {
+  name: Hent dokument detaljer
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrlIntern}}/api/v1/documents/{{lenkeId}}/details
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+script:pre-request {
+  const http = require("axios");
+  
+  if (bru.getEnvName() === "local") {
+    if (!bru.hasEnvVar("token")) {
+      throw new Error("Kjør request 'mock maskinporten token' først for å teste lokalt");
+    }
+    const token = bru.getEnvVar("token");
+    req.setHeader("Authorization", "Bearer "+ token);
+    
+  } else {
+    const systembrukerOrgnr = bru.getEnvVar("systemKundeOrgnr");
+    const tokenrespons = await http.get("https://esyfo-token.intern.dev.nav.no/systembruker/" + systembrukerOrgnr);
+    req.setHeader("Authorization", "Bearer "+ tokenrespons.data);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

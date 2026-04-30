@@ -47,6 +47,21 @@
           }
         }
       ]
+    },
+    {
+      "issuerId": "azuread",
+      "tokenExpiry": 3600,
+      "requestMappings": [
+        {
+          "requestParam": "code",
+          "match": "azuread",
+          "claims": {
+            "aud": "${aud}",
+            "sub": "${sub}",
+            "NAVident": "${NAVident}"
+          }
+        }
+      ]
     }
   ]
 }
