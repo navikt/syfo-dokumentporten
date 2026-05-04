@@ -6,9 +6,9 @@ import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
 import net.datafaker.Faker
-import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.exception.UpstreamRequestException
+import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.logger
 import java.util.*
@@ -23,7 +23,7 @@ class FakeAltinnTilgangerClient : IAltinnTilgangerClient {
         val faker = Faker(Random(bruker.ident.toLong()))
         val accessPair = usersWithAccess.find { it.first == bruker.ident }
         val organisasjonsnummer = accessPair?.second ?: faker.numerify("#########")
-        val resources = AltinnTilgangerService.requiredResourceByDocumentType.values.toSet()
+        val resources = DocumentType.getAltinnResources().toSet()
         val tilgangTilOrgNr = resources.associateWith { setOf(organisasjonsnummer) }
         return AltinnTilgangerResponse(
             false,

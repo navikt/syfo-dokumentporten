@@ -15,8 +15,8 @@ class AltinnTilgangerService(val altinnTilgangerClient: IAltinnTilgangerClient,)
     ) {
         try {
             val tilganger = altinnTilgangerClient.hentTilganger(brukerPrincipal)
-            val requiredResource = requiredResourceByDocumentType[documentType]
-                ?: throw ApiErrorException.InternalServerErrorException("Ukjent dokumenttype $documentType")
+            val requiredResource = documentType.altinnResource
+                ?: throw ApiErrorException.InternalServerErrorException("Ukjent dokumenttype")
             if (tilganger?.orgNrTilTilganger[orgnummer]?.contains(requiredResource) != true) {
                 throw ApiErrorException.ForbiddenException("Bruker har ikke tilgang til organisasjon $orgnummer")
             }
@@ -28,9 +28,5 @@ class AltinnTilgangerService(val altinnTilgangerClient: IAltinnTilgangerClient,)
 
     companion object {
         private val logger = logger()
-        val requiredResourceByDocumentType = mapOf(
-            DocumentType.OPPFOLGINGSPLAN to "nav_syfo_oppfolgingsplan",
-            DocumentType.DIALOGMOTE to "nav_syfo_dialogmote",
-        )
     }
 }

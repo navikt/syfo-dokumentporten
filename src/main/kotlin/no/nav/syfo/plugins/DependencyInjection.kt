@@ -27,7 +27,9 @@ import no.nav.syfo.application.valkey.ValkeyCache
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
+import no.nav.syfo.document.db.VarselInstruksDAO
 import no.nav.syfo.document.service.DialogService
+import no.nav.syfo.document.service.DocumentService
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.EregClient
@@ -86,9 +88,8 @@ private fun databaseModule() = module {
             )
         )
     }
-    single {
-        DocumentDAO(get())
-    }
+    single { VarselInstruksDAO(get()) }
+    single { DocumentDAO(get()) }
     single { DialogDAO(get()) }
     single { DocumentContentDAO(get()) }
 }
@@ -179,6 +180,16 @@ private fun servicesModule() = module {
         DialogService(
             dialogDAO = get(),
             pdlService = get(),
+        )
+    }
+
+    single {
+        DocumentService(
+            documentDAO = get(),
+            varselInstruksDAO = get(),
+            dialogService = get(),
+            database = get(),
+            publicIngressUrl = env().publicIngressUrl,
         )
     }
 
