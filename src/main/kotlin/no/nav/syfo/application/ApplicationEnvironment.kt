@@ -9,7 +9,6 @@ interface Environment {
     val texas: TexasEnvironment
     val clientProperties: ClientProperties
     val publicIngressUrl: String
-    val dialogportenIsApiOnly: Boolean
     val valkeyEnvironment: ValkeyEnvironment
 }
 
@@ -20,7 +19,6 @@ data class NaisEnvironment(
     override val texas: TexasEnvironment = TexasEnvironment.createFromEnvVars(),
     override val clientProperties: ClientProperties = ClientProperties.createFromEnvVars(),
     override val publicIngressUrl: String = getEnvVar("PUBLIC_INGRESS_URL"),
-    override val dialogportenIsApiOnly: Boolean = getEnvVar("DIALOGPORTEN_API_ONLY").toBoolean(),
     override val valkeyEnvironment: ValkeyEnvironment = ValkeyEnvironment.createFromEnvVars(),
 ) : Environment
 
@@ -36,6 +34,5 @@ data class LocalEnvironment(
     override val texas: TexasEnvironment = TexasEnvironment.createForLocal(),
     override val clientProperties: ClientProperties = ClientProperties.createForLocal(),
     override val publicIngressUrl: String = "http://localhost:8080",
-    override val dialogportenIsApiOnly: Boolean = true,
     override val valkeyEnvironment: ValkeyEnvironment = ValkeyEnvironment.createForLocal(),
 ) : Environment

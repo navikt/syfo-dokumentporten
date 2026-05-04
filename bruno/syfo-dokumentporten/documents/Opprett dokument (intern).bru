@@ -1,0 +1,49 @@
+meta {
+  name: Opprett dokument (intern)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrlIntern}}/internal/api/v1/documents
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "documentId": "{{$guid}}",
+    "type": "OPPFOLGINGSPLAN",
+    "content": "SGVsbG8gV29ybGQ=",
+    "contentType": "application/pdf",
+    "fnr": "12345678901",
+    "fullName": "Ola Nordmann",
+    "orgNumber": "{{systemKundeOrgnr}}",
+    "title": "Oppfølgingsplan",
+    "summary": "Oppfølgingsplan for sykefraværsoppfølging"
+  }
+}
+
+script:pre-request {
+  if (bru.getEnvName() === "local") {
+    if (!bru.hasEnvVar("token")) {
+      throw new Error("Kjør request 'mock azuread token' først for å teste lokalt");
+    }
+    const token = bru.getEnvVar("token");
+    req.setHeader("Authorization", "Bearer " + token);
+  } else {
+    const http = require("axios");
+    const systembrukerOrgnr = bru.getEnvVar("systemKundeOrgnr");
+    const tokenrespons = await http.get("https://esyfo-token.intern.dev.nav.no/azuread/" + systembrukerOrgnr);
+    req.setHeader("Authorization", "Bearer " + tokenrespons.data);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

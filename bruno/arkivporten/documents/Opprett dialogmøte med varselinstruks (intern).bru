@@ -1,0 +1,58 @@
+meta {
+  name: Opprett dialogmøte med varselinstruks (intern)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrlIntern}}/internal/api/v1/documents
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "documentId": "{{$guid}}",
+    "type": "DIALOGMOTE",
+    "content": "SGVsbG8gV29ybGQ=",
+    "contentType": "application/pdf",
+    "fnr": "12345678901",
+    "fullName": "Ola Nordmann",
+    "orgNumber": "{{systemKundeOrgnr}}",
+    "title": "Innkalling til dialogmøte",
+    "summary": "Innkalling til dialogmøte for sykefraværsoppfølging",
+    "varselInstruks": {
+      "type": "AG_VARSEL_ALTINN_RESSURS",
+      "notifikasjonInnhold": {
+        "epostTittel": "Innkalling til dialogmøte",
+        "epostBody": "Du har mottatt en innkalling til dialogmøte. Logg inn på Altinn for å lese dokumentet.",
+        "smsTekst": "Du har mottatt en innkalling til dialogmøte. Logg inn på Altinn for å lese dokumentet."
+      },
+      "kilde": "isdialogmote"
+    }
+  }
+}
+
+script:pre-request {
+  if (bru.getEnvName() === "local") {
+    if (!bru.hasEnvVar("token")) {
+      throw new Error("Kjør request 'mock azuread token' først for å teste lokalt");
+    }
+    const token = bru.getEnvVar("token");
+    req.setHeader("Authorization", "Bearer " + token);
+  } else {
+    const http = require("axios");
+    const systembrukerOrgnr = bru.getEnvVar("systemKundeOrgnr");
+    const tokenrespons = await http.get("https://esyfo-token.intern.dev.nav.no/azuread/" + systembrukerOrgnr);
+    req.setHeader("Authorization", "Bearer " + tokenrespons.data);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -47,6 +47,22 @@
           }
         }
       ]
+    },
+    {
+      "issuerId": "azuread",
+      "tokenExpiry": 3600,
+      "requestMappings": [
+        {
+          "requestParam": "code",
+          "match": "azuread",
+          "claims": {
+            "iss": "http://host.docker.internal:6969/azuread",
+            "aud": "${aud}",
+            "sub": "${sub}",
+            "NAVident": "${NAVident}"
+          }
+        }
+      ]
     }
   ]
 }
