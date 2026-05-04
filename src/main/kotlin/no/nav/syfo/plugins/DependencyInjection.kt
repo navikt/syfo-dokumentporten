@@ -182,7 +182,7 @@ private fun servicesModule() = module {
         )
     }
 
-    single { DialogportenService(get(), get(), env().publicIngressUrl, env().dialogportenIsApiOnly, get(), get()) }
+    single { DialogportenService(get(), get(), env().publicIngressUrl, get(), get()) }
     single { SendDialogTask(get(), get()) }
 }
 
