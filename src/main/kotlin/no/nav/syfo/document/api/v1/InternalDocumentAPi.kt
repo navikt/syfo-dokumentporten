@@ -5,27 +5,15 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
-import no.nav.syfo.application.exception.ApiErrorException
 import no.nav.syfo.document.api.v1.dto.Document
-import no.nav.syfo.document.db.DocumentDAO
-import no.nav.syfo.document.service.DialogService
-import no.nav.syfo.util.logger
+import no.nav.syfo.document.service.DocumentService
 
-fun Route.registerInternalDocumentsApiV1(documentDAO: DocumentDAO, dialogService: DialogService) {
+fun Route.registerInternalDocumentsApiV1(documentService: DocumentService) {
     route("/documents") {
         post {
             val document = call.tryReceive<Document>()
-            runCatching {
-                val existingDialog = dialogService.getAndUpdateDialogByFnrAndOrgNumber(document.fnr, document.orgNumber)
-                    ?: dialogService.insertDialog(document)
-
-                documentDAO.insert(document.toDocumentEntity(existingDialog), document.content)
-                COUNT_DOCUMENT_RECIEVED.increment()
-                call.respond(HttpStatusCode.OK)
-            }.onFailure {
-                logger().error("Failed to insert document: ${it.message}", it)
-                throw ApiErrorException.InternalServerErrorException("Failed to insert document")
-            }
+            documentService.insertDocument(document)
+            call.respond(HttpStatusCode.OK)
         }
     }
 }

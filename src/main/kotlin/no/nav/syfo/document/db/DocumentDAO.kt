@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.Page.Meta
+import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Timestamp
 import java.sql.Types
@@ -24,11 +25,13 @@ private fun selectDocWithDialogJoin(useCount: Boolean = false) =
     """
 
 class DocumentDAO(private val database: DatabaseInterface) {
-    suspend fun insert(documentEntity: DocumentEntity, content: ByteArray): PersistedDocumentEntity =
-        withContext(Dispatchers.IO) {
-            database.connection.use { connection ->
-                val insertedDocument = connection.prepareStatement(
-                    """
+    suspend fun insert(
+        connection: Connection,
+        documentEntity: DocumentEntity,
+        content: ByteArray,
+    ): PersistedDocumentEntity {
+        val insertedDocument = connection.prepareStatement(
+            """
                         INSERT INTO document(document_id,
                                              type,
                                              content_type,
@@ -39,48 +42,46 @@ class DocumentDAO(private val database: DatabaseInterface) {
                                              dialog_id)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         RETURNING *;
-                    """.trimIndent()
-                ).use { preparedStatement ->
-                    with(documentEntity) {
-                        var idx = 1
-                        preparedStatement.setObject(idx++, documentId)
-                        preparedStatement.setObject(idx++, type, Types.OTHER)
-                        preparedStatement.setString(idx++, contentType)
-                        preparedStatement.setString(idx++, title)
-                        preparedStatement.setString(idx++, summary)
-                        preparedStatement.setObject(idx++, linkId)
-                        preparedStatement.setObject(idx++, status, Types.OTHER)
-                        preparedStatement.setLong(idx++, dialog.id)
-                    }
-                    preparedStatement.execute()
+            """.trimIndent()
+        ).use { preparedStatement ->
+            with(documentEntity) {
+                var idx = 1
+                preparedStatement.setObject(idx++, documentId)
+                preparedStatement.setObject(idx++, type, Types.OTHER)
+                preparedStatement.setString(idx++, contentType)
+                preparedStatement.setString(idx++, title)
+                preparedStatement.setString(idx++, summary)
+                preparedStatement.setObject(idx++, linkId)
+                preparedStatement.setObject(idx++, status, Types.OTHER)
+                preparedStatement.setLong(idx++, dialog.id)
+            }
+            preparedStatement.execute()
 
-                    runCatching {
-                        if (preparedStatement.resultSet.next()) {
-                            preparedStatement.resultSet.toDocumentEntity(documentEntity.dialog)
-                        } else {
-                            throw DocumentInsertException("Could not get the inserted document.")
-                        }
-                    }.getOrElse {
-                        connection.rollback()
-                        throw it
-                    }
+            runCatching {
+                if (preparedStatement.resultSet.next()) {
+                    preparedStatement.resultSet.toDocumentEntity(documentEntity.dialog)
+                } else {
+                    throw DocumentInsertException("Could not get the inserted document.")
                 }
-
-                connection.prepareStatement(
-                    """
-                        INSERT INTO document_content(id, content)
-                        VALUES (?, ?)
-                    """.trimIndent()
-                ).use { preparedStatement ->
-                    preparedStatement.setLong(1, insertedDocument.id)
-                    preparedStatement.setBytes(2, content)
-                    preparedStatement.execute()
-                }
-
-                connection.commit()
-                insertedDocument
+            }.getOrElse {
+                connection.rollback()
+                throw it
             }
         }
+
+        connection.prepareStatement(
+            """
+                        INSERT INTO document_content(id, content)
+                        VALUES (?, ?)
+            """.trimIndent()
+        ).use { preparedStatement ->
+            preparedStatement.setLong(1, insertedDocument.id)
+            preparedStatement.setBytes(2, content)
+            preparedStatement.execute()
+        }
+
+        return insertedDocument
+    }
 
     suspend fun update(documentEntity: PersistedDocumentEntity) {
         withContext(Dispatchers.IO) {
