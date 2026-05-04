@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Syfo-dokumentporten API
-  version: 1.1.3
+  version: 1.1.2
   description: |
     Public API for interacting with Syfo-Dokumentporten(Formerly Arkivporten) documents.
     
@@ -357,11 +357,11 @@ components:
       additionalProperties: false
     VarselInstruks:
       type: object
-      description: Instruks for varsling av arbeidsgiver via Altinn 3-ressurs.
+      description: Instruction for notifying the employer via an Altinn 3 resource.
       properties:
         type:
           type: string
-          description: Type hendelse for varselet.
+          description: Event type for the notification.
           enum: [ AG_VARSEL_ALTINN_RESSURS ]
         notifikasjonInnhold:
           $ref: '#/components/schemas/NotifikasjonInnhold'
@@ -369,7 +369,7 @@ components:
           type: string
           minLength: 1
           maxLength: 255
-          description: Identifikator for kildesystemet som sender instruksen, f.eks. "dokumentporten.dialogmote".
+          description: Identifier of the source system sending the instruction, e.g. "dialogmote".
       required:
         - type
         - notifikasjonInnhold
@@ -377,7 +377,7 @@ components:
       additionalProperties: false
     NotifikasjonInnhold:
       type: object
-      description: Tekstinnhold for notifikasjon til arbeidsgiver (e-post og SMS).
+      description: Text content for employer notification (email and SMS).
       properties:
         epostTittel:
           type: string
@@ -464,8 +464,8 @@ components:
           type: string
           description: |
             Processing status
-            * `RECEIVED`: Document has been received but have not yet been delivered to Dialogporten.
-            * `PENDING`: Document is awaiting being sendt to Dialogporten.
+            * `RECEIVED`: Document has been received but has not yet been delivered to Dialogporten.
+            * `PENDING`: Document is awaiting being sent to Dialogporten.
             * `COMPLETED`: Document has been processed and been delivered to Dialogporten.
             * `ERROR`: An error occurred during processing. The document is not available for retrieval.
           enum: [ RECEIVED, PENDING, COMPLETED, ERROR ]
