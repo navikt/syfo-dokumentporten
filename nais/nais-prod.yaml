@@ -6,6 +6,8 @@ metadata:
   annotations:
     texas.nais.io/enabled: "true"
 spec:
+  kafka:
+    pool: nav-prod
   ingresses:
     - https://syfo-dokumentporten.intern.nav.no
     - https://syfo-dokumentporten.nav.no/api/v1/documents
@@ -110,6 +112,8 @@ spec:
   env:
     - name: EREG_BASE_URL
       value: "https://ereg-services.prod-fss-pub.nais.io"
+    - name: ESYFOVARSEL_TOPIC
+      value: "team-esyfo.varselbus"
     - name: ALTINN_TILGANGER_BASE_URL
       value: http://arbeidsgiver-altinn-tilganger.fager
     - name: DIALOGPORTEN_SCOPE

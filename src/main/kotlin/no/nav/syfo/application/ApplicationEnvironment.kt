@@ -1,6 +1,7 @@
 package no.nav.syfo.application
 
 import no.nav.syfo.application.database.DatabaseEnvironment
+import no.nav.syfo.application.kafka.KafkaEnvironment
 import no.nav.syfo.application.texas.TexasEnvironment
 import no.nav.syfo.application.valkey.ValkeyEnvironment
 
@@ -10,6 +11,7 @@ interface Environment {
     val clientProperties: ClientProperties
     val publicIngressUrl: String
     val valkeyEnvironment: ValkeyEnvironment
+    val kafka: KafkaEnvironment
 }
 
 const val NAIS_DATABASE_ENV_PREFIX = "SYFO_DOKUMENTPORTEN_DB"
@@ -20,6 +22,7 @@ data class NaisEnvironment(
     override val clientProperties: ClientProperties = ClientProperties.createFromEnvVars(),
     override val publicIngressUrl: String = getEnvVar("PUBLIC_INGRESS_URL"),
     override val valkeyEnvironment: ValkeyEnvironment = ValkeyEnvironment.createFromEnvVars(),
+    override val kafka: KafkaEnvironment = KafkaEnvironment.createFromEnvVars(),
 ) : Environment
 
 fun getEnvVar(varName: String, defaultValue: String? = null) =
@@ -35,4 +38,5 @@ data class LocalEnvironment(
     override val clientProperties: ClientProperties = ClientProperties.createForLocal(),
     override val publicIngressUrl: String = "http://localhost:8080",
     override val valkeyEnvironment: ValkeyEnvironment = ValkeyEnvironment.createForLocal(),
+    override val kafka: KafkaEnvironment = KafkaEnvironment.createForLocal(),
 ) : Environment
