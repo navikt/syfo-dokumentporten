@@ -14,13 +14,13 @@ class VarselInstruksTest :
                     epostTittel = "  Tittel  ",
                     epostBody = "  Brødtekst  ",
                     smsTekst = "  SMS  ",
-                    kilde = "  dokumentporten.dialogmote  ",
+                    kilde = "  dialogmote  ",
                 ).trimmed()
 
                 trimmed.notifikasjonInnhold.epostTittel shouldBe "Tittel"
                 trimmed.notifikasjonInnhold.epostBody shouldBe "Brødtekst"
                 trimmed.notifikasjonInnhold.smsTekst shouldBe "SMS"
-                trimmed.kilde shouldBe "dokumentporten.dialogmote"
+                trimmed.kilde shouldBe "dialogmote"
             }
 
             it("should throw when epostTittel is empty or blank") {

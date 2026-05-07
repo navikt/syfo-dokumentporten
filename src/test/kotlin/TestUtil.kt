@@ -9,7 +9,6 @@ import io.ktor.http.isSuccess
 import io.mockk.coEvery
 import net.datafaker.Faker
 import no.nav.syfo.application.auth.JwtIssuer
-import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.document.api.v1.dto.Document
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.api.v1.dto.HendelseType
@@ -17,14 +16,19 @@ import no.nav.syfo.document.api.v1.dto.NotifikasjonInnhold
 import no.nav.syfo.document.api.v1.dto.VarselInstruks
 import no.nav.syfo.document.db.PersistedDialogEntity
 import no.nav.syfo.document.db.PersistedDocumentEntity
+import no.nav.syfo.document.db.VarselInstruksTable
 import no.nav.syfo.ereg.client.Organisasjon
 import no.nav.syfo.texas.client.AuthorizationDetail
 import no.nav.syfo.texas.client.OrganizationId
 import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.texas.client.TexasIntrospectionResponse
 import no.nav.syfo.texas.client.TexasResponse
-import java.sql.Timestamp
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import java.time.Instant
+import java.time.ZoneOffset
 import java.util.*
 
 val faker = Faker(Random(Instant.now().epochSecond))
@@ -48,7 +52,7 @@ fun varselInstruks(
     epostTittel: String = "Du har fått et nytt varsel",
     epostBody: String = "Logg inn på Altinn for å lese.",
     smsTekst: String = "Du har fått et nytt varsel i Altinn.",
-    kilde: String = "dokumentporten.dialogmote",
+    kilde: String = "dialogmote",
 ) = VarselInstruks(
     type = type,
     notifikasjonInnhold = NotifikasjonInnhold(epostTittel, epostBody, smsTekst),
@@ -81,20 +85,19 @@ fun documentEntity(dialogEntity: PersistedDialogEntity) = PersistedDocumentEntit
 
 fun documentContent() = faker.lorem().sentence().toByteArray()
 
-fun setVarselCreatedAt(testDb: DatabaseInterface, documentId: Long, created: Instant) {
-    testDb.connection.use { connection ->
-        connection.prepareStatement(
-            """
-            UPDATE varsel_instruks
-            SET created = ?
-            WHERE document_id = ?
-            """.trimIndent()
-        ).use { preparedStatement ->
-            preparedStatement.setTimestamp(1, Timestamp.from(created))
-            preparedStatement.setLong(2, documentId)
-            preparedStatement.executeUpdate()
+fun setVarselCreatedAt(exposedDb: Database, documentId: Long, created: Instant) {
+    transaction(exposedDb) {
+        VarselInstruksTable.update({ VarselInstruksTable.documentId eq documentId }) {
+            it[VarselInstruksTable.created] = created.atOffset(ZoneOffset.UTC)
         }
-        connection.commit()
+    }
+}
+
+fun setVarselStatus(exposedDb: Database, documentId: Long, status: String) {
+    transaction(exposedDb) {
+        VarselInstruksTable.update({ VarselInstruksTable.documentId eq documentId }) {
+            it[VarselInstruksTable.status] = status
+        }
     }
 }
 
