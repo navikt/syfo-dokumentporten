@@ -6,6 +6,7 @@ import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import org.flywaydb.core.Flyway
 import java.sql.Connection
+import javax.sql.DataSource
 
 data class DatabaseConfig(val jdbcUrl: String, val password: String, val username: String, val poolSize: Int = 4,)
 
@@ -13,7 +14,7 @@ class Database(private val config: DatabaseConfig) : DatabaseInterface {
     override val connection: Connection
         get() = dataSource.connection
 
-    private var dataSource: HikariDataSource = HikariDataSource(
+    override val dataSource: HikariDataSource = HikariDataSource(
         HikariConfig().apply {
             jdbcUrl = config.jdbcUrl
             username = config.username
@@ -43,4 +44,5 @@ class Database(private val config: DatabaseConfig) : DatabaseInterface {
 
 interface DatabaseInterface {
     val connection: Connection
+    val dataSource: DataSource
 }

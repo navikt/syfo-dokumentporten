@@ -262,7 +262,7 @@ paths:
                       epostTittel: "Du har fått et nytt varsel"
                       epostBody: "Logg inn på Altinn for å lese."
                       smsTekst: "Du har fått et nytt varsel i Altinn."
-                    kilde: "dokumentporten.dialogmote"
+                    kilde: "dialogmote"
       responses:
         '200':
           description: Created
