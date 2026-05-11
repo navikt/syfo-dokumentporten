@@ -5,7 +5,7 @@ ALTER TABLE varsel_instruks
     ADD COLUMN last_publish_error TEXT NULL,
     ADD COLUMN updated TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
-CREATE INDEX idx_varsel_instruks_status_created ON varsel_instruks(status, created);
+CREATE INDEX idx_varsel_instruks_status_created ON varsel_instruks(status, updated, created);
 
 -- Create a function to update the updated column
 CREATE OR REPLACE FUNCTION update_updated_column()
