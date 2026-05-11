@@ -93,14 +93,6 @@ fun setVarselCreatedAt(exposedDb: Database, documentId: Long, created: Instant) 
     }
 }
 
-fun setVarselStatus(exposedDb: Database, documentId: Long, status: String) {
-    transaction(exposedDb) {
-        VarselInstruksTable.update({ VarselInstruksTable.documentId eq documentId }) {
-            it[VarselInstruksTable.status] = status
-        }
-    }
-}
-
 fun organisasjon() = Organisasjon(
     organisasjonsnummer = faker.numerify("#########"),
     inngaarIJuridiskEnheter = listOf(Organisasjon(organisasjonsnummer = faker.numerify("#########")))

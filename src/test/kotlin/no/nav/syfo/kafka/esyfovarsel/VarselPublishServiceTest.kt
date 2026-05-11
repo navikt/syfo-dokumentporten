@@ -11,6 +11,7 @@ import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import no.nav.syfo.TestDB
+import no.nav.syfo.document.api.v1.dto.ESYFOVARSEL_KILDE_PREFIX
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.VarselInstruksDAO
@@ -101,6 +102,7 @@ class VarselPublishServiceTest :
                     hendelse.eksternReferanseId shouldBe persistedDocument.documentId.toString()
                     hendelse.orgnummer shouldBe dialog.orgNumber
                     hendelse.arbeidstakerFnr shouldBe dialog.fnr
+                    hendelse.kilde shouldBe "$ESYFOVARSEL_KILDE_PREFIX${document.varselInstruks!!.kilde}"
                 }
             }
 

@@ -96,11 +96,22 @@ class VarselInstruksTest :
 
             it("should throw when kilde exceeds max length") {
                 val exception = shouldThrow<ApiErrorException.BadRequestException> {
-                    varselInstruks(kilde = "a".repeat(256)).validate()
+                    varselInstruks(kilde = "a".repeat(KILDE_MAX_LENGTH + 1)).validate()
                 }
 
                 exception.errorMessage shouldBe
-                    "varselInstruks.kilde kan ikke være lengre enn 255 tegn"
+                    "varselInstruks.kilde kan ikke være lengre enn 240 tegn"
+            }
+
+            it("should accept kilde with max allowed length and reject one character too long") {
+                varselInstruks(kilde = "a".repeat(KILDE_MAX_LENGTH)).validate()
+
+                val exception = shouldThrow<ApiErrorException.BadRequestException> {
+                    varselInstruks(kilde = "a".repeat(KILDE_MAX_LENGTH + 1)).validate()
+                }
+
+                exception.errorMessage shouldBe
+                    "varselInstruks.kilde kan ikke være lengre enn 240 tegn"
             }
         }
     })

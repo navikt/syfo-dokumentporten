@@ -368,8 +368,8 @@ components:
         kilde:
           type: string
           minLength: 1
-          maxLength: 255
-          description: Identifier of the source system sending the instruction, e.g. "dialogmote".
+          maxLength: 240
+          description: Raw identifier of the source system sending the instruction, e.g. "dialogmote". The published event value is prefixed with "dokumentporten." before it is sent to esyfovarsel.
       required:
         - type
         - notifikasjonInnhold

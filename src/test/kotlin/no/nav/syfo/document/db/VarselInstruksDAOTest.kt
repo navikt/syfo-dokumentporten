@@ -12,7 +12,6 @@ import kotlinx.coroutines.test.runTest
 import no.nav.syfo.TestDB
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import setVarselCreatedAt
-import setVarselStatus
 import varselInstruks
 import java.sql.Connection
 import java.sql.SQLException
@@ -182,41 +181,6 @@ class VarselInstruksDAOTest :
                     val pending = varselInstruksDAO.getPendingForPublish(limit = 10)
 
                     pending shouldBe emptyList()
-                }
-            }
-
-            it("should return old processing varsel instruks as pending for publish during transition") {
-                runTest {
-                    val dialog = dialogDAO.insertDialog(dialogEntity())
-                    val document = document(varselInstruks = varselInstruks())
-                    val persistedDocument = suspendTransaction(db = exposedDb) {
-                        val doc = documentDAO.insert(
-                            connection.connection as Connection,
-                            document.toDocumentEntity(dialog),
-                            "test".toByteArray(),
-                        )
-                        varselInstruksDAO.insert(
-                            doc.id,
-                            doc.type.altinnResource!!,
-                            "https://test.nav.no/api/v1/gui/documents/${doc.linkId}",
-                            document.varselInstruks!!,
-                        )
-                        doc
-                    }
-                    setVarselStatus(
-                        exposedDb = exposedDb,
-                        documentId = persistedDocument.id,
-                        status = VarselInstruksStatus.PROCESSING.name,
-                    )
-                    setVarselCreatedAt(
-                        exposedDb = exposedDb,
-                        documentId = persistedDocument.id,
-                        created = Instant.now().minus(6, ChronoUnit.MINUTES),
-                    )
-
-                    val pending = varselInstruksDAO.getPendingForPublish(limit = 10)
-
-                    pending.map { it.documentId } shouldBe listOf(persistedDocument.documentId)
                 }
             }
 

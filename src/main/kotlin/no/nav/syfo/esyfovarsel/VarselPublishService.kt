@@ -1,8 +1,10 @@
 package no.nav.syfo.esyfovarsel
 
 import kotlinx.coroutines.delay
+import no.nav.syfo.document.api.v1.dto.ESYFOVARSEL_KILDE_PREFIX
 import no.nav.syfo.document.db.VarselInstruksDAO
 import no.nav.syfo.document.db.VarselInstruksPublishView
+import no.nav.syfo.document.db.VarselInstruksStatus
 import no.nav.syfo.util.logger
 import org.apache.kafka.common.errors.SerializationException
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -11,6 +13,7 @@ import java.time.Instant
 
 private const val PUBLISH_VARSEL_BATCH_LIMIT = 100
 private const val BACKOFF_DELAY_MS = 10_000L
+const val MAX_FAILED_PUBLISH_ATTEMPTS = 10
 
 class VarselPublishService(
     private val varselInstruksDAO: VarselInstruksDAO,
@@ -74,7 +77,13 @@ class VarselPublishService(
             id = view.id,
             error = rootCause.message ?: "unknown",
             isPermanentError = isPermanentError,
-        )
+        ).also {
+            // TODO: Create alert
+            // Use db state to account for max retry attempts as well
+            if (it?.status == VarselInstruksStatus.ERROR) {
+                COUNT_VARSEL_PERMANENT_ERROR.increment()
+            }
+        }
         COUNT_VARSEL_PUBLISH_FAILED.increment()
         logger.error(
             "Failed to publish varsel_instruks ${view.id} to esyfovarsel. permanentError=$isPermanentError",
@@ -98,7 +107,7 @@ class VarselPublishService(
     }
 
     private fun ArbeidsgiverNotifikasjonTilAltinnRessursHendelse.prependDokumentportenToKilde() =
-        copy(kilde = "dokumentporten.$kilde")
+        copy(kilde = "$ESYFOVARSEL_KILDE_PREFIX$kilde")
 }
 
 private fun Throwable.rootCause(): Throwable = generateSequence(this) { it.cause }.last()

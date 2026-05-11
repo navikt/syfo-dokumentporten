@@ -15,6 +15,7 @@ object VarselInstruksTable : Table("varsel_instruks") {
     val ressursUrl = text("ressurs_url")
     val kilde = text("kilde")
     val created = timestampWithTimeZone("created").defaultExpression(CurrentTimestampWithTimeZone)
+    val updated = timestampWithTimeZone("updated").defaultExpression(CurrentTimestampWithTimeZone)
     val status = text("status").default(VarselInstruksStatus.PENDING.name)
     val publishedAt = timestampWithTimeZone("published_at").nullable()
     val publishAttempts = integer("publish_attempts").default(0)
