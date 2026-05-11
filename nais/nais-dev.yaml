@@ -136,6 +136,8 @@ spec:
       value: "https://platform.tt02.altinn.no"
     - name: PUBLIC_INGRESS_URL
       value: https://syfo-dokumentporten.ekstern.dev.nav.no
+    - name: VARSEL_PUBLISH_PENDING_GRACE_PERIOD_MINUTES
+      value: "1"
     - name: PDL_BASE_URL
       value: https://pdl-api.dev-fss-pub.nais.io/graphql
     - name: PDL_SCOPE

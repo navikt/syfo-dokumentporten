@@ -78,8 +78,7 @@ class VarselPublishService(
             error = rootCause.message ?: "unknown",
             isPermanentError = isPermanentError,
         ).also {
-            // TODO: Create alert
-            // Use db state to account for max retry attempts as well
+            // Using the state from the db to account for both exhausted retries and permanent errors
             if (it?.status == VarselInstruksStatus.ERROR) {
                 COUNT_VARSEL_PERMANENT_ERROR.increment()
             }

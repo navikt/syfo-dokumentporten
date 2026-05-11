@@ -1,6 +1,5 @@
 package no.nav.syfo.document.db
 
-import no.nav.syfo.document.api.v1.dto.HendelseType
 import no.nav.syfo.document.api.v1.dto.VarselInstruks
 import no.nav.syfo.esyfovarsel.MAX_FAILED_PUBLISH_ATTEMPTS
 import org.jetbrains.exposed.v1.core.JoinType
@@ -22,15 +21,17 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.updateReturning
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
-import java.time.temporal.ChronoUnit
-import java.util.UUID
-import kotlin.Long
 
-private val PENDING_GRACE_PERIOD: Long = 1
+private val DEFAULT_PENDING_GRACE_PERIOD: Duration = Duration.ofMinutes(1)
 
-class VarselInstruksDAO(private val database: Database) {
+class VarselInstruksDAO(
+    private val database: Database,
+    private val pendingGracePeriod: Duration = DEFAULT_PENDING_GRACE_PERIOD,
+    private val currentTimeProvider: () -> Instant = Instant::now,
+) {
 
     fun insert(
         documentId: Long,
@@ -59,11 +60,12 @@ class VarselInstruksDAO(private val database: Database) {
             ?.toVarselInstruksEntity()
     }
 
-    suspend fun getPendingForPublish(limit: Int): List<VarselInstruksPublishView> = suspendTransaction(
+    suspend fun getPendingForPublish(
+        limit: Int,
+        pendingBefore: Instant = currentTimeProvider().minus(pendingGracePeriod),
+    ): List<VarselInstruksPublishView> = suspendTransaction(
         db = database,
     ) {
-        val pendingBefore = Instant.now().minus(PENDING_GRACE_PERIOD, ChronoUnit.MINUTES)
-
         VarselInstruksTable
             .join(
                 otherTable = DocumentForVarselPublishTable,
@@ -126,6 +128,8 @@ class VarselInstruksDAO(private val database: Database) {
 
     fun markPublishError(id: Long, error: String, isPermanentError: Boolean): VarselInstruksErrorView? {
         val statusExpression = if (isPermanentError) {
+            stringLiteral(VarselInstruksStatus.ERROR.name)
+        } else {
             case()
                 .When(
                     (VarselInstruksTable.publishAttempts + intLiteral(1)) greaterEq intLiteral(
@@ -134,8 +138,6 @@ class VarselInstruksDAO(private val database: Database) {
                     stringLiteral(VarselInstruksStatus.ERROR.name),
                 )
                 .Else(stringLiteral(VarselInstruksStatus.PENDING.name))
-        } else {
-            stringLiteral(VarselInstruksStatus.PENDING.name)
         }
 
         return VarselInstruksTable.updateReturning(

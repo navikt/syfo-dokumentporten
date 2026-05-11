@@ -97,7 +97,7 @@ private fun databaseModule() = module {
         )
     }
     single { Database.connect(get<DatabaseInterface>().dataSource) }
-    single { VarselInstruksDAO(get()) }
+    single { VarselInstruksDAO(get(), env().varselPublishPendingGracePeriod) }
     single { DocumentDAO(get()) }
     single { DialogDAO(get()) }
     single { DocumentContentDAO(get()) }

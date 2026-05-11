@@ -11,7 +11,6 @@ import io.kotest.matchers.string.shouldContain
 import kotlinx.coroutines.test.runTest
 import no.nav.syfo.TestDB
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
-import setVarselCreatedAt
 import varselInstruks
 import java.sql.Connection
 import java.sql.SQLException
@@ -134,13 +133,10 @@ class VarselInstruksDAOTest :
                         doc
                     }
                     val expectedVarselInstruks = document.varselInstruks!!
-                    setVarselCreatedAt(
-                        exposedDb = exposedDb,
-                        documentId = persistedDocument.id,
-                        created = Instant.now().minus(2, ChronoUnit.MINUTES),
+                    val pending = varselInstruksDAO.getPendingForPublish(
+                        limit = 10,
+                        pendingBefore = Instant.now().plusSeconds(1),
                     )
-
-                    val pending = varselInstruksDAO.getPendingForPublish(limit = 10)
                     val pendingVarselInstruks = pending.single()
 
                     pending shouldBe listOf(
@@ -218,7 +214,7 @@ class VarselInstruksDAOTest :
             it("should keep varsel instruks pending on transient error") {
                 runTest {
                     val dialog = dialogDAO.insertDialog(dialogEntity())
-                    val (persistedDocument, insertedVarselInstruks) = suspendTransaction(db = exposedDb) {
+                    val insertedVarselInstruks = suspendTransaction(db = exposedDb) {
                         val doc = documentDAO.insert(
                             connection.connection as Connection,
                             document().toDocumentEntity(dialog),
@@ -230,10 +226,10 @@ class VarselInstruksDAOTest :
                             "https://test.nav.no/api/v1/gui/documents/${doc.linkId}",
                             varselInstruks(),
                         )
-                        doc to inserted
+                        inserted
                     }
 
-                    repeat(10) {
+                    repeat(9) {
                         suspendTransaction(db = exposedDb) {
                             varselInstruksDAO.markPublishError(
                                 id = insertedVarselInstruks.id,
@@ -243,15 +239,15 @@ class VarselInstruksDAOTest :
                         }
                     }
 
-                    val updated = varselInstruksDAO.getByDocumentId(persistedDocument.id)
+                    val updated = varselInstruksDAO.getByDocumentId(insertedVarselInstruks.documentId)
 
                     updated?.status shouldBe VarselInstruksStatus.PENDING
-                    updated?.publishAttempts shouldBe 10
+                    updated?.publishAttempts shouldBe 9
                     updated?.lastPublishError shouldBe "Transient feil"
                 }
             }
 
-            it("should mark varsel instruks as error after 10 permanent errors") {
+            it("should mark varsel instruks as error when transient retries are exhausted") {
                 runTest {
                     val dialog = dialogDAO.insertDialog(dialogEntity())
                     val (persistedDocument, insertedVarselInstruks) = suspendTransaction(db = exposedDb) {
@@ -269,21 +265,104 @@ class VarselInstruksDAOTest :
                         doc to inserted
                     }
 
-                    repeat(10) {
+                    repeat(9) {
                         suspendTransaction(db = exposedDb) {
                             varselInstruksDAO.markPublishError(
                                 id = insertedVarselInstruks.id,
-                                error = "Valideringsfeil",
-                                isPermanentError = true,
+                                error = "Transient feil",
+                                isPermanentError = false,
                             )
                         }
                     }
 
+                    val errorView = suspendTransaction(db = exposedDb) {
+                        varselInstruksDAO.markPublishError(
+                            id = insertedVarselInstruks.id,
+                            error = "Siste transient feil",
+                            isPermanentError = false,
+                        )
+                    }
                     val updated = varselInstruksDAO.getByDocumentId(persistedDocument.id)
 
+                    errorView?.status shouldBe VarselInstruksStatus.ERROR
+                    errorView?.publishAttempts shouldBe 10
                     updated?.status shouldBe VarselInstruksStatus.ERROR
                     updated?.publishAttempts shouldBe 10
+                    updated?.lastPublishError shouldBe "Siste transient feil"
+                }
+            }
+
+            it("should mark varsel instruks as error on first permanent error and return updated db state") {
+                runTest {
+                    val dialog = dialogDAO.insertDialog(dialogEntity())
+                    val (persistedDocument, insertedVarselInstruks) = suspendTransaction(db = exposedDb) {
+                        val doc = documentDAO.insert(
+                            connection.connection as Connection,
+                            document().toDocumentEntity(dialog),
+                            "test".toByteArray(),
+                        )
+                        val inserted = varselInstruksDAO.insert(
+                            doc.id,
+                            doc.type.altinnResource!!,
+                            "https://test.nav.no/api/v1/gui/documents/${doc.linkId}",
+                            varselInstruks(),
+                        )
+                        doc to inserted
+                    }
+
+                    val errorView = suspendTransaction(db = exposedDb) {
+                        varselInstruksDAO.markPublishError(
+                            id = insertedVarselInstruks.id,
+                            error = "Valideringsfeil",
+                            isPermanentError = true,
+                        )
+                    }
+                    val updated = varselInstruksDAO.getByDocumentId(persistedDocument.id)
+
+                    errorView?.status shouldBe VarselInstruksStatus.ERROR
+                    errorView?.publishAttempts shouldBe 1
+                    errorView?.created shouldBe insertedVarselInstruks.created
+                    errorView?.updated shouldNotBe errorView?.created
+                    updated?.status shouldBe VarselInstruksStatus.ERROR
+                    updated?.publishAttempts shouldBe 1
                     updated?.lastPublishError shouldBe "Valideringsfeil"
+                }
+            }
+
+            it("should wait for updated grace period before retrying failed varsel instruks") {
+                runTest {
+                    val dialog = dialogDAO.insertDialog(dialogEntity())
+                    val insertedVarselInstruks = suspendTransaction(db = exposedDb) {
+                        val doc = documentDAO.insert(
+                            connection.connection as Connection,
+                            document().toDocumentEntity(dialog),
+                            "test".toByteArray(),
+                        )
+                        val inserted = varselInstruksDAO.insert(
+                            doc.id,
+                            doc.type.altinnResource!!,
+                            "https://test.nav.no/api/v1/gui/documents/${doc.linkId}",
+                            varselInstruks(),
+                        )
+                        inserted
+                    }
+
+                    suspendTransaction(db = exposedDb) {
+                        varselInstruksDAO.markPublishError(
+                            id = insertedVarselInstruks.id,
+                            error = "Transient feil",
+                            isPermanentError = false,
+                        )
+                    }
+
+                    varselInstruksDAO.getPendingForPublish(limit = 10) shouldBe emptyList()
+
+                    val pending = varselInstruksDAO.getPendingForPublish(
+                        limit = 10,
+                        pendingBefore = Instant.now().plusSeconds(1),
+                    )
+
+                    pending.map { it.id } shouldBe listOf(insertedVarselInstruks.id)
                 }
             }
         }

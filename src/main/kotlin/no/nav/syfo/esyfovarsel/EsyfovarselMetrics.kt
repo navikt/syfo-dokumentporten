@@ -16,5 +16,7 @@ val COUNT_VARSEL_PUBLISH_FAILED: Counter = Counter.builder(VARSEL_PUBLISH_FAILED
 
 const val VARSEL_PERMANENT_ERROR = "${METRICS_NS}_varsel_permanent_error"
 val COUNT_VARSEL_PERMANENT_ERROR = Counter.builder(VARSEL_PERMANENT_ERROR)
-    .description("Counts the number of varsler that failed to publish with a permanent error")
+    .description(
+        "Counts the number of varsler that ended in terminal ERROR after permanent publish failures or retry exhaustion",
+    )
     .register(METRICS_REGISTRY)

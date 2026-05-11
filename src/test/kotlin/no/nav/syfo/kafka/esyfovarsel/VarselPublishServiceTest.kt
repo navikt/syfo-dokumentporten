@@ -17,23 +17,28 @@ import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.VarselInstruksDAO
 import no.nav.syfo.document.db.VarselInstruksStatus
 import no.nav.syfo.esyfovarsel.ArbeidsgiverNotifikasjonTilAltinnRessursHendelse
+import no.nav.syfo.esyfovarsel.COUNT_VARSEL_PERMANENT_ERROR
 import no.nav.syfo.esyfovarsel.EsyfovarselHendelse
 import no.nav.syfo.esyfovarsel.IEsyfovarselProducer
+import no.nav.syfo.esyfovarsel.MAX_FAILED_PUBLISH_ATTEMPTS
 import no.nav.syfo.esyfovarsel.VarselPublishService
 import org.apache.kafka.common.errors.TimeoutException
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
-import setVarselCreatedAt
 import varselInstruks
 import java.sql.Connection
+import java.time.Duration
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 
 class VarselPublishServiceTest :
     DescribeSpec({
         val testDb = TestDB.database
         val exposedDb = TestDB.exposedDatabase
         val dialogDAO = DialogDAO(testDb)
-        val varselInstruksDAO = VarselInstruksDAO(exposedDb)
+        val varselInstruksDAO = VarselInstruksDAO(
+            exposedDb,
+            pendingGracePeriod = Duration.ZERO,
+            currentTimeProvider = { Instant.now().plusSeconds(1) },
+        )
         val documentDAO = DocumentDAO(testDb)
         val esyfovarselProducer = mockk<IEsyfovarselProducer>()
         val varselPublishService = VarselPublishService(varselInstruksDAO, esyfovarselProducer, exposedDb)
@@ -79,11 +84,6 @@ class VarselPublishServiceTest :
                             hendelse = capture(hendelseSlot),
                         )
                     } returns Unit
-                    setVarselCreatedAt(
-                        exposedDb = exposedDb,
-                        documentId = persistedDocument.id,
-                        created = Instant.now().minus(2, ChronoUnit.MINUTES),
-                    )
 
                     varselPublishService.publishPendingVarsler()
 
@@ -117,11 +117,7 @@ class VarselPublishServiceTest :
                     every {
                         esyfovarselProducer.publish(any(), any())
                     } throws TimeoutException("Timed out")
-                    setVarselCreatedAt(
-                        exposedDb = exposedDb,
-                        documentId = persistedDocument.id,
-                        created = Instant.now().minus(2, ChronoUnit.MINUTES),
-                    )
+                    val terminalErrorsBefore = COUNT_VARSEL_PERMANENT_ERROR.count()
 
                     varselPublishService.publishPendingVarsler()
 
@@ -130,10 +126,35 @@ class VarselPublishServiceTest :
                     updated?.status shouldBe VarselInstruksStatus.PENDING
                     updated?.publishAttempts shouldBe 1
                     updated?.lastPublishError shouldBe "Timed out"
+                    COUNT_VARSEL_PERMANENT_ERROR.count() - terminalErrorsBefore shouldBe 0.0
                 }
             }
 
-            it("should mark varsel as error after tenth data error") {
+            it("should mark varsel as error on first permanent publish error") {
+                runTest {
+                    val dialog = dialogDAO.insertDialog(dialogEntity())
+                    val document = document(varselInstruks = varselInstruks())
+                    val persistedDocument = insertDocumentWithVarsel(
+                        document,
+                        dialog,
+                    )
+                    every {
+                        esyfovarselProducer.publish(any(), any())
+                    } throws IllegalArgumentException("Invalid payload")
+                    val terminalErrorsBefore = COUNT_VARSEL_PERMANENT_ERROR.count()
+
+                    varselPublishService.publishPendingVarsler()
+
+                    val updated = varselInstruksDAO.getByDocumentId(persistedDocument.id)
+
+                    updated?.status shouldBe VarselInstruksStatus.ERROR
+                    updated?.publishAttempts shouldBe 1
+                    updated?.lastPublishError shouldBe "Invalid payload"
+                    COUNT_VARSEL_PERMANENT_ERROR.count() - terminalErrorsBefore shouldBe 1.0
+                }
+            }
+
+            it("should mark varsel as error when transient retries are exhausted") {
                 runTest {
                     val dialog = dialogDAO.insertDialog(dialogEntity())
                     val document = document(varselInstruks = varselInstruks())
@@ -143,32 +164,29 @@ class VarselPublishServiceTest :
                     )
                     val insertedVarselInstruks = varselInstruksDAO.getByDocumentId(persistedDocument.id)!!
 
-                    repeat(9) {
+                    repeat(MAX_FAILED_PUBLISH_ATTEMPTS - 1) {
                         suspendTransaction(db = exposedDb) {
                             varselInstruksDAO.markPublishError(
                                 id = insertedVarselInstruks.id,
-                                error = "Earlier data error",
-                                isPermanentError = true,
+                                error = "Earlier transient error",
+                                isPermanentError = false,
                             )
                         }
                     }
 
                     every {
                         esyfovarselProducer.publish(any(), any())
-                    } throws IllegalArgumentException("Invalid payload")
-                    setVarselCreatedAt(
-                        exposedDb = exposedDb,
-                        documentId = persistedDocument.id,
-                        created = Instant.now().minus(2, ChronoUnit.MINUTES),
-                    )
+                    } throws TimeoutException("Timed out again")
+                    val terminalErrorsBefore = COUNT_VARSEL_PERMANENT_ERROR.count()
 
                     varselPublishService.publishPendingVarsler()
 
                     val updated = varselInstruksDAO.getByDocumentId(persistedDocument.id)
 
                     updated?.status shouldBe VarselInstruksStatus.ERROR
-                    updated?.publishAttempts shouldBe 10
-                    updated?.lastPublishError shouldBe "Invalid payload"
+                    updated?.publishAttempts shouldBe MAX_FAILED_PUBLISH_ATTEMPTS
+                    updated?.lastPublishError shouldBe "Timed out again"
+                    COUNT_VARSEL_PERMANENT_ERROR.count() - terminalErrorsBefore shouldBe 1.0
                 }
             }
         }
