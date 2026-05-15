@@ -17,7 +17,7 @@ fun Route.registerDialogportenTokenApi(texasClient: TexasClient, altinnTokenProv
         }
         get {
             val token = with(altinnTokenProvider) {
-                token(AltinnTokenProvider.DIALOGPORTEN_TARGET_SCOPE)
+                token(AltinnTokenProvider.ELEVATED_DIALOGPORTEN_SCOPE)
                     .refresh()
                     .accessToken
             }

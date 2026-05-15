@@ -87,5 +87,7 @@ class AltinnTokenProvider(
     companion object {
         const val DIALOGPORTEN_TARGET_SCOPE = "digdir:dialogporten.serviceprovider"
         const val PDP_TARGET_SCOPE = "altinn:authorization/authorize"
+        const val ELEVATED_DIALOGPORTEN_SCOPE =
+            "$DIALOGPORTEN_TARGET_SCOPE digdir:dialogporten.serviceprovider.changetransmissions"
     }
 }
