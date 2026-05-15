@@ -6,6 +6,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import no.nav.syfo.application.leaderelection.LeaderElection
 import no.nav.syfo.util.logger
+import kotlin.time.Duration.Companion.minutes
 
 class PublishVarselTask(
     private val leaderElection: LeaderElection,
@@ -23,10 +24,12 @@ class PublishVarselTask(
                         logger.error("Could not publish varsler to esyfovarsel", ex)
                     }
                 }
-                delay(60 * 1000)
+                delay(1.minutes)
             }
         } catch (ex: CancellationException) {
             logger.info("Cancelled PublishVarselTask", ex)
+        } finally {
+            varselPublishService.close()
         }
     }
 }

@@ -9,6 +9,7 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.config.SslConfigs
 import org.apache.kafka.common.serialization.StringSerializer
+import java.time.Duration
 import java.util.Properties
 import java.util.concurrent.TimeUnit
 
@@ -16,6 +17,7 @@ private const val PKCS12 = "PKCS12"
 private const val SSL = "SSL"
 private const val CLIENT_ID = "syfo-dokumentporten"
 private const val KAFKA_PUBLISH_TIMEOUT_SECONDS = 10L
+private const val KAFKA_CLOSE_TIMEOUT_SECONDS = 5L
 
 interface IEsyfovarselProducer {
     fun publish(key: String, hendelse: EsyfovarselHendelse)
@@ -40,7 +42,7 @@ class EsyfovarselProducer(private val kafkaProducer: KafkaProducer<String, Strin
     }
 
     override fun close() {
-        kafkaProducer.close()
+        kafkaProducer.close(Duration.ofSeconds(KAFKA_CLOSE_TIMEOUT_SECONDS))
     }
 }
 

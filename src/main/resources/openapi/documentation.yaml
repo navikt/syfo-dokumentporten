@@ -260,8 +260,8 @@ paths:
                     type: "AG_VARSEL_ALTINN_RESSURS"
                     notifikasjonInnhold:
                       epostTittel: "Du har fått et nytt varsel"
-                      epostBody: "Logg inn på Altinn for å lese."
-                      smsTekst: "Du har fått et nytt varsel i Altinn."
+                      epostBody: "Logg inn i tjenesten for å lese."
+                      smsTekst: "Du har fått et nytt varsel."
                     kilde: "dialogmote"
       responses:
         '200':

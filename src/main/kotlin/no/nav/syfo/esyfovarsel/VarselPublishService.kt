@@ -107,6 +107,10 @@ class VarselPublishService(
 
     private fun ArbeidsgiverNotifikasjonTilAltinnRessursHendelse.prependDokumentportenToKilde() =
         copy(kilde = "$ESYFOVARSEL_KILDE_PREFIX$kilde")
+
+    fun close() {
+        esyfovarselProducer.close()
+    }
 }
 
 private fun Throwable.rootCause(): Throwable = generateSequence(this) { it.cause }.last()
