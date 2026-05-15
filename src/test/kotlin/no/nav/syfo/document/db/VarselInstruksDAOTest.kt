@@ -10,7 +10,7 @@ import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
 import kotlinx.coroutines.test.runTest
 import no.nav.syfo.TestDB
-import no.nav.syfo.document.db.exposed.VarselInstruksDAO
+import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import varselInstruks
 import java.sql.Connection
@@ -23,7 +23,7 @@ class VarselInstruksDAOTest :
         val testDb = TestDB.database
         val exposedDb = TestDB.exposedDatabase
         val dialogDAO = DialogDAO(testDb)
-        val varselInstruksDAO = VarselInstruksDAO(exposedDb)
+        val varselInstruksDAO = VarselInstruksRepository(exposedDb)
         val documentDAO = DocumentDAO(testDb)
 
         beforeTest {

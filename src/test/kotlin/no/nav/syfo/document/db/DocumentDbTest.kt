@@ -10,7 +10,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import no.nav.syfo.TestDB
 import no.nav.syfo.document.api.v1.dto.DocumentType
-import no.nav.syfo.document.db.exposed.VarselInstruksDAO
+import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import java.time.Instant
 import java.util.UUID
 import kotlin.math.ceil
@@ -19,7 +19,7 @@ class DocumentDbTest :
     DescribeSpec({
         val testDb = TestDB.database
         val varselInstruksDAO =
-            VarselInstruksDAO(TestDB.exposedDatabase)
+            VarselInstruksRepository(TestDB.exposedDatabase)
         val documentDAO = DocumentDAO(testDb)
         val documentContentDAO = DocumentContentDAO(testDb)
         val dialogDAO = DialogDAO(testDb)

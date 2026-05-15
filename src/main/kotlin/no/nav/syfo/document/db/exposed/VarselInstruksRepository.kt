@@ -33,7 +33,7 @@ import java.time.ZoneOffset
 
 private val DEFAULT_PENDING_GRACE_PERIOD: Duration = Duration.ofMinutes(1)
 
-class VarselInstruksDAO(
+class VarselInstruksRepository(
     private val database: Database,
     private val pendingGracePeriod: Duration = DEFAULT_PENDING_GRACE_PERIOD,
     private val currentTimeProvider: () -> Instant = Instant::now,

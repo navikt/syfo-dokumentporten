@@ -26,7 +26,7 @@ import no.nav.syfo.application.valkey.ValkeyCache
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
-import no.nav.syfo.document.db.exposed.VarselInstruksDAO
+import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.document.service.DocumentService
 import no.nav.syfo.document.service.ValidationService
@@ -95,7 +95,7 @@ private fun databaseModule() = module {
         )
     }
     single { Database.connect(get<DatabaseInterface>().dataSource) }
-    single { VarselInstruksDAO(get(), env().varselPublishPendingGracePeriod) }
+    single { VarselInstruksRepository(get(), env().varselPublishPendingGracePeriod) }
     single { DocumentDAO(get()) }
     single { DialogDAO(get()) }
     single { DocumentContentDAO(get()) }

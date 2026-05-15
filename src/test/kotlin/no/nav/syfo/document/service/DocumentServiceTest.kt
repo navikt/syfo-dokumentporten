@@ -13,7 +13,7 @@ import no.nav.syfo.TestDB
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.VarselInstruksStatus
-import no.nav.syfo.document.db.exposed.VarselInstruksDAO
+import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import varselInstruks
 
 class DocumentServiceTest :
@@ -22,7 +22,7 @@ class DocumentServiceTest :
         val exposedDb = TestDB.exposedDatabase
         val dialogDAO = DialogDAO(testDb)
         val documentDAO = DocumentDAO(testDb)
-        val varselInstruksDAO = VarselInstruksDAO(exposedDb)
+        val varselInstruksDAO = VarselInstruksRepository(exposedDb)
         val dialogService = mockk<DialogService>()
         val documentService = DocumentService(
             documentDAO = documentDAO,

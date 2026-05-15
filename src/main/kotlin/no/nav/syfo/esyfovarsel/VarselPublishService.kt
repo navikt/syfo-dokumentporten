@@ -4,7 +4,7 @@ import kotlinx.coroutines.delay
 import no.nav.syfo.document.api.v1.dto.ESYFOVARSEL_KILDE_PREFIX
 import no.nav.syfo.document.db.VarselInstruksPublishView
 import no.nav.syfo.document.db.VarselInstruksStatus
-import no.nav.syfo.document.db.exposed.VarselInstruksDAO
+import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import no.nav.syfo.util.logger
 import org.apache.kafka.common.errors.SerializationException
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -16,7 +16,7 @@ private const val BACKOFF_DELAY_MS = 10_000L
 const val MAX_FAILED_PUBLISH_ATTEMPTS = 10
 
 class VarselPublishService(
-    private val varselInstruksDAO: VarselInstruksDAO,
+    private val varselInstruksDAO: VarselInstruksRepository,
     private val esyfovarselProducer: IEsyfovarselProducer,
     private val exposedDatabase: Database,
 ) {

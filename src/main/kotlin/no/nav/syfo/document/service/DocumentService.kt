@@ -11,7 +11,7 @@ import no.nav.syfo.document.api.v1.dto.trimmed
 import no.nav.syfo.document.api.v1.dto.validate
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentInsertException
-import no.nav.syfo.document.db.exposed.VarselInstruksDAO
+import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import no.nav.syfo.util.logger
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
@@ -19,7 +19,7 @@ import java.sql.Connection
 
 class DocumentService(
     private val documentDAO: DocumentDAO,
-    private val varselInstruksDAO: VarselInstruksDAO,
+    private val varselInstruksDAO: VarselInstruksRepository,
     private val dialogService: DialogService,
     private val exposedDatabase: Database,
     private val publicIngressUrl: String,

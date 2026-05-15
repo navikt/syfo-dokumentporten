@@ -15,7 +15,7 @@ import no.nav.syfo.document.api.v1.dto.ESYFOVARSEL_KILDE_PREFIX
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.VarselInstruksStatus
-import no.nav.syfo.document.db.exposed.VarselInstruksDAO
+import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import no.nav.syfo.esyfovarsel.ArbeidsgiverNotifikasjonTilAltinnRessursHendelse
 import no.nav.syfo.esyfovarsel.COUNT_VARSEL_PERMANENT_ERROR
 import no.nav.syfo.esyfovarsel.EsyfovarselHendelse
@@ -34,7 +34,7 @@ class VarselPublishServiceTest :
         val testDb = TestDB.database
         val exposedDb = TestDB.exposedDatabase
         val dialogDAO = DialogDAO(testDb)
-        val varselInstruksDAO = VarselInstruksDAO(
+        val varselInstruksDAO = VarselInstruksRepository(
             exposedDb,
             pendingGracePeriod = Duration.ZERO,
             currentTimeProvider = { Instant.now().plusSeconds(1) },
