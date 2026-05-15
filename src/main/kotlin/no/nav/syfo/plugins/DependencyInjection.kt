@@ -34,8 +34,6 @@ import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.EregClient
 import no.nav.syfo.ereg.client.FakeEregClient
 import no.nav.syfo.esyfovarsel.EsyfovarselProducer
-import no.nav.syfo.esyfovarsel.FakeEsyfovarselProducer
-import no.nav.syfo.esyfovarsel.IEsyfovarselProducer
 import no.nav.syfo.esyfovarsel.PublishVarselTask
 import no.nav.syfo.esyfovarsel.VarselPublishService
 import no.nav.syfo.esyfovarsel.buildKafkaProducerProperties
@@ -184,15 +182,11 @@ private fun servicesModule() = module {
         }
     }
     single { PdlService(get()) }
-    single<IEsyfovarselProducer> {
-        if (isLocalEnv()) {
-            FakeEsyfovarselProducer()
-        } else {
-            EsyfovarselProducer(
-                kafkaProducer = KafkaProducer(buildKafkaProducerProperties(env().kafka)),
-                topic = env().kafka.varselbusTopic,
-            )
-        }
+    single<EsyfovarselProducer> {
+        EsyfovarselProducer(
+            kafkaProducer = KafkaProducer(buildKafkaProducerProperties(env().kafka)),
+            topic = env().kafka.varselbusTopic,
+        )
     }
     single { VarselPublishService(get(), get(), get()) }
 
