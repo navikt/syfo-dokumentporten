@@ -26,7 +26,7 @@ import no.nav.syfo.application.valkey.ValkeyCache
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
-import no.nav.syfo.document.db.VarselInstruksDAO
+import no.nav.syfo.document.db.exposed.VarselInstruksDAO
 import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.document.service.DocumentService
 import no.nav.syfo.document.service.ValidationService

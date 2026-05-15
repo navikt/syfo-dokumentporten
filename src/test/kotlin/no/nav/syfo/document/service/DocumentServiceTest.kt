@@ -12,8 +12,8 @@ import kotlinx.coroutines.test.runTest
 import no.nav.syfo.TestDB
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentDAO
-import no.nav.syfo.document.db.VarselInstruksDAO
 import no.nav.syfo.document.db.VarselInstruksStatus
+import no.nav.syfo.document.db.exposed.VarselInstruksDAO
 import varselInstruks
 
 class DocumentServiceTest :

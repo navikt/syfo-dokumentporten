@@ -1,6 +1,7 @@
 package no.nav.syfo.document.db
 
 import no.nav.syfo.document.api.v1.dto.HendelseType
+import no.nav.syfo.document.db.exposed.VarselInstruksTable
 import org.jetbrains.exposed.v1.core.ResultRow
 import java.time.Instant
 import java.util.UUID

@@ -1,6 +1,12 @@
-package no.nav.syfo.document.db
+package no.nav.syfo.document.db.exposed
 
 import no.nav.syfo.document.api.v1.dto.VarselInstruks
+import no.nav.syfo.document.db.VarselInstruksEntity
+import no.nav.syfo.document.db.VarselInstruksErrorView
+import no.nav.syfo.document.db.VarselInstruksPublishView
+import no.nav.syfo.document.db.VarselInstruksStatus
+import no.nav.syfo.document.db.toVarselInstruksEntity
+import no.nav.syfo.document.db.toVarselInstruksErrorView
 import no.nav.syfo.esyfovarsel.MAX_FAILED_PUBLISH_ATTEMPTS
 import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.SortOrder

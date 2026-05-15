@@ -2,9 +2,9 @@ package no.nav.syfo.esyfovarsel
 
 import kotlinx.coroutines.delay
 import no.nav.syfo.document.api.v1.dto.ESYFOVARSEL_KILDE_PREFIX
-import no.nav.syfo.document.db.VarselInstruksDAO
 import no.nav.syfo.document.db.VarselInstruksPublishView
 import no.nav.syfo.document.db.VarselInstruksStatus
+import no.nav.syfo.document.db.exposed.VarselInstruksDAO
 import no.nav.syfo.util.logger
 import org.apache.kafka.common.errors.SerializationException
 import org.jetbrains.exposed.v1.jdbc.Database

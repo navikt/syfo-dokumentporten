@@ -22,7 +22,7 @@ class VarselInstruksDAOTest :
         val testDb = TestDB.database
         val exposedDb = TestDB.exposedDatabase
         val dialogDAO = DialogDAO(testDb)
-        val varselInstruksDAO = VarselInstruksDAO(exposedDb)
+        val varselInstruksDAO = _root_ide_package_.no.nav.syfo.document.db.exposed.VarselInstruksDAO(exposedDb)
         val documentDAO = DocumentDAO(testDb)
 
         beforeTest {

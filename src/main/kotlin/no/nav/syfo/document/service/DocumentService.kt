@@ -11,7 +11,7 @@ import no.nav.syfo.document.api.v1.dto.trimmed
 import no.nav.syfo.document.api.v1.dto.validate
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentInsertException
-import no.nav.syfo.document.db.VarselInstruksDAO
+import no.nav.syfo.document.db.exposed.VarselInstruksDAO
 import no.nav.syfo.util.logger
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction

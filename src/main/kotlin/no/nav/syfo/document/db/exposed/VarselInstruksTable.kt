@@ -1,5 +1,6 @@
-package no.nav.syfo.document.db
+package no.nav.syfo.document.db.exposed
 
+import no.nav.syfo.document.db.VarselInstruksStatus
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.javatime.CurrentTimestampWithTimeZone
 import org.jetbrains.exposed.v1.javatime.timestampWithTimeZone

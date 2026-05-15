@@ -14,8 +14,8 @@ import no.nav.syfo.TestDB
 import no.nav.syfo.document.api.v1.dto.ESYFOVARSEL_KILDE_PREFIX
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentDAO
-import no.nav.syfo.document.db.VarselInstruksDAO
 import no.nav.syfo.document.db.VarselInstruksStatus
+import no.nav.syfo.document.db.exposed.VarselInstruksDAO
 import no.nav.syfo.esyfovarsel.ArbeidsgiverNotifikasjonTilAltinnRessursHendelse
 import no.nav.syfo.esyfovarsel.COUNT_VARSEL_PERMANENT_ERROR
 import no.nav.syfo.esyfovarsel.EsyfovarselHendelse
