@@ -1,10 +1,7 @@
 package no.nav.syfo.document.service
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import no.nav.syfo.API_V1_PATH
 import no.nav.syfo.GUI_DOCUMENT_API_PATH
-import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.application.exception.ApiErrorException
 import no.nav.syfo.document.api.v1.COUNT_DOCUMENT_RECIEVED
 import no.nav.syfo.document.api.v1.COUNT_VARSEL_INSTRUKS_RECEIVED
@@ -14,14 +11,17 @@ import no.nav.syfo.document.api.v1.dto.trimmed
 import no.nav.syfo.document.api.v1.dto.validate
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentInsertException
-import no.nav.syfo.document.db.VarselInstruksDAO
+import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import no.nav.syfo.util.logger
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import java.sql.Connection
 
 class DocumentService(
     private val documentDAO: DocumentDAO,
-    private val varselInstruksDAO: VarselInstruksDAO,
+    private val varselInstruksDAO: VarselInstruksRepository,
     private val dialogService: DialogService,
-    private val database: DatabaseInterface,
+    private val exposedDatabase: Database,
     private val publicIngressUrl: String,
 ) {
     private val logger = logger()
@@ -42,36 +42,33 @@ class DocumentService(
 
         val documentEntity = document.toDocumentEntity(existingDialog)
 
-        withContext(Dispatchers.IO) {
-            database.connection.use { connection ->
-                runCatching {
-                    val insertedDocument = documentDAO.insert(connection, documentEntity, document.content)
+        runCatching {
+            suspendTransaction(db = exposedDatabase) {
+                val jdbcConnection = connection.connection as Connection
+                val insertedDocument = documentDAO.insert(jdbcConnection, documentEntity, document.content)
 
-                    if (trimmedVarselInstruks != null) {
-                        val altinnResource = documentEntity.type.altinnResource
-                            ?: throw DocumentInsertException(
-                                "varselInstruks er kun støttet for dokumenttyper med en Altinn-ressurs (type=${documentEntity.type})"
-                            )
-
-                        val ressursUrl = createGuiDocumentLink(insertedDocument.linkId.toString())
-
-                        varselInstruksDAO.insert(
-                            connection = connection,
-                            documentId = insertedDocument.id,
-                            ressursId = altinnResource,
-                            ressursUrl = ressursUrl,
-                            varselInstruks = trimmedVarselInstruks,
+                if (trimmedVarselInstruks != null) {
+                    val altinnResource = documentEntity.type.altinnResource
+                        ?: throw DocumentInsertException(
+                            "varselInstruks er kun støttet for dokumenttyper med en Altinn-ressurs (type=${documentEntity.type})"
                         )
-                    }
 
-                    connection.commit()
-                }.onFailure { ex ->
-                    connection.rollback()
-                    logger.error("Failed to insert document: ${ex.message}", ex)
-                    throw ApiErrorException.InternalServerErrorException("Failed to insert document", cause = ex)
+                    val ressursUrl = createGuiDocumentLink(insertedDocument.linkId.toString())
+
+                    varselInstruksDAO.insert(
+                        documentId = insertedDocument.id,
+                        ressursId = altinnResource,
+                        ressursUrl = ressursUrl,
+                        varselInstruks = trimmedVarselInstruks,
+                    )
                 }
+
+                insertedDocument
             }
-        }
+        }.onFailure { ex ->
+            logger.error("Failed to insert document: ${ex.message}", ex)
+            throw ApiErrorException.InternalServerErrorException("Failed to insert document", cause = ex)
+        }.getOrThrow()
 
         if (trimmedVarselInstruks != null) {
             COUNT_VARSEL_INSTRUKS_RECEIVED.increment()

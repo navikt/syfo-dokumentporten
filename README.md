@@ -83,6 +83,7 @@ sequenceDiagram
     participant dialogmote as dialogmøte informasjon 
     participant oppfolginsplan as oppfølgingsplaner
     participant dokumentporten as syfo-dokumentporten
+    participant esyfovarsel
     participant maskinporten
     participant altinn
     participant dialogporten
@@ -91,6 +92,7 @@ sequenceDiagram
 
     dialogmote ->> dokumentporten: POST /internal/api/v1/documents
     oppfolginsplan ->> dokumentporten: POST /internal/api/v1/documents
+    dokumentporten ->> esyfovarsel: Publish ArbeidsgiverNotifikasjonTilAltinnRessursHendelse (Kafka: team-esyfo.varselbus)
     dokumentporten ->> maskinporten: Get System token
     dokumentporten ->> altinn: Exchange token for Altinn token
     dokumentporten ->> dialogporten: Create dialog and transmission
@@ -119,11 +121,15 @@ sequenceDiagram
         Container_Ext(tilganger, "Arbeidsgiver-altinn-tilganger", "Kotlin, Docker Container", "Provides Altinn access information for provided token")
         Container_Ext(isdialogmote, "Isdialogmote", "Kotlin, Docker Container", "Posts dialogmotebrev when dialogmote is scheduled")
         Container_Ext(oppfolginsplan, "Oppfolginsplan", "Kotlin, Docker Container", "Posts oppfolginsplan when they are created")
+        Container_Ext(esyfovarsel, "Esyfovarsel", "Kotlin, Docker Container", "Consumes employer notifications and sends notifications to employers")
+        Container_Ext(varselbus, "Kafka topic: team-esyfo.varselbus", "Kafka", "Topic for ArbeidsgiverNotifikasjonTilAltinnRessursHendelse")
     }
 
     Rel(dokumentporten, tilganger, "Uses", "HTTPS/JSON")
     Rel(dokumentporten, dialogporten, "Uses", "HTTPS/JSON")
     Rel(dokumentporten, database, "Uses", "sync, JDBC")
+    Rel(dokumentporten, varselbus, "Publishes", "Kafka")
+    Rel(esyfovarsel, varselbus, "Consumes", "Kafka")
     Rel(isdialogmote, dokumentporten, "Uses", "HTTPS/JSON")
     Rel(oppfolginsplan, dokumentporten, "Uses", "HTTPS/JSON")
     Rel(lps, dialogporten, "Uses", "HTTPS/JSON")
@@ -135,6 +141,17 @@ sequenceDiagram
 ## Wiki
 We have a [wiki](https://github.com/navikt/syfo-dokumentporten/wiki) for this project, 
 with more detailed information about how external integrations partners can get started including how to set set up organizations from Test norge and test users with Dolly.
+
+## Kafka
+
+### Produserer til
+- **`team-esyfo.varselbus`** — Publiserer arbeidsgivernotifikasjoner til esyfovarsel
+  - Meldingstype: `ArbeidsgiverNotifikasjonTilAltinnRessursHendelse`
+  - Topic-eier: team-esyfo (esyfovarsel)
+
+### Avhengigheter
+- esyfovarsel må ha støtte for `AG_VARSEL_ALTINN_RESSURS` hendelsestype
+- `eksternReferanseId` = dokumentets UUID, brukes for deduplisering downstream
 
 ## Running tasks with mise
 We use [mise](https://mise.jdx.dev/) to simplify running common tasks.

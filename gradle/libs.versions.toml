@@ -1,9 +1,11 @@
 
 [versions]
 datafaker= "2.5.4"
+exposed = "1.2.0"
 flyway="12.6.0"
 hikaricp = "7.0.2"
 jackson-datatype-jsr = "2.20.1"
+kafka = "4.2.0"
 koin="4.2.1"
 kotest-extensions="2.0.0"
 kotest="6.1.11"
@@ -22,14 +24,20 @@ valkey-version = "5.5.0"
 database-flyway-core = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
 database-hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }
 database-postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
+exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
+exposed-java-time = { module = "org.jetbrains.exposed:exposed-java-time", version.ref = "exposed" }
 datafaker = {module = "net.datafaker:datafaker", version.ref = "datafaker"}
 jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version = "jackson-datatype-jsr" }
+kafka-clients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka" }
 koin-ktor = { module = "io.insert-koin:koin-ktor", version.ref = "koin" }
 koin-logger = { module = "io.insert-koin:koin-logger-slf4j", version.ref = "koin" }
 kotest-assertions-core = {module = "io.kotest:kotest-assertions-core", version.ref = "kotest"}
 kotest-assertions-ktor = {module = "io.kotest.extensions:kotest-assertions-ktor", version.ref = "kotest-extensions"}
 kotest-junit = {module = "io.kotest:kotest-runner-junit5", version.ref = "kotest"}
 kotest-property = {module = "io.kotest:kotest-property", version.ref = "kotest"}
+ktor-server-openapi = { module = "io.ktor:ktor-server-openapi", version.ref = "ktor-version" }
+ktor-server-swagger = { module = "io.ktor:ktor-server-swagger", version.ref = "ktor-version" }
 ktor-server-config-yaml = { module = "io.ktor:ktor-server-config-yaml", version.ref = "ktor-version" }
 ktor-server-core = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor-version" }
 ktor-server-micrometer = { module = "io.ktor:ktor-server-metrics-micrometer", version.ref = "ktor-version" }
@@ -50,6 +58,7 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin-version" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor-version" }
 
 [bundles]
+exposed = ["exposed-core", "exposed-jdbc", "exposed-java-time"]
 kotest = ["kotest-assertions-core", "kotest-junit", "kotest-property", "kotest-assertions-ktor"]
 database = ["database-flyway-core", "database-hikaricp", "database-postgresql"]
 testcontainers = ["testcontainers", "testcontainers-postgres"]

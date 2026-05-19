@@ -260,9 +260,9 @@ paths:
                     type: "AG_VARSEL_ALTINN_RESSURS"
                     notifikasjonInnhold:
                       epostTittel: "Du har fått et nytt varsel"
-                      epostBody: "Logg inn på Altinn for å lese."
-                      smsTekst: "Du har fått et nytt varsel i Altinn."
-                    kilde: "dokumentporten.dialogmote"
+                      epostBody: "Logg inn i tjenesten for å lese."
+                      smsTekst: "Du har fått et nytt varsel."
+                    kilde: "dialogmote"
       responses:
         '200':
           description: Created
@@ -368,7 +368,7 @@ components:
         kilde:
           type: string
           minLength: 1
-          maxLength: 255
+          maxLength: 240
           description: Identifier of the source system sending the instruction, e.g. "dialogmote".
       required:
         - type

@@ -17,7 +17,6 @@ import no.nav.syfo.application.ApplicationState
 import no.nav.syfo.application.Environment
 import no.nav.syfo.application.LocalEnvironment
 import no.nav.syfo.application.NaisEnvironment
-import no.nav.syfo.application.database.Database
 import no.nav.syfo.application.database.DatabaseConfig
 import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.application.isLocalEnv
@@ -27,23 +26,31 @@ import no.nav.syfo.application.valkey.ValkeyCache
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
-import no.nav.syfo.document.db.VarselInstruksDAO
+import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.document.service.DocumentService
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.EregClient
 import no.nav.syfo.ereg.client.FakeEregClient
+import no.nav.syfo.esyfovarsel.EsyfovarselProducer
+import no.nav.syfo.esyfovarsel.IEsyfovarselProducer
+import no.nav.syfo.esyfovarsel.PublishVarselTask
+import no.nav.syfo.esyfovarsel.VarselPublishService
+import no.nav.syfo.esyfovarsel.buildKafkaProducerProperties
 import no.nav.syfo.pdl.PdlService
 import no.nav.syfo.pdl.client.FakePdlClient
 import no.nav.syfo.pdl.client.PdlClient
 import no.nav.syfo.texas.client.TexasClient
 import no.nav.syfo.util.JsonFixtureLoader
 import no.nav.syfo.util.httpClientDefault
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.koin.core.scope.Scope
 import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
+import no.nav.syfo.application.database.Database as AppDatabase
 
 fun Application.configureDependencies() {
     install(Koin) {
@@ -80,7 +87,7 @@ private fun httpClient() = module {
 
 private fun databaseModule() = module {
     single<DatabaseInterface> {
-        Database(
+        AppDatabase(
             DatabaseConfig(
                 jdbcUrl = env().database.jdbcUrl(),
                 username = env().database.username,
@@ -88,7 +95,8 @@ private fun databaseModule() = module {
             )
         )
     }
-    single { VarselInstruksDAO(get()) }
+    single { Database.connect(get<DatabaseInterface>().dataSource) }
+    single { VarselInstruksRepository(get(), env().varselPublishPendingGracePeriod) }
     single { DocumentDAO(get()) }
     single { DialogDAO(get()) }
     single { DocumentContentDAO(get()) }
@@ -175,6 +183,13 @@ private fun servicesModule() = module {
         }
     }
     single { PdlService(get()) }
+    single<IEsyfovarselProducer> {
+        EsyfovarselProducer(
+            kafkaProducer = KafkaProducer(buildKafkaProducerProperties(env().kafka)),
+            topic = env().kafka.varselbusTopic,
+        )
+    }
+    single { VarselPublishService(get(), get(), get()) }
 
     single {
         DialogService(
@@ -188,13 +203,14 @@ private fun servicesModule() = module {
             documentDAO = get(),
             varselInstruksDAO = get(),
             dialogService = get(),
-            database = get(),
+            exposedDatabase = get(),
             publicIngressUrl = env().publicIngressUrl,
         )
     }
 
     single { DialogportenService(get(), get(), env().publicIngressUrl, get(), get()) }
     single { SendDialogTask(get(), get()) }
+    single { PublishVarselTask(get(), get()) }
 }
 
 private fun Scope.env() = get<Environment>()

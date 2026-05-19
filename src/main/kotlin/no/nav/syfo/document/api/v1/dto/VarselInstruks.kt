@@ -10,10 +10,13 @@ enum class HendelseType {
     AG_VARSEL_ALTINN_RESSURS
 }
 
+internal const val ESYFOVARSEL_KILDE_PREFIX = "dokumentporten."
+
 private const val EPOST_TITTEL_MAX_LENGTH = 255
 private const val EPOST_BODY_MAX_LENGTH = 4000
 private const val SMS_TEKST_MAX_LENGTH = 500
-private const val KILDE_MAX_LENGTH = 255
+private const val ESYFOVARSEL_KILDE_TOTAL_MAX_LENGTH = 255
+internal const val KILDE_MAX_LENGTH = ESYFOVARSEL_KILDE_TOTAL_MAX_LENGTH - ESYFOVARSEL_KILDE_PREFIX.length
 
 fun VarselInstruks.trimmed(): VarselInstruks = copy(
     notifikasjonInnhold = notifikasjonInnhold.trimmed(),

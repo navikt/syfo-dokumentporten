@@ -24,3 +24,20 @@ jobs:
     with:
       app: syfo-dokumentporten
       java-version: '21'
+
+  deploy-alert-prod:
+    if: github.ref_name == 'main'
+    name: Deploy alert to prod
+    runs-on: ubuntu-latest
+    needs:
+      - jar-app
+    permissions:
+      contents: read
+      id-token: write
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: nais/deploy/actions/deploy@823ec9b7e305ce7cf911d0f9a25f7da9d7486cf2 # v2
+        env:
+          CLUSTER: prod-gcp
+          RESOURCE: nais/alert.yaml

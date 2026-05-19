@@ -4,6 +4,7 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import no.nav.syfo.application.database.DatabaseInterface
 import org.flywaydb.core.Flyway
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.LoggerFactory
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy
@@ -19,7 +20,7 @@ class TestDatabase(
     private val dbUsername: String,
     private val dbPassword: String,
 ) : DatabaseInterface {
-    private val dataSource: HikariDataSource =
+    override val dataSource: HikariDataSource =
         HikariDataSource(
             HikariConfig().apply {
                 jdbcUrl = connectionName
@@ -51,6 +52,7 @@ class TestDatabase(
 class TestDB private constructor() {
     companion object {
         val database: DatabaseInterface
+        val exposedDatabase: Database
 
         private val psqlContainer: PsqlContainer
 
@@ -70,6 +72,7 @@ class TestDB private constructor() {
                 val connectionName = psqlContainer.jdbcUrl
 
                 database = TestDatabase(connectionName, username, password)
+                exposedDatabase = Database.connect(database.dataSource)
             } catch (ex: Exception) {
                 log.error("Error", ex)
                 throw ex
