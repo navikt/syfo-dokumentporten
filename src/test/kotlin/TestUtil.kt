@@ -64,7 +64,7 @@ fun dialogEntity() = PersistedDialogEntity(
     updated = Instant.now(),
 )
 
-fun documentEntity(dialogEntity: PersistedDialogEntity) = PersistedDocumentEntity(
+fun documentEntity(dialogEntity: PersistedDialogEntity, deletePerformed: Instant? = null) = PersistedDocumentEntity(
     id = faker.number().randomNumber(),
     documentId = UUID.randomUUID(),
     type = DocumentType.DIALOGMOTE,
@@ -73,6 +73,7 @@ fun documentEntity(dialogEntity: PersistedDialogEntity) = PersistedDocumentEntit
     summary = faker.lorem().sentence(),
     linkId = UUID.randomUUID(),
     dialog = dialogEntity,
+    deletePerformed = deletePerformed,
     created = Instant.now(),
     updated = Instant.now(),
 )

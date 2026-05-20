@@ -23,6 +23,7 @@ open class DocumentEntity(
     open val isRead: Boolean = false,
     open val dialog: PersistedDialogEntity,
     open val transmissionId: UUID? = null,
+    open val deletePerformed: Instant? = null,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -40,6 +41,7 @@ open class DocumentEntity(
         if (status != other.status) return false
         if (dialog != other.dialog) return false
         if (transmissionId != other.transmissionId) return false
+        if (deletePerformed != other.deletePerformed) return false
 
         return true
     }
@@ -55,6 +57,7 @@ open class DocumentEntity(
         result = 31 * result + status.hashCode()
         result = 31 * result + dialog.hashCode()
         result = 31 * result + (transmissionId?.hashCode() ?: 0)
+        result = 31 * result + (deletePerformed?.hashCode() ?: 0)
         return result
     }
 }
@@ -71,6 +74,7 @@ data class PersistedDocumentEntity(
     override val isRead: Boolean = false,
     override val dialog: PersistedDialogEntity,
     override val transmissionId: UUID? = null,
+    override val deletePerformed: Instant? = null,
     val created: Instant,
     val updated: Instant,
 ) : DocumentEntity(
@@ -84,6 +88,7 @@ data class PersistedDocumentEntity(
     isRead = isRead,
     dialog = dialog,
     transmissionId = transmissionId,
+    deletePerformed = deletePerformed,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -103,6 +108,7 @@ data class PersistedDocumentEntity(
         if (status != other.status) return false
         if (dialog != other.dialog) return false
         if (transmissionId != other.transmissionId) return false
+        if (deletePerformed != other.deletePerformed) return false
         if (created != other.created) return false
         if (updated != other.updated) return false
 
@@ -122,6 +128,7 @@ data class PersistedDocumentEntity(
         result = 31 * result + status.hashCode()
         result = 31 * result + dialog.hashCode()
         result = 31 * result + (transmissionId?.hashCode() ?: 0)
+        result = 31 * result + (deletePerformed?.hashCode() ?: 0)
         result = 31 * result + created.hashCode()
         result = 31 * result + updated.hashCode()
         return result

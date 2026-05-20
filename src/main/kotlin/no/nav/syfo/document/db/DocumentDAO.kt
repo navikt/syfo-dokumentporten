@@ -171,7 +171,8 @@ class DocumentDAO(private val database: DatabaseInterface) {
                 connection.prepareStatement(
                     """
                         ${selectDocWithDialogJoin()} 
-                        WHERE doc.status = ? 
+                        WHERE doc.status = ?
+                        AND doc.delete_performed IS NULL
                         order by doc.created 
                         LIMIT ? 
                     """.trimIndent()
@@ -226,7 +227,18 @@ class DocumentDAO(private val database: DatabaseInterface) {
                         connection.prepareStatement(
                             """
                             ${selectDocWithDialogJoin(true)}
-                            ${builder.buildFilterString()}
+                            ${
+                                builder.buildFilterString().let { filterString ->
+                                    if (filterString.startsWith("WHERE ")) {
+                                        filterString.replaceFirst(
+                                            "WHERE ",
+                                            "WHERE doc.delete_performed IS NULL AND "
+                                        )
+                                    } else {
+                                        "WHERE doc.delete_performed IS NULL $filterString"
+                                    }
+                                }
+                            }
                             """.trimIndent(),
                             ResultSet.TYPE_FORWARD_ONLY,
                             ResultSet.CONCUR_READ_ONLY
@@ -276,6 +288,7 @@ fun ResultSet.toDocumentEntity(withDialog: PersistedDialogEntity? = null): Persi
         status = DocumentStatus.valueOf(getString("status")),
         isRead = getBoolean("is_read"),
         transmissionId = getObject("transmission_id") as UUID?,
+        deletePerformed = getTimestamp("delete_performed")?.toInstant(),
         created = getTimestamp("created").toInstant(),
         updated = getTimestamp("updated").toInstant(),
         dialog = withDialog ?: PersistedDialogEntity(

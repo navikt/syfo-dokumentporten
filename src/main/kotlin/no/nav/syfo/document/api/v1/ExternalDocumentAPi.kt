@@ -10,6 +10,7 @@ import io.ktor.server.routing.route
 import no.nav.syfo.application.auth.BrukerPrincipal
 import no.nav.syfo.application.auth.Principal
 import no.nav.syfo.application.auth.SystemPrincipal
+import no.nav.syfo.application.exception.ApiErrorException
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.Page
@@ -61,6 +62,9 @@ fun Route.registerExternalApiV1(
             val principal = call.getPrincipal()
             val document = documentDAO.getByLinkId(linkId) ?: throw NotFoundException("Document not found")
             validationService.validateDocumentAccess(principal, document)
+            if (document.deletePerformed != null) {
+                throw ApiErrorException.GoneException("Document is no longer available")
+            }
             val content = documentContentDAO.getDocumentContentById(document.id)
                 ?: throw NotFoundException("Document content not found")
             if (!document.isRead) {
@@ -77,6 +81,9 @@ fun Route.registerExternalApiV1(
             val principal = call.getPrincipal()
             val document = documentDAO.getByLinkId(linkId) ?: throw NotFoundException("Document not found")
             validationService.validateDocumentAccess(principal, document)
+            if (document.deletePerformed != null) {
+                throw ApiErrorException.GoneException("Document is no longer available")
+            }
             call.response.status(HttpStatusCode.OK)
             call.respond(
                 HttpStatusCode.OK,

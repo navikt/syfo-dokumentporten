@@ -31,6 +31,25 @@ class DocumentDbTest :
                 result
             }
 
+        fun softDeleteDocument(documentId: Long, deletePerformed: Instant = Instant.now()) {
+            testDb.connection.use { connection ->
+                connection.prepareStatement(
+                    """
+                        UPDATE document
+                        SET delete_performed = ?,
+                            updated = ?
+                        WHERE id = ?
+                    """.trimIndent()
+                ).use { preparedStatement ->
+                    preparedStatement.setTimestamp(1, java.sql.Timestamp.from(deletePerformed))
+                    preparedStatement.setTimestamp(2, java.sql.Timestamp.from(Instant.now()))
+                    preparedStatement.setLong(3, documentId)
+                    preparedStatement.executeUpdate()
+                }
+                connection.commit()
+            }
+        }
+
         beforeTest {
             TestDB.clearAllData()
         }
@@ -111,6 +130,19 @@ class DocumentDbTest :
                 retrievedDocument shouldNotBe null
                 retrievedDocument?.assertExpected(documentEntity, id)
             }
+
+            it("should include deletePerformed when document is soft-deleted") {
+                val dialogEntity = dialogDAO.insertDialog(dialogEntity())
+                val documentEntity = document().toDocumentEntity(dialogEntity)
+                val persistedDocument = insertDocument(documentEntity, "test".toByteArray())
+                val deletePerformed = Instant.now()
+                softDeleteDocument(persistedDocument.id, deletePerformed)
+
+                val retrievedDocument = documentDAO.getById(persistedDocument.id)
+
+                retrievedDocument shouldNotBe null
+                retrievedDocument?.deletePerformed shouldBe deletePerformed
+            }
         }
 
         describe("DocumentDb -> getByLinkId") {
@@ -124,6 +156,19 @@ class DocumentDbTest :
                 // Assert
                 retrievedDocument shouldNotBe null
                 retrievedDocument?.assertExpected(documentEntity, id)
+            }
+
+            it("should include deletePerformed when document is soft-deleted") {
+                val dialogEntity = dialogDAO.insertDialog(dialogEntity())
+                val documentEntity = document().toDocumentEntity(dialogEntity)
+                val persistedDocument = insertDocument(documentEntity, "test".toByteArray())
+                val deletePerformed = Instant.now()
+                softDeleteDocument(persistedDocument.id, deletePerformed)
+
+                val retrievedDocument = documentDAO.getByLinkId(documentEntity.linkId)
+
+                retrievedDocument shouldNotBe null
+                retrievedDocument?.deletePerformed shouldBe deletePerformed
             }
         }
 
@@ -345,6 +390,38 @@ class DocumentDbTest :
                     DocumentType.DIALOGMOTE
                 result.items.first().dialog.orgNumber shouldBe orgNumber
             }
+
+            it("should exclude soft-deleted documents") {
+                val dialogEntity = dialogDAO.insertDialog(dialogEntity())
+                val activeDocument = insertDocument(document().toDocumentEntity(dialogEntity), "test".toByteArray())
+                val softDeletedDocument = insertDocument(
+                    document().toDocumentEntity(dialogEntity),
+                    "test".toByteArray()
+                )
+                softDeleteDocument(softDeletedDocument.id)
+
+                val result = documentDAO.findDocumentsByParameters(pageSize = 50)
+
+                result.items.size shouldBe 1
+                result.items.first().id shouldBe activeDocument.id
+            }
+        }
+
+        describe("DocumentDb -> getDocumentsByStatus") {
+            it("should exclude soft-deleted documents") {
+                val dialogEntity = dialogDAO.insertDialog(dialogEntity())
+                val activeDocument = insertDocument(document().toDocumentEntity(dialogEntity), "test".toByteArray())
+                val softDeletedDocument = insertDocument(
+                    document().toDocumentEntity(dialogEntity),
+                    "test".toByteArray()
+                )
+                softDeleteDocument(softDeletedDocument.id)
+
+                val result = documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED)
+
+                result.size shouldBe 1
+                result.first().id shouldBe activeDocument.id
+            }
         }
     })
 
@@ -361,6 +438,7 @@ fun PersistedDocumentEntity.assertExpected(expected: DocumentEntity, id: Long) {
     this.status shouldBe expected.status
     this.isRead shouldBe expected.isRead
     this.transmissionId shouldBe expected.transmissionId
+    this.deletePerformed shouldBe expected.deletePerformed
     this.updated shouldNotBe null
     this.created shouldNotBe null
     this.dialog.id shouldBe expected.dialog.id
