@@ -12,6 +12,7 @@ import no.nav.syfo.TestDB
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 import kotlin.math.ceil
 
@@ -135,7 +136,7 @@ class DocumentDbTest :
                 val dialogEntity = dialogDAO.insertDialog(dialogEntity())
                 val documentEntity = document().toDocumentEntity(dialogEntity)
                 val persistedDocument = insertDocument(documentEntity, "test".toByteArray())
-                val deletePerformed = Instant.now()
+                val deletePerformed = Instant.now().truncatedTo(ChronoUnit.MICROS)
                 softDeleteDocument(persistedDocument.id, deletePerformed)
 
                 val retrievedDocument = documentDAO.getById(persistedDocument.id)
@@ -162,7 +163,7 @@ class DocumentDbTest :
                 val dialogEntity = dialogDAO.insertDialog(dialogEntity())
                 val documentEntity = document().toDocumentEntity(dialogEntity)
                 val persistedDocument = insertDocument(documentEntity, "test".toByteArray())
-                val deletePerformed = Instant.now()
+                val deletePerformed = Instant.now().truncatedTo(ChronoUnit.MICROS)
                 softDeleteDocument(persistedDocument.id, deletePerformed)
 
                 val retrievedDocument = documentDAO.getByLinkId(documentEntity.linkId)
