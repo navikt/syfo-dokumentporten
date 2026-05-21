@@ -40,6 +40,9 @@ class SqlFilterBuilder {
         value: Any?,
         comparisonOperator: ComparisonOperator = ComparisonOperator.EQUALS
     ): SqlFilterBuilder {
+        require(comparisonOperator != ComparisonOperator.IS || value == null) {
+            "ComparisonOperator.IS is only supported with null values"
+        }
         if (value != null || comparisonOperator == ComparisonOperator.IS) {
             filters.add(Filter(name, value, comparisonOperator.symbol))
         }

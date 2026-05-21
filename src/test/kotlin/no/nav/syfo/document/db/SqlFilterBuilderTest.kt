@@ -66,6 +66,14 @@ class SqlFilterBuilderTest :
                 builder.buildFilterString() shouldBe "WHERE delete_performed IS NULL"
             }
 
+            it("should throw IllegalArgumentException when IS is used with non-null value") {
+                val builder = SqlFilterBuilder()
+
+                shouldThrow<IllegalArgumentException> {
+                    builder.filterParam("delete_performed", "someValue", SqlFilterBuilder.ComparisonOperator.IS)
+                }.message shouldContain "ComparisonOperator.IS is only supported with null values"
+            }
+
             it("should combine IS NULL with other filters") {
                 val builder = SqlFilterBuilder()
                 builder.filterParam("status", "PENDING")
