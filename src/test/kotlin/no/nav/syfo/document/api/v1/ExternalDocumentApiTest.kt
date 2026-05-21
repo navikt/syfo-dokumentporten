@@ -32,6 +32,8 @@ import no.nav.syfo.TestDB
 import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.altinntilganger.client.FakeAltinnTilgangerClient
+import no.nav.syfo.application.api.ApiError
+import no.nav.syfo.application.api.ErrorType
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
 import no.nav.syfo.application.valkey.EregCache
@@ -282,6 +284,7 @@ class ExternalDocumentApiTest :
 
                 it("should return 410 Gone for authorized token when document is soft-deleted") {
                     withTestApplication {
+                        val goneCountBefore = COUNT_DOCUMENT_GONE.count()
                         val callerPid = "11223344556"
                         val document = documentEntity(
                             dialogEntity(),
@@ -299,6 +302,11 @@ class ExternalDocumentApiTest :
                         }
 
                         response.status shouldBe HttpStatusCode.Gone
+                        response.body<ApiError>().apply {
+                            type shouldBe ErrorType.GONE
+                            message shouldBe "Document is no longer available"
+                        }
+                        COUNT_DOCUMENT_GONE.count() shouldBe goneCountBefore + 1
                         coVerify(exactly = 1) {
                             validationServiceSpy.validateDocumentAccess(any(), eq(document))
                         }

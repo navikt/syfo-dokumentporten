@@ -208,6 +208,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
                         .filterParam("doc.is_read", isRead)
                         .filterParam("doc.type", type)
                         .filterParam("dialog.org_number", orgnumber)
+                        .filterParam("doc.delete_performed", null, SqlFilterBuilder.ComparisonOperator.IS)
                         .filterParam(
                             "doc.created",
                             createdAfter,
@@ -227,18 +228,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
                         connection.prepareStatement(
                             """
                             ${selectDocWithDialogJoin(true)}
-                            ${
-                                builder.buildFilterString().let { filterString ->
-                                    if (filterString.startsWith("WHERE ")) {
-                                        filterString.replaceFirst(
-                                            "WHERE ",
-                                            "WHERE doc.delete_performed IS NULL AND "
-                                        )
-                                    } else {
-                                        "WHERE doc.delete_performed IS NULL $filterString"
-                                    }
-                                }
-                            }
+                            ${builder.buildFilterString()}
                             """.trimIndent(),
                             ResultSet.TYPE_FORWARD_ONLY,
                             ResultSet.CONCUR_READ_ONLY

@@ -59,6 +59,23 @@ class SqlFilterBuilderTest :
                 builder.buildFilterString() shouldBe "WHERE type = ?"
             }
 
+            it("should build IS NULL filter without bind parameter") {
+                val builder = SqlFilterBuilder()
+                builder.filterParam("delete_performed", null, SqlFilterBuilder.ComparisonOperator.IS)
+
+                builder.buildFilterString() shouldBe "WHERE delete_performed IS NULL"
+            }
+
+            it("should combine IS NULL with other filters") {
+                val builder = SqlFilterBuilder()
+                builder.filterParam("status", "PENDING")
+                builder.filterParam("delete_performed", null, SqlFilterBuilder.ComparisonOperator.IS)
+                builder.filterParam("is_read", false)
+
+                builder.buildFilterString() shouldBe
+                    "WHERE status = ? AND delete_performed IS NULL AND is_read = ?"
+            }
+
             it("should include ORDER BY clause when orderBy is set") {
                 val builder = SqlFilterBuilder()
                 builder.orderBy = SqlFilterBuilder.OrderBy.CREATED
@@ -204,6 +221,22 @@ class SqlFilterBuilderTest :
                     mockStatement.setString(1, "PENDING")
                     mockStatement.setBoolean(2, false)
                     mockStatement.setObject(3, uuid)
+                }
+            }
+
+            it("should skip bind parameter for IS NULL between other filters") {
+                val builder = SqlFilterBuilder()
+                val uuid = UUID.randomUUID()
+                builder.filterParam("status", "PENDING")
+                builder.filterParam("delete_performed", null, SqlFilterBuilder.ComparisonOperator.IS)
+                builder.filterParam("document_id", uuid)
+
+                val mockStatement = mockk<PreparedStatement>(relaxed = true)
+                builder.buildStatement(mockStatement)
+
+                verifySequence {
+                    mockStatement.setString(1, "PENDING")
+                    mockStatement.setObject(2, uuid)
                 }
             }
 

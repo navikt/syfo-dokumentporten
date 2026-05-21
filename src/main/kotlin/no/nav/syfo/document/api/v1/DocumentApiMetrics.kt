@@ -35,3 +35,8 @@ const val VARSEL_INSTRUKS_RECEIVED = "${METRICS_NS}_varsel_instruks_received"
 val COUNT_VARSEL_INSTRUKS_RECEIVED: Counter = Counter.builder(VARSEL_INSTRUKS_RECEIVED)
     .description("Counts the number of varsel instrukser received")
     .register(METRICS_REGISTRY)
+
+const val DOCUMENT_GONE = "${METRICS_NS}_document_gone"
+val COUNT_DOCUMENT_GONE: Counter = Counter.builder(DOCUMENT_GONE)
+    .description("Counts the number of gone document responses")
+    .register(METRICS_REGISTRY)

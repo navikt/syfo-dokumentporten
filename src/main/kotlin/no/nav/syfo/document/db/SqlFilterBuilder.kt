@@ -40,7 +40,7 @@ class SqlFilterBuilder {
         value: Any?,
         comparisonOperator: ComparisonOperator = ComparisonOperator.EQUALS
     ): SqlFilterBuilder {
-        if (value != null) {
+        if (value != null || comparisonOperator == ComparisonOperator.IS) {
             filters.add(Filter(name, value, comparisonOperator.symbol))
         }
         return this
@@ -48,7 +48,13 @@ class SqlFilterBuilder {
 
     fun buildFilterString(): String {
         val whereClause = if (filters.isNotEmpty()) {
-            "WHERE ${filters.joinToString(" AND ") { "${it.name} ${it.operator} ?" }}"
+            "WHERE ${filters.joinToString(" AND ") { filter ->
+                if (filter.value == null && filter.operator == ComparisonOperator.IS.symbol) {
+                    "${filter.name} ${filter.operator} NULL"
+                } else {
+                    "${filter.name} ${filter.operator} ?"
+                }
+            }}"
         } else {
             ""
         }
@@ -69,16 +75,17 @@ class SqlFilterBuilder {
 
     // Decided to let the user of the class do the final composition of the SQL, to keep the static analysis of the SQL
     fun buildStatement(preparedStatement: PreparedStatement): PreparedStatement {
-        filters.forEachIndexed { idx, filter ->
-            val parameterIndex = idx + 1
-            when (val value = filter.value) {
-                is String -> preparedStatement.setString(parameterIndex, value)
-                is Boolean -> preparedStatement.setBoolean(parameterIndex, value)
-                is UUID -> preparedStatement.setObject(parameterIndex, value)
-                is DocumentType -> preparedStatement.setObject(parameterIndex, value, Types.OTHER)
-                is DocumentStatus -> preparedStatement.setObject(parameterIndex, value, Types.OTHER)
-                is Timestamp -> preparedStatement.setObject(parameterIndex, value)
-                is Instant -> preparedStatement.setTimestamp(parameterIndex, Timestamp.from(value))
+        var parameterIndex = 1
+        filters.forEach { filter ->
+            val value = filter.value ?: return@forEach
+            when (value) {
+                is String -> preparedStatement.setString(parameterIndex++, value)
+                is Boolean -> preparedStatement.setBoolean(parameterIndex++, value)
+                is UUID -> preparedStatement.setObject(parameterIndex++, value)
+                is DocumentType -> preparedStatement.setObject(parameterIndex++, value, Types.OTHER)
+                is DocumentStatus -> preparedStatement.setObject(parameterIndex++, value, Types.OTHER)
+                is Timestamp -> preparedStatement.setObject(parameterIndex++, value)
+                is Instant -> preparedStatement.setTimestamp(parameterIndex++, Timestamp.from(value))
                 else -> throw IllegalArgumentException("Unsupported parameter type: ${value.javaClass.simpleName}")
             }
         }
@@ -90,9 +97,10 @@ class SqlFilterBuilder {
         UPDATED("updated"),
     }
 
-    private data class Filter(val name: String, val value: Any, val operator: String)
+    private data class Filter(val name: String, val value: Any?, val operator: String)
     enum class ComparisonOperator(val symbol: String) {
         EQUALS("="),
+        IS("IS"),
         NOT_EQUALS("!="),
         GREATER_THAN(">"),
         LESS_THAN("<"),

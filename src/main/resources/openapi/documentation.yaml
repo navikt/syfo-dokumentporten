@@ -121,7 +121,9 @@ paths:
   /api/v1/documents/{id}/details:
     get:
       summary: Get details for a document by id
-      description: Fetch the details for a stored document.
+      description: |
+        Fetch the details for a stored document.
+        Soft-deleted documents return `410 Gone`.
       tags: [ Documents ]
       security:
         - maskinporten_jwt: [ ]
@@ -164,6 +166,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '410':
+          description: Document is deleted and no longer available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '500':
           description: Internal Server Error
           content:
@@ -173,7 +181,9 @@ paths:
   /api/v1/documents/{id}:
     get:
       summary: Get a document by id
-      description: Fetch a stored document. Returns the binary content with its original media type.
+      description: |
+        Fetch a stored document. Returns the binary content with its original media type.
+        Deleted documents return `410 Gone` without document content.
       tags: [ Documents ]
       security:
         - maskinporten_jwt: [ ]
@@ -217,6 +227,12 @@ paths:
                 $ref: '#/components/schemas/ApiError'
         '404':
           description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '410':
+          description: Document is deleted and no longer available
           content:
             application/json:
               schema:
@@ -516,6 +532,7 @@ components:
         * `ILLEGAL_ARGUMENT`: The request contained an illegal argument.
         * `BAD_REQUEST`: The request was malformed or contained invalid data.
         * `CONFLICT`: The request could not be completed due to a conflict with the current state of the resource.
+        * `GONE`: The requested document has been deleted and is no longer available.
       enum:
         - AUTHENTICATION_ERROR
         - AUTHORIZATION_ERROR
@@ -525,6 +542,7 @@ components:
         - BAD_REQUEST
         - INVALID_FORMAT
         - CONFLICT
+        - GONE
       example: BAD_REQUEST
     ApiError:
       type: object
