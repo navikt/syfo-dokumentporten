@@ -18,7 +18,6 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import no.nav.syfo.application.exception.ApiErrorException
-import no.nav.syfo.document.api.v1.COUNT_DOCUMENT_GONE
 import java.util.UUID
 
 const val NAV_CALL_ID_HEADER = "Nav-Call-Id"
@@ -44,10 +43,6 @@ fun Application.installCallId() {
 }
 
 private fun logException(call: ApplicationCall, cause: Throwable) {
-    if (cause is ApiErrorException.GoneException) {
-        COUNT_DOCUMENT_GONE.increment()
-        return
-    }
     val logExceptionMessage = "Caught ${cause::class.simpleName} exception"
     call.application.log.warn(logExceptionMessage, cause)
 }

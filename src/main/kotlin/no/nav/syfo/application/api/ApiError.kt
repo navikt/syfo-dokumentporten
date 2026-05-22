@@ -19,5 +19,4 @@ enum class ErrorType {
     ILLEGAL_ARGUMENT,
     BAD_REQUEST,
     CONFLICT,
-    GONE,
 }

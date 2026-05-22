@@ -123,7 +123,7 @@ paths:
       summary: Get details for a document by id
       description: |
         Fetch the details for a stored document.
-        Soft-deleted documents return `410 Gone`.
+        Soft-deleted documents return `404 Not Found`.
       tags: [ Documents ]
       security:
         - maskinporten_jwt: [ ]
@@ -183,7 +183,7 @@ paths:
       summary: Get a document by id
       description: |
         Fetch a stored document. Returns the binary content with its original media type.
-        Deleted documents return `410 Gone` without document content.
+        Deleted documents return `404 Not Found` without document content.
       tags: [ Documents ]
       security:
         - maskinporten_jwt: [ ]
@@ -532,7 +532,6 @@ components:
         * `ILLEGAL_ARGUMENT`: The request contained an illegal argument.
         * `BAD_REQUEST`: The request was malformed or contained invalid data.
         * `CONFLICT`: The request could not be completed due to a conflict with the current state of the resource.
-        * `GONE`: The requested document has been deleted and is no longer available.
       enum:
         - AUTHENTICATION_ERROR
         - AUTHORIZATION_ERROR
@@ -542,7 +541,6 @@ components:
         - BAD_REQUEST
         - INVALID_FORMAT
         - CONFLICT
-        - GONE
       example: BAD_REQUEST
     ApiError:
       type: object

@@ -46,14 +46,4 @@ sealed class ApiErrorException(message: String, cause: Throwable?) : RuntimeExce
             message = errorMessage
         )
     }
-
-    class GoneException(val errorMessage: String = "Gone", cause: Throwable? = null,) :
-        ApiErrorException(errorMessage, cause) {
-        override fun toApiError(path: String): ApiError = ApiError(
-            path = path,
-            status = HttpStatusCode.Gone,
-            type = ErrorType.GONE,
-            message = errorMessage
-        )
-    }
 }

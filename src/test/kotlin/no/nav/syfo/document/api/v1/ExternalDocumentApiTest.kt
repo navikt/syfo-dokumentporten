@@ -186,7 +186,7 @@ class ExternalDocumentApiTest :
                     }
                 }
 
-                it("should return 403 Forbidden before 410 for unauthorized token when document is soft-deleted") {
+                it("should return 403 Forbidden before 404 for unauthorized token when document is soft-deleted") {
                     withTestApplication {
                         val nonMatchingOrgNumber = "999999999"
                         val organization = organisasjon()
@@ -282,7 +282,7 @@ class ExternalDocumentApiTest :
                     }
                 }
 
-                it("should return 410 Gone for authorized token when document is soft-deleted") {
+                it("should return 404 Not Found for authorized token when document is soft-deleted") {
                     withTestApplication {
                         val goneCountBefore = COUNT_DOCUMENT_GONE.count()
                         val callerPid = "11223344556"
@@ -301,9 +301,9 @@ class ExternalDocumentApiTest :
                             bearerAuth(createMockToken(callerPid, issuer = tokenXIssuer))
                         }
 
-                        response.status shouldBe HttpStatusCode.Gone
+                        response.status shouldBe HttpStatusCode.NotFound
                         response.body<ApiError>().apply {
-                            type shouldBe ErrorType.GONE
+                            type shouldBe ErrorType.NOT_FOUND
                             message shouldBe "Document is no longer available"
                         }
                         COUNT_DOCUMENT_GONE.count() shouldBe goneCountBefore + 1
@@ -315,7 +315,7 @@ class ExternalDocumentApiTest :
                     }
                 }
 
-                it("should return 410 Gone for details when document is soft-deleted") {
+                it("should return 404 Not Found for details when document is soft-deleted") {
                     withTestApplication {
                         val callerPid = "11223344556"
                         val document = documentEntity(
@@ -333,7 +333,7 @@ class ExternalDocumentApiTest :
                             bearerAuth(createMockToken(callerPid, issuer = tokenXIssuer))
                         }
 
-                        response.status shouldBe HttpStatusCode.Gone
+                        response.status shouldBe HttpStatusCode.NotFound
                         coVerify(exactly = 1) {
                             validationServiceSpy.validateDocumentAccess(any(), eq(document))
                         }
