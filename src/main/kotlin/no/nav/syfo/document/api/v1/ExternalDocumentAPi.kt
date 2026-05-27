@@ -61,6 +61,10 @@ fun Route.registerExternalApiV1(
             val principal = call.getPrincipal()
             val document = documentDAO.getByLinkId(linkId) ?: throw NotFoundException("Document not found")
             validationService.validateDocumentAccess(principal, document)
+            if (document.deletePerformed != null) {
+                COUNT_DOCUMENT_GONE.increment()
+                throw NotFoundException("Document is no longer available")
+            }
             val content = documentContentDAO.getDocumentContentById(document.id)
                 ?: throw NotFoundException("Document content not found")
             if (!document.isRead) {
@@ -77,6 +81,10 @@ fun Route.registerExternalApiV1(
             val principal = call.getPrincipal()
             val document = documentDAO.getByLinkId(linkId) ?: throw NotFoundException("Document not found")
             validationService.validateDocumentAccess(principal, document)
+            if (document.deletePerformed != null) {
+                COUNT_DOCUMENT_GONE.increment()
+                throw NotFoundException("Document is no longer available")
+            }
             call.response.status(HttpStatusCode.OK)
             call.respond(
                 HttpStatusCode.OK,

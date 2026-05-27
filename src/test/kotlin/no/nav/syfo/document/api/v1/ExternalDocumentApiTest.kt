@@ -32,6 +32,8 @@ import no.nav.syfo.TestDB
 import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.altinntilganger.client.FakeAltinnTilgangerClient
+import no.nav.syfo.application.api.ApiError
+import no.nav.syfo.application.api.ErrorType
 import no.nav.syfo.application.api.installContentNegotiation
 import no.nav.syfo.application.api.installStatusPages
 import no.nav.syfo.application.valkey.EregCache
@@ -51,6 +53,7 @@ import no.nav.syfo.texas.MASKINPORTEN_ARKIVPORTEN_SCOPE
 import no.nav.syfo.texas.MASKINPORTEN_SYFO_DOKUMENTPORTEN_SCOPE
 import no.nav.syfo.texas.client.TexasClient
 import organisasjon
+import java.time.Instant
 
 class ExternalDocumentApiTest :
     DescribeSpec({
@@ -182,6 +185,44 @@ class ExternalDocumentApiTest :
                         }
                     }
                 }
+
+                it("should return 403 Forbidden before 404 for unauthorized token when document is soft-deleted") {
+                    withTestApplication {
+                        val nonMatchingOrgNumber = "999999999"
+                        val organization = organisasjon()
+                        val document = documentEntity(
+                            dialogEntity().copy(orgNumber = organization.organisasjonsnummer),
+                            deletePerformed = Instant.now()
+                        )
+                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
+
+                        coEvery {
+                            pdpServiceMock.hasAccessToResource(
+                                any(),
+                                setOf(document.dialog.orgNumber),
+                                any()
+                            )
+                        } returns false
+                        coEvery { eregCache.getOrganisasjon(any()) } returns organisasjon()
+                        texasClientMock.defaultMocks(
+                            systemBrukerOrganisasjon = DefaultOrganization.copy(
+                                ID = "0192:$nonMatchingOrgNumber"
+                            ),
+                            scope = MASKINPORTEN_ARKIVPORTEN_SCOPE,
+                        )
+
+                        val response = client.get("api/v1/documents/${document.linkId}") {
+                            bearerAuth(createMockToken(ident = nonMatchingOrgNumber))
+                        }
+
+                        response.status shouldBe HttpStatusCode.Forbidden
+                        coVerify(exactly = 1) {
+                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
+                        }
+                        coVerify(exactly = 0) { documentContentDAO.getDocumentContentById(any()) }
+                        coVerify(exactly = 0) { documentDAO.update(any()) }
+                    }
+                }
             }
 
             describe("TokenX token") {
@@ -238,6 +279,66 @@ class ExternalDocumentApiTest :
                         coVerify(exactly = 1) {
                             validationServiceSpy.validateDocumentAccess(any(), eq(document))
                         }
+                    }
+                }
+
+                it("should return 404 Not Found for authorized token when document is soft-deleted") {
+                    withTestApplication {
+                        val goneCountBefore = COUNT_DOCUMENT_GONE.count()
+                        val callerPid = "11223344556"
+                        val document = documentEntity(
+                            dialogEntity(),
+                            deletePerformed = Instant.now()
+                        )
+                        texasClientMock.defaultMocks(
+                            acr = "Level4",
+                            pid = callerPid
+                        )
+                        fakeAltinnTilgangerClient.usersWithAccess.add(callerPid to document.dialog.orgNumber)
+                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
+
+                        val response = client.get("api/v1/documents/${document.linkId}") {
+                            bearerAuth(createMockToken(callerPid, issuer = tokenXIssuer))
+                        }
+
+                        response.status shouldBe HttpStatusCode.NotFound
+                        response.body<ApiError>().apply {
+                            type shouldBe ErrorType.NOT_FOUND
+                            message shouldBe "Document is no longer available"
+                        }
+                        COUNT_DOCUMENT_GONE.count() shouldBe goneCountBefore + 1
+                        coVerify(exactly = 1) {
+                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
+                        }
+                        coVerify(exactly = 0) { documentContentDAO.getDocumentContentById(any()) }
+                        coVerify(exactly = 0) { documentDAO.update(any()) }
+                    }
+                }
+
+                it("should return 404 Not Found for details when document is soft-deleted") {
+                    withTestApplication {
+                        val callerPid = "11223344556"
+                        val document = documentEntity(
+                            dialogEntity(),
+                            deletePerformed = Instant.now()
+                        )
+                        texasClientMock.defaultMocks(
+                            acr = "Level4",
+                            pid = callerPid
+                        )
+                        fakeAltinnTilgangerClient.usersWithAccess.add(callerPid to document.dialog.orgNumber)
+                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
+
+                        val response = client.get("api/v1/documents/${document.linkId}/details") {
+                            bearerAuth(createMockToken(callerPid, issuer = tokenXIssuer))
+                        }
+
+                        response.status shouldBe HttpStatusCode.NotFound
+                        coVerify(exactly = 1) {
+                            validationServiceSpy.validateDocumentAccess(any(), eq(document))
+                        }
+                        coVerify(exactly = 0) { documentContentDAO.getDocumentContentById(any()) }
+                        coVerify(exactly = 0) { documentDAO.update(any()) }
                     }
                 }
 

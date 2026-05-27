@@ -171,7 +171,8 @@ class DocumentDAO(private val database: DatabaseInterface) {
                 connection.prepareStatement(
                     """
                         ${selectDocWithDialogJoin()} 
-                        WHERE doc.status = ? 
+                        WHERE doc.status = ?
+                        AND doc.delete_performed IS NULL
                         order by doc.created 
                         LIMIT ? 
                     """.trimIndent()
@@ -207,6 +208,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
                         .filterParam("doc.is_read", isRead)
                         .filterParam("doc.type", type)
                         .filterParam("dialog.org_number", orgnumber)
+                        .filterParam("doc.delete_performed", null, SqlFilterBuilder.ComparisonOperator.IS)
                         .filterParam(
                             "doc.created",
                             createdAfter,
@@ -276,6 +278,7 @@ fun ResultSet.toDocumentEntity(withDialog: PersistedDialogEntity? = null): Persi
         status = DocumentStatus.valueOf(getString("status")),
         isRead = getBoolean("is_read"),
         transmissionId = getObject("transmission_id") as UUID?,
+        deletePerformed = getTimestamp("delete_performed")?.toInstant(),
         created = getTimestamp("created").toInstant(),
         updated = getTimestamp("updated").toInstant(),
         dialog = withDialog ?: PersistedDialogEntity(

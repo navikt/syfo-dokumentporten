@@ -18,5 +18,5 @@ enum class ErrorType {
     INTERNAL_SERVER_ERROR,
     ILLEGAL_ARGUMENT,
     BAD_REQUEST,
-    CONFLICT
+    CONFLICT,
 }
