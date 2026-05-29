@@ -103,6 +103,8 @@ class VarselPublishServiceTest :
                     hendelse.orgnummer shouldBe dialog.orgNumber
                     hendelse.arbeidstakerFnr shouldBe dialog.fnr
                     hendelse.kilde shouldBe "$ESYFOVARSEL_KILDE_PREFIX${document.varselInstruks!!.kilde}"
+                    hendelse.data?.notifikasjonInnhold?.varselTekst shouldBe
+                        document.varselInstruks.notifikasjonInnhold.varselTekst
                 }
             }
 

@@ -62,6 +62,7 @@ class VarselInstruksDAOTest :
                     retrievedVarselInstruks?.epostTittel shouldBe expectedVarselInstruks.notifikasjonInnhold.epostTittel
                     retrievedVarselInstruks?.epostBody shouldBe expectedVarselInstruks.notifikasjonInnhold.epostBody
                     retrievedVarselInstruks?.smsTekst shouldBe expectedVarselInstruks.notifikasjonInnhold.smsTekst
+                    retrievedVarselInstruks?.varselTekst shouldBe expectedVarselInstruks.notifikasjonInnhold.varselTekst
                     retrievedVarselInstruks?.ressursId shouldBe persistedDocument.type.altinnResource
                     retrievedVarselInstruks?.dokumentUrl shouldBe expectedRessursUrl
                     retrievedVarselInstruks?.kilde shouldBe expectedVarselInstruks.kilde
@@ -152,6 +153,7 @@ class VarselInstruksDAOTest :
                             epostTittel = expectedVarselInstruks.notifikasjonInnhold.epostTittel,
                             epostBody = expectedVarselInstruks.notifikasjonInnhold.epostBody,
                             smsTekst = expectedVarselInstruks.notifikasjonInnhold.smsTekst,
+                            varselTekst = expectedVarselInstruks.notifikasjonInnhold.varselTekst,
                         ),
                     )
                 }

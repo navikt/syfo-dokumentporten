@@ -46,10 +46,11 @@ fun varselInstruks(
     epostTittel: String = "Du har fått et nytt varsel",
     epostBody: String = "Logg inn på Altinn for å lese.",
     smsTekst: String = "Du har fått et nytt varsel i Altinn.",
+    varselTekst: String = "Du har fått et nytt varsel.",
     kilde: String = "dialogmote",
 ) = VarselInstruks(
     type = type,
-    notifikasjonInnhold = NotifikasjonInnhold(epostTittel, epostBody, smsTekst),
+    notifikasjonInnhold = NotifikasjonInnhold(epostTittel, epostBody, smsTekst, varselTekst),
     kilde = kilde,
 )
 

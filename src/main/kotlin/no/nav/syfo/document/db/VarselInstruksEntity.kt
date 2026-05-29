@@ -19,6 +19,7 @@ data class VarselInstruksEntity(
     val epostTittel: String,
     val epostBody: String,
     val smsTekst: String,
+    val varselTekst: String,
     val ressursId: String,
     val dokumentUrl: String,
     val created: Instant,
@@ -40,6 +41,7 @@ data class VarselInstruksPublishView(
     val epostTittel: String,
     val epostBody: String,
     val smsTekst: String,
+    val varselTekst: String,
 )
 
 data class VarselInstruksErrorView(
@@ -58,6 +60,7 @@ fun ResultRow.toVarselInstruksEntity() = VarselInstruksEntity(
     epostTittel = this[VarselInstruksTable.epostTittel],
     epostBody = this[VarselInstruksTable.epostBody],
     smsTekst = this[VarselInstruksTable.smsTekst],
+    varselTekst = this[VarselInstruksTable.varselTekst],
     ressursId = this[VarselInstruksTable.ressursId],
     dokumentUrl = this[VarselInstruksTable.ressursUrl],
     created = this[VarselInstruksTable.created].toInstant(),

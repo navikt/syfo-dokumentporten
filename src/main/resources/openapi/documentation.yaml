@@ -278,6 +278,7 @@ paths:
                       epostTittel: "Du har fått et nytt varsel"
                       epostBody: "Logg inn i tjenesten for å lese."
                       smsTekst: "Du har fått et nytt varsel."
+                      varselTekst: "Du har fått et nytt varsel på Din side Arbeidsgiver."
                     kilde: "dialogmote"
       responses:
         '200':
@@ -407,10 +408,15 @@ components:
           type: string
           minLength: 1
           maxLength: 500
+        varselTekst:
+          type: string
+          minLength: 1
+          maxLength: 500
       required:
         - epostTittel
         - epostBody
         - smsTekst
+        - varselTekst
       additionalProperties: false
     DocumentPage:
       type: object

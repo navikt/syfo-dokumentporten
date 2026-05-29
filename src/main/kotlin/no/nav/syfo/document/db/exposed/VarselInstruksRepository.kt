@@ -50,6 +50,7 @@ class VarselInstruksRepository(
         it[VarselInstruksTable.epostTittel] = varselInstruks.notifikasjonInnhold.epostTittel
         it[VarselInstruksTable.epostBody] = varselInstruks.notifikasjonInnhold.epostBody
         it[VarselInstruksTable.smsTekst] = varselInstruks.notifikasjonInnhold.smsTekst
+        it[VarselInstruksTable.varselTekst] = varselInstruks.notifikasjonInnhold.varselTekst
         it[VarselInstruksTable.ressursId] = ressursId
         it[VarselInstruksTable.ressursUrl] = ressursUrl
         it[VarselInstruksTable.kilde] = varselInstruks.kilde
@@ -99,6 +100,7 @@ class VarselInstruksRepository(
                     VarselInstruksTable.epostTittel,
                     VarselInstruksTable.epostBody,
                     VarselInstruksTable.smsTekst,
+                    VarselInstruksTable.varselTekst,
                 )
             )
             .where {
@@ -119,6 +121,7 @@ class VarselInstruksRepository(
                     epostTittel = row[VarselInstruksTable.epostTittel],
                     epostBody = row[VarselInstruksTable.epostBody],
                     smsTekst = row[VarselInstruksTable.smsTekst],
+                    varselTekst = row[VarselInstruksTable.varselTekst],
                 )
             }
     }

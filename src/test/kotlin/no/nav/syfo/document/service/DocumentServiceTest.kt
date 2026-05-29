@@ -67,6 +67,8 @@ class DocumentServiceTest :
                     storedVarselInstruks?.publishAttempts shouldBe 0
                     storedVarselInstruks?.publishedAt shouldBe null
                     storedVarselInstruks?.lastPublishError shouldBe null
+                    storedVarselInstruks?.varselTekst shouldBe
+                        incomingDocument.varselInstruks?.notifikasjonInnhold?.varselTekst?.trim()
                     coVerify(exactly = 1) {
                         dialogService.getAndUpdateDialogByFnrAndOrgNumber(
                             incomingDocument.fnr,

@@ -4,7 +4,12 @@ import no.nav.syfo.application.exception.ApiErrorException
 
 data class VarselInstruks(val type: HendelseType, val notifikasjonInnhold: NotifikasjonInnhold, val kilde: String,)
 
-data class NotifikasjonInnhold(val epostTittel: String, val epostBody: String, val smsTekst: String,)
+data class NotifikasjonInnhold(
+    val epostTittel: String,
+    val epostBody: String,
+    val smsTekst: String,
+    val varselTekst: String,
+)
 
 enum class HendelseType {
     AG_VARSEL_ALTINN_RESSURS
@@ -15,6 +20,7 @@ internal const val ESYFOVARSEL_KILDE_PREFIX = "dokumentporten."
 private const val EPOST_TITTEL_MAX_LENGTH = 255
 private const val EPOST_BODY_MAX_LENGTH = 4000
 private const val SMS_TEKST_MAX_LENGTH = 500
+private const val VARSEL_TEKST_MAX_LENGTH = 500
 private const val ESYFOVARSEL_KILDE_TOTAL_MAX_LENGTH = 255
 internal const val KILDE_MAX_LENGTH = ESYFOVARSEL_KILDE_TOTAL_MAX_LENGTH - ESYFOVARSEL_KILDE_PREFIX.length
 
@@ -27,6 +33,7 @@ fun NotifikasjonInnhold.trimmed(): NotifikasjonInnhold = copy(
     epostTittel = epostTittel.trim(),
     epostBody = epostBody.trim(),
     smsTekst = smsTekst.trim(),
+    varselTekst = varselTekst.trim(),
 )
 
 fun VarselInstruks.validate() {
@@ -40,6 +47,10 @@ fun VarselInstruks.validate() {
 
     if (notifikasjonInnhold.smsTekst.isBlank()) {
         throw ApiErrorException.BadRequestException("varselInstruks.notifikasjonInnhold.smsTekst må være satt")
+    }
+
+    if (notifikasjonInnhold.varselTekst.isBlank()) {
+        throw ApiErrorException.BadRequestException("varselInstruks.notifikasjonInnhold.varselTekst må være satt")
     }
 
     if (kilde.isBlank()) {
@@ -60,6 +71,11 @@ fun VarselInstruks.validate() {
         fieldName = "varselInstruks.notifikasjonInnhold.smsTekst",
         value = notifikasjonInnhold.smsTekst,
         maxLength = SMS_TEKST_MAX_LENGTH,
+    )
+    validateMaxLength(
+        fieldName = "varselInstruks.notifikasjonInnhold.varselTekst",
+        value = notifikasjonInnhold.varselTekst,
+        maxLength = VARSEL_TEKST_MAX_LENGTH,
     )
     validateMaxLength(
         fieldName = "varselInstruks.kilde",

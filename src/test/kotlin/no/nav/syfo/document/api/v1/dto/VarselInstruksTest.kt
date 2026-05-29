@@ -14,12 +14,14 @@ class VarselInstruksTest :
                     epostTittel = "  Tittel  ",
                     epostBody = "  Brødtekst  ",
                     smsTekst = "  SMS  ",
+                    varselTekst = "  Varseltekst  ",
                     kilde = "  dialogmote  ",
                 ).trimmed()
 
                 trimmed.notifikasjonInnhold.epostTittel shouldBe "Tittel"
                 trimmed.notifikasjonInnhold.epostBody shouldBe "Brødtekst"
                 trimmed.notifikasjonInnhold.smsTekst shouldBe "SMS"
+                trimmed.notifikasjonInnhold.varselTekst shouldBe "Varseltekst"
                 trimmed.kilde shouldBe "dialogmote"
             }
 
@@ -53,6 +55,17 @@ class VarselInstruksTest :
 
                     exception.errorMessage shouldBe
                         "varselInstruks.notifikasjonInnhold.smsTekst må være satt"
+                }
+            }
+
+            it("should throw when varselTekst is empty or blank") {
+                listOf("", "   ").forEach { value ->
+                    val exception = shouldThrow<ApiErrorException.BadRequestException> {
+                        varselInstruks(varselTekst = value).trimmed().validate()
+                    }
+
+                    exception.errorMessage shouldBe
+                        "varselInstruks.notifikasjonInnhold.varselTekst må være satt"
                 }
             }
 
@@ -92,6 +105,15 @@ class VarselInstruksTest :
 
                 exception.errorMessage shouldBe
                     "varselInstruks.notifikasjonInnhold.smsTekst kan ikke være lengre enn 500 tegn"
+            }
+
+            it("should throw when varselTekst exceeds max length") {
+                val exception = shouldThrow<ApiErrorException.BadRequestException> {
+                    varselInstruks(varselTekst = "a".repeat(501)).validate()
+                }
+
+                exception.errorMessage shouldBe
+                    "varselInstruks.notifikasjonInnhold.varselTekst kan ikke være lengre enn 500 tegn"
             }
 
             it("should throw when kilde exceeds max length") {

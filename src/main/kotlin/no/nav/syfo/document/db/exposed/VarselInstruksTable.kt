@@ -12,6 +12,7 @@ object VarselInstruksTable : Table("varsel_instruks") {
     val epostTittel = text("epost_tittel")
     val epostBody = text("epost_body")
     val smsTekst = text("sms_tekst")
+    val varselTekst = text("varsel_tekst")
     val ressursId = text("ressurs_id")
     val ressursUrl = text("ressurs_url")
     val kilde = text("kilde")

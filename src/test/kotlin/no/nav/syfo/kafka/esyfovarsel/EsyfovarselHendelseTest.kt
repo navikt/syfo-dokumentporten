@@ -28,6 +28,7 @@ class EsyfovarselHendelseTest :
                     epostTittel = document.varselInstruks.notifikasjonInnhold.epostTittel,
                     epostBody = document.varselInstruks.notifikasjonInnhold.epostBody,
                     smsTekst = document.varselInstruks.notifikasjonInnhold.smsTekst,
+                    varselTekst = document.varselInstruks.notifikasjonInnhold.varselTekst,
                 )
 
                 val hendelse = publishView.toEsyfovarselHendelse()
@@ -46,6 +47,8 @@ class EsyfovarselHendelseTest :
                     document.varselInstruks.notifikasjonInnhold.epostBody
                 hendelse.data?.notifikasjonInnhold?.smsTekst shouldBe
                     document.varselInstruks.notifikasjonInnhold.smsTekst
+                hendelse.data?.notifikasjonInnhold?.varselTekst shouldBe
+                    document.varselInstruks.notifikasjonInnhold.varselTekst
             }
         }
 
@@ -62,6 +65,7 @@ class EsyfovarselHendelseTest :
                                     epostTittel = "Tittel",
                                     epostBody = "Body",
                                     smsTekst = "Sms",
+                                    varselTekst = "Varsel",
                                 )
                             ),
                             arbeidstakerFnr = "12345678910",
@@ -77,6 +81,7 @@ class EsyfovarselHendelseTest :
                 jsonNode["@type"].asText() shouldBe "ArbeidsgiverNotifikasjonTilAltinnRessursHendelse"
                 jsonNode["type"].asText() shouldBe "AG_VARSEL_ALTINN_RESSURS"
                 jsonNode["data"]["notifikasjonInnhold"]["epostTittel"].asText() shouldBe "Tittel"
+                jsonNode["data"]["notifikasjonInnhold"]["varselTekst"].asText() shouldBe "Varsel"
             }
         }
     })

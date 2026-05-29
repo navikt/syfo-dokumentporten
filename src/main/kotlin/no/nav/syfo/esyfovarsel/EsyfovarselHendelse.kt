@@ -31,7 +31,12 @@ data class ArbeidsgiverNotifikasjonTilAltinnRessursHendelse(
 
 data class VarselData(val notifikasjonInnhold: VarselDataNotifikasjonInnhold? = null)
 
-data class VarselDataNotifikasjonInnhold(val epostTittel: String, val epostBody: String, val smsTekst: String)
+data class VarselDataNotifikasjonInnhold(
+    val epostTittel: String,
+    val epostBody: String,
+    val smsTekst: String,
+    val varselTekst: String,
+)
 
 enum class HendelseType {
     AG_VARSEL_ALTINN_RESSURS,
@@ -46,6 +51,7 @@ fun VarselInstruksPublishView.toEsyfovarselHendelse(): ArbeidsgiverNotifikasjonT
                 epostTittel = epostTittel,
                 epostBody = epostBody,
                 smsTekst = smsTekst,
+                varselTekst = varselTekst,
             )
         ),
         arbeidstakerFnr = fnr,
