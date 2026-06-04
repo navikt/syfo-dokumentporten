@@ -2,7 +2,7 @@
 
 ## Mål
 
-Implementere en leader-elected background task som periodisk finner dokumenter som er soft-deleted i `syfo-dokumentporten`, men som ikke ennå er ryddet i Dialogporten, og utløper/skjuler relevante Dialogporten-lenker i små, trygge batcher.
+Implementere en leader-elected background task som periodisk finner dokumenter som er soft-deleted i `syfo-dokumentporten`, men som ikke ennå er ryddet i Dialogporten, og utløper/skjuler relevante Dialogporten-lenker i en liten, kontrollert arbeidsrunde.
 
 Planen gjelder issue `navikt/syfo-dokumentporten#202`.
 
@@ -26,7 +26,7 @@ Endringen berører:
 - Kandidatuttrekk for dokumenter med `document.delete_performed IS NOT NULL`.
 - Persistert cleanup-state for idempotens, retry og observability.
 - Dialogporten-klientoperasjon for å sette/oppdatere `expiredAt`/`expiresAt` på relevant attachment/transmission.
-- Små batcher med retry-backoff.
+- Radvis claim med retry-backoff.
 - Metrikker og logging uten PII.
 - Tester på migrering/DAO/service/client/task.
 
@@ -47,77 +47,77 @@ Anbefalt nye kolonner:
 
 ```sql
 dialogporten_link_cleanup_performed TIMESTAMPTZ DEFAULT null,
-dialogporten_link_cleanup_attempted TIMESTAMPTZ DEFAULT null,
-dialogporten_link_cleanup_result TEXT DEFAULT null
+dialogporten_link_cleanup_attempted TIMESTAMPTZ DEFAULT null
 ```
 
 ### Hvorfor ikke bare én timestamp?
 
-Én `dialogporten_link_expired`-kolonne er nok for enkel idempotens, men ikke nok for robust drift. Den løser ikke:
+Én `dialogporten_link_cleanup_performed`-kolonne er nok for enkel idempotens, men ikke for trygg claim/retry. Den løser ikke:
 
-- tight retry-loop når hele batchen feiler
 - overlappende kjøringer ved leader-skifte eller rolling deploy
-- skille mellom faktisk ryddet lenke og "ingenting å rydde"
+- kontrollert retry hvis Dialogporten feiler
+- å unngå at samme rad plukkes igjen umiddelbart etter en feil
 
-`cleanup_attempted` gir retry-backoff. `cleanup_performed` er success-markør. `cleanup_result` gir enkel feilsøking uten å måtte logge identifikatorer.
+`cleanup_attempted` brukes som en tidsbegrenset lease/retry-markør. Den betyr ikke "låst for alltid". Hvis jobben dør, kan raden plukkes opp igjen når `cleanup_attempted` er eldre enn valgt retry-timeout.
 
-Foreslåtte `cleanup_result`-verdier:
+Resultat lagres ikke i databasen. Resultater rapporteres via logger og metrikker med lav kardinalitet.
 
-| Verdi             | Betydning                                                                   |
-| ----------------- | --------------------------------------------------------------------------- |
-| `expired`         | Lenken ble utløpt/skjult i Dialogporten                                     |
-| `skipped_no_link` | Dokumentet hadde ikke nødvendig `transmission_id` eller `dialogporten_uuid` |
-| `already_expired` | Dialogporten svarte at lenken/transmission allerede var borte eller utløpt  |
+### Hvorfor ikke markere `skipped_no_link`?
 
-Feil trenger ikke lagres som result for første versjon. Ved feil beholdes `cleanup_performed = NULL`, mens `cleanup_attempted` settes slik at retry skjer etter backoff.
+Dokumenter uten `transmission_id` eller `dialogporten_uuid` har ingen kjent Dialogporten-lenke å rydde. De bør derfor ekskluderes fra kandidatspørringen i stedet for å markeres som ryddet.
+
+Hvis teamet ønsker å følge med på slike rader, bør det gjøres som en separat datakvalitetsmetrikk eller loggoppsummering, ikke som cleanup-resultat.
 
 ## Kandidatuttrekk og claim
 
-Tasken skal ikke bare hente kandidater og prosessere dem direkte. Den bør først gjøre en atomisk claim av en batch.
+Tasken skal claime én rad om gangen med et atomisk databasekall. Hver kjøring kan prosessere opptil et lavt maksantall rader.
 
 Konseptuelt kandidatfilter:
 
 ```sql
 delete_performed IS NOT NULL
 AND dialogporten_link_cleanup_performed IS NULL
+AND transmission_id IS NOT NULL
+AND dialog.dialogporten_uuid IS NOT NULL
 AND (
     dialogporten_link_cleanup_attempted IS NULL
     OR dialogporten_link_cleanup_attempted < now() - <retry_backoff>
 )
 ```
 
-Claim bør skje med ett atomisk databasekall, for eksempel med `FOR UPDATE SKIP LOCKED` eller tilsvarende `UPDATE ... RETURNING`, slik at to podder ikke prosesserer samme dokument samtidig ved leader-skifte.
+Claim bør skje med ett atomisk databasekall som setter `dialogporten_link_cleanup_attempted = now()` og returnerer én rad. Dette kan gjøres med `FOR UPDATE SKIP LOCKED` eller tilsvarende `UPDATE ... RETURNING`, slik at to podder ikke prosesserer samme dokument samtidig ved leader-skifte.
 
-Viktig: Ikke hold en databasetransaksjon åpen mens eksternt Dialogporten-kall pågår. Claim radene kort, commit, kall Dialogporten, og marker deretter success per dokument.
+Viktig: Ikke hold en databasetransaksjon åpen mens eksternt Dialogporten-kall pågår. Claim raden kort, commit, kall Dialogporten, og marker deretter success.
 
 ## Dataflyt
 
 1. Task våkner på intervall.
 2. Task sjekker `leaderElection.isLeader()`.
 3. Hvis podden ikke er leder: vent til neste intervall.
-4. Leder claimer én liten batch kandidater.
-5. For hvert dokument i batchen:
-   - Hvis `transmission_id` eller `dialog.dialogporten_uuid` mangler: marker cleanup som utført med `skipped_no_link`.
-   - Ellers kall Dialogporten for å utløpe/skjule lenken.
-   - Ved suksess: marker cleanup som utført med `expired`.
-   - Ved idempotent "finnes ikke / allerede borte": marker cleanup som utført med `already_expired`.
-   - Ved feil: ikke sett `cleanup_performed`; behold `cleanup_attempted` slik at retry skjer etter backoff.
-6. Logg batchoppsummering uten PII.
-7. Oppdater metrikker.
-8. Vent til neste intervall.
+4. Leder forsøker å claime én kandidat.
+5. Hvis ingen kandidat finnes: avslutt arbeidsrunden og vent til neste intervall.
+6. For claimed dokument:
+   - Kall Dialogporten for å utløpe/skjule lenken.
+   - Ved suksess: sett `dialogporten_link_cleanup_performed = now()`.
+   - Ved idempotent "finnes ikke / allerede borte": sett `dialogporten_link_cleanup_performed = now()`.
+   - Ved feil: ikke sett `cleanup_performed`; behold `cleanup_attempted` slik at raden kan prøves igjen etter retry-timeout.
+7. Gjenta fra steg 4 til maks antall rader per kjøring er nådd, eller til ingen kandidater finnes.
+8. Logg oppsummering for arbeidsrunden uten PII.
+9. Oppdater metrikker.
+10. Vent til neste intervall.
 
-## Batch- og retry-strategi
+## Arbeidsrunde- og retry-strategi
 
 Anbefalt første versjon:
 
-- Prosesser maks én claimed batch per wake-up.
-- Batchstørrelse: start med 50 eller 100.
-- Retry-backoff: start med 15-30 minutter.
-- Intervall: start med 5 minutter, samme størrelsesorden som eksisterende `SendDialogTask`.
+- Intervall: 10 minutter.
+- Claim én rad om gangen.
+- Prosesser maks 10 rader per kjøring.
+- Retry-timeout for `cleanup_attempted`: start med 30 minutter.
 
-Dette unngår at samme feilede batch prosesseres igjen umiddelbart i en tight loop.
+Dette holder løsningen enkel, begrenser last mot Dialogporten og unngår at samme feilede rad prosesseres igjen umiddelbart.
 
-Hvis initial backlog viser seg stor, kan man senere utvide med maks N batcher per runde, men bare hvis claim/backoff hindrer re-prosessering av samme feilede rader.
+Hvis initial backlog viser seg stor, kan maksantallet per kjøring økes senere uten å endre datamodellen.
 
 ## Dialogporten-kontrakt
 
@@ -135,14 +135,14 @@ Planen bør ikke låse klient-signaturen før dette er bekreftet. Den endelige k
 
 ## Foreslåtte komponenter
 
-| Komponent                      | Ansvar                                                             |
-| ------------------------------ | ------------------------------------------------------------------ |
-| `DocumentDAO`                  | Claime cleanup-kandidater, markere cleanup utført, telle backlog   |
-| `DialogportenClient`           | Utføre verifisert Dialogporten update-operasjon                    |
-| `FakeDialogportenClient`       | Lokal/no-op eller deterministisk fake for tester/lokal kjøring     |
-| `DialogportenCleanupService`   | Orkestrere batch, per-dokument feilisolasjon, metrikker og logging |
-| `CleanupDialogportenLinksTask` | Leader election, intervall, graceful cancellation                  |
-| `DialogportenMetrics`          | Cleanup counters, backlog gauge og ev. timer                       |
+| Komponent                      | Ansvar                                                                    |
+| ------------------------------ | ------------------------------------------------------------------------- |
+| `DocumentDAO`                  | Claime én cleanup-kandidat, markere cleanup utført, telle backlog         |
+| `DialogportenClient`           | Utføre verifisert Dialogporten update-operasjon                           |
+| `FakeDialogportenClient`       | Lokal/no-op eller deterministisk fake for tester/lokal kjøring            |
+| `DialogportenCleanupService`   | Orkestrere arbeidsrunde, per-dokument feilisolasjon, metrikker og logging |
+| `CleanupDialogportenLinksTask` | Leader election, intervall, graceful cancellation                         |
+| `DialogportenMetrics`          | Cleanup counters, backlog gauge og ev. timer                              |
 
 ## Flyway-plan
 
@@ -157,8 +157,7 @@ Eksempel:
 ```sql
 ALTER TABLE document
     ADD COLUMN dialogporten_link_cleanup_performed TIMESTAMPTZ DEFAULT null,
-    ADD COLUMN dialogporten_link_cleanup_attempted TIMESTAMPTZ DEFAULT null,
-    ADD COLUMN dialogporten_link_cleanup_result TEXT DEFAULT null;
+    ADD COLUMN dialogporten_link_cleanup_attempted TIMESTAMPTZ DEFAULT null;
 ```
 
 ### Migrering 2: indeks, hvis nødvendig
@@ -172,10 +171,11 @@ Indeks-predicate må begrenses til faktisk backlog:
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_document_dialogporten_cleanup_backlog
     ON document (delete_performed)
     WHERE delete_performed IS NOT NULL
+      AND transmission_id IS NOT NULL
       AND dialogporten_link_cleanup_performed IS NULL;
 ```
 
-Hvis `CREATE INDEX CONCURRENTLY` brukes, må migreringen ligge alene og Flyway-oppsettet verifiseres for non-transactional execution.
+Hvis `CREATE INDEX CONCURRENTLY` brukes, må migreringen ligge alene og Flyway-oppsettet verifiseres for non-transactional execution. En indeks kan ikke direkte referere til `dialog.dialogporten_uuid`; filtreringen på `dialogporten_uuid IS NOT NULL` skjer derfor i kandidatspørringen via join.
 
 ## Observability
 
@@ -183,17 +183,16 @@ Følg eksisterende mønster i `DialogportenMetrics.kt`, men bruk bedre navn på 
 
 Foreslåtte metrikker:
 
-| Metrikk                                                       | Type    | Labels                        | Formål                                             |
-| ------------------------------------------------------------- | ------- | ----------------------------- | -------------------------------------------------- |
-| `syfo_dokumentporten_dialogporten_link_cleanup_total`         | Counter | `result`                      | Teller cleanup-resultater                          |
-| `syfo_dokumentporten_dialogporten_link_cleanup_error_total`   | Counter | `reason` med lav kardinalitet | Teller tekniske feil                               |
-| `syfo_dokumentporten_dialogporten_link_cleanup_backlog`       | Gauge   | ingen                         | Antall soft-deleted dokumenter som mangler cleanup |
-| `syfo_dokumentporten_dialogporten_link_cleanup_batch_seconds` | Timer   | ingen eller `result`          | Varighet per batch                                 |
+| Metrikk                                                     | Type    | Labels                        | Formål                                                                        |
+| ----------------------------------------------------------- | ------- | ----------------------------- | ----------------------------------------------------------------------------- |
+| `syfo_dokumentporten_dialogporten_link_cleanup_total`       | Counter | `result`                      | Teller cleanup-resultater                                                     |
+| `syfo_dokumentporten_dialogporten_link_cleanup_error_total` | Counter | `reason` med lav kardinalitet | Teller tekniske feil                                                          |
+| `syfo_dokumentporten_dialogporten_link_cleanup_backlog`     | Gauge   | ingen                         | Antall soft-deleted dokumenter med Dialogporten-referanse som mangler cleanup |
+| `syfo_dokumentporten_dialogporten_link_cleanup_run_seconds` | Timer   | ingen                         | Varighet per arbeidsrunde                                                     |
 
 Tillatte labelverdier bør være faste, for eksempel:
 
 - `result=expired`
-- `result=skipped_no_link`
 - `result=already_expired`
 - `reason=client_error`
 - `reason=server_error`
@@ -203,14 +202,13 @@ Ikke bruk `document_id`, `transmission_id`, `dialog_id`, `fnr`, rå URL eller tr
 
 ## Logging
 
-Logg batchnivå:
+Logg arbeidsrundenivå:
 
 - antall kandidater claimed
 - antall utløpt
-- antall skipped
 - antall idempotent already expired
 - antall feil
-- eldste `delete_performed` i batchen
+- eldste `delete_performed` i arbeidsrunden
 
 Unngå standardlogging av:
 
@@ -237,12 +235,15 @@ Hvis feilsøking krever identifikator, avklar med security champion om intern DB
 
 ## Testplan
 
+Testene skal skrives i samme fase som produksjonskoden de dekker. Ikke samle DAO-, klient-, service- og task-tester i en egen testfase til slutt.
+
 ### DAO
 
 - Returnerer bare dokumenter med `delete_performed IS NOT NULL`.
+- Returnerer bare dokumenter med både `transmission_id` og `dialogporten_uuid`.
 - Ekskluderer dokumenter der cleanup allerede er utført.
 - Respekterer retry-backoff via `cleanup_attempted`.
-- Claimer batch atomisk og unngår dobbeltclaim.
+- Claimer én rad atomisk og unngår dobbeltclaim.
 - Marker cleanup utført uten å endre `delete_performed` eller `transmission_id`.
 - Backlog-count stemmer.
 
@@ -257,18 +258,18 @@ Hvis feilsøking krever identifikator, avklar med security champion om intern DB
 
 ### Service
 
-- Dokument uten `transmission_id` markeres `skipped_no_link`.
-- Dokument uten `dialogporten_uuid` markeres `skipped_no_link`.
+- Dokument uten `transmission_id` blir ikke claimed.
+- Dokument uten `dialogporten_uuid` blir ikke claimed.
 - Dokument med komplett Dialogporten-referanse kaller klient og markeres `expired`.
 - Idempotent "already gone" markeres `already_expired`.
-- Klientfeil på ett dokument stopper ikke resten av batchen.
+- Klientfeil på ett dokument stopper ikke resten av arbeidsrunden.
 - Feilede dokumenter får ikke `cleanup_performed`.
 - Metrikker økes med forventede labels.
 
 ### Task
 
 - Ikke-leder prosesserer ikke.
-- Leder prosesserer én batch per wake-up.
+- Leder claimer én rad om gangen og prosesserer maks 10 rader per wake-up.
 - `CancellationException` håndteres som normal shutdown.
 - Task wires i Koin og stoppes i `ApplicationStopPreparing`.
 
@@ -291,8 +292,9 @@ Avklar Dialogporten update-kontrakt, scope og idempotente statuskoder. Dette må
 
 - `src/main/resources/db/migration/V{next}__document_dialogporten_cleanup_state.sql`
 - eventuelt `src/main/resources/db/migration/V{next}__document_dialogporten_cleanup_backlog_index.sql`
+- eksisterende migrerings-/databasetester hvis prosjektet har en test som verifiserer Flyway-migreringer
 
-Legg til cleanup-state og eventuell indeks.
+Legg til cleanup-state og eventuell indeks. Fasen inkluderer test eller lokal verifisering av at migreringene kjører rent mot testdatabasen.
 
 ### Fase 3: DAO og domene
 
@@ -300,9 +302,18 @@ Legg til cleanup-state og eventuell indeks.
 
 - `src/main/kotlin/no/nav/syfo/document/db/DocumentDAO.kt`
 - `src/main/kotlin/no/nav/syfo/document/db/DocumentEntity.kt`
-- relevante DAO-tester
+- `src/test/kotlin/no/nav/syfo/document/db/DocumentDbTest.kt` eller tilsvarende DAO-test
 
 Legg til claim, markering, backlog-count og entity-mapping.
+
+Skriv DAO-testene i denne fasen:
+
+- kandidatspørringen returnerer bare soft-deleted dokumenter med både `transmission_id` og `dialogporten_uuid`
+- allerede ryddede dokumenter ekskluderes
+- `cleanup_attempted` respekterer retry-timeout
+- claim henter én rad atomisk
+- markering av cleanup utført endrer ikke `delete_performed` eller `transmission_id`
+- backlog-count stemmer
 
 ### Fase 4: Dialogporten-klient
 
@@ -311,8 +322,18 @@ Legg til claim, markering, backlog-count og entity-mapping.
 - `src/main/kotlin/no/nav/syfo/altinn/dialogporten/client/DialogportenClient.kt`
 - `src/main/kotlin/no/nav/syfo/altinn/dialogporten/client/FakeDialogportenClient.kt`
 - eventuelle DTO-er under `src/main/kotlin/no/nav/syfo/altinn/dialogporten/domain/`
+- klienttester under `src/test/kotlin/no/nav/syfo/dialogporten/` eller eksisterende klient-testpakke
 
 Legg til verifisert update-operasjon.
+
+Skriv klienttestene i denne fasen:
+
+- korrekt endpoint, HTTP-verb og payload etter avklart Dialogporten-kontrakt
+- korrekt Altinn-scope
+- success mappes til success
+- avklarte idempotente statuskoder mappes til success
+- reelle 4xx/5xx gir feil som service kan retrye
+- token, rå URL og PII havner ikke i logg
 
 ### Fase 5: Cleanup service
 
@@ -320,8 +341,20 @@ Legg til verifisert update-operasjon.
 
 - ny `src/main/kotlin/no/nav/syfo/altinn/dialogporten/service/DialogportenCleanupService.kt`
 - `src/main/kotlin/no/nav/syfo/altinn/dialogporten/DialogportenMetrics.kt`
+- servicetester under `src/test/kotlin/no/nav/syfo/dialogporten/service/` eller eksisterende service-testpakke
 
-Orkestrer batch, retry/backoff, result-markering, metrikker og logging.
+Orkestrer arbeidsrunde, retry/backoff, success-markering, metrikker og logging.
+
+Skriv servicetestene i denne fasen:
+
+- dokument uten `transmission_id` blir ikke claimed
+- dokument uten `dialogporten_uuid` blir ikke claimed
+- dokument med komplett Dialogporten-referanse kaller klient og markeres ryddet
+- idempotent "already gone" markeres ryddet
+- klientfeil på ett dokument stopper ikke resten av arbeidsrunden
+- feilede dokumenter får ikke `cleanup_performed`
+- metrikker økes med forventede labels
+- loggmeldinger inneholder ikke fnr, navn, rå lenker eller dokumentinnhold
 
 ### Fase 6: Task og wiring
 
@@ -330,27 +363,34 @@ Orkestrer batch, retry/backoff, result-markering, metrikker og logging.
 - ny `src/main/kotlin/no/nav/syfo/altinn/dialogporten/task/CleanupDialogportenLinksTask.kt`
 - `src/main/kotlin/no/nav/syfo/plugins/DependencyInjection.kt`
 - `src/main/kotlin/no/nav/syfo/plugins/ConfigureTasks.kt`
+- task-/wiring-tester under `src/test/kotlin/no/nav/syfo/dialogporten/task/` eller eksisterende task-testpakke
 
 Wire task med leader election og graceful shutdown.
 
-### Fase 7: Tester og dokumentasjon
+Skriv task-testene i denne fasen:
+
+- ikke-leder prosesserer ikke
+- leder claimer én rad om gangen og prosesserer maks 10 rader per wake-up
+- `CancellationException` håndteres som normal shutdown
+- tasken wires i Koin og stoppes i `ApplicationStopPreparing`
+
+### Fase 7: Samlet verifisering og dokumentasjon
 
 **Filer:**
 
-- DAO-/service-/client-/task-tester under `src/test/kotlin`
 - `README.md` hvis teamet ønsker runtime-oppgaven dokumentert permanent
 
-Kjør `./gradlew test` og `./gradlew build`.
+Kjør hele testpakken og build etter at fasene over har lagt inn sine tester: `./gradlew test` og `./gradlew build`. Denne fasen skal ikke være stedet der hovedtestene først skrives; den skal fange integrasjonsfeil og dokumentere tasken ved behov.
 
 ## Akseptansekriterier mapping
 
-| Issue-krav                                                 | Planlagt dekning                                      |
-| ---------------------------------------------------------- | ----------------------------------------------------- |
-| Avklart og implementert måte å sette/oppdatere `expiredAt` | Fase 1 og 4                                           |
-| Lenker for soft-deleted transmissions utløper/skjules      | Fase 3-6                                              |
-| Aktive transmissions og aktive lenker påvirkes ikke        | Kandidatfilter krever `delete_performed IS NOT NULL`  |
-| Feil synliggjøres uten PII                                 | Observability-, logging- og sikkerhetsseksjonene      |
-| Periodisk og trygg prosessering                            | Leader election, atomic claim, batch og retry-backoff |
+| Issue-krav                                                 | Planlagt dekning                                     |
+| ---------------------------------------------------------- | ---------------------------------------------------- |
+| Avklart og implementert måte å sette/oppdatere `expiredAt` | Fase 1 og 4                                          |
+| Lenker for soft-deleted transmissions utløper/skjules      | Fase 3-6                                             |
+| Aktive transmissions og aktive lenker påvirkes ikke        | Kandidatfilter krever `delete_performed IS NOT NULL` |
+| Feil synliggjøres uten PII                                 | Observability-, logging- og sikkerhetsseksjonene     |
+| Periodisk og trygg prosessering                            | Leader election, atomic row-claim og retry-backoff   |
 
 ## Åpne avklaringer før implementering
 
@@ -360,8 +400,9 @@ Kjør `./gradlew test` og `./gradlew build`.
 4. Hvilken tid skal settes som expiry: `delete_performed`, `Instant.now()` eller annen verdi?
 5. Skal intern DB-id kunne logges ved feil, eller skal alle identifikatorer utelates?
 6. Er forventet volum stort nok til at partial-indeks trengs fra første release?
-7. Skal cleanup-resultat lagres som fri `TEXT`, check constraint eller egen enum? Første anbefaling er `TEXT` med applikasjonskontrollerte verdier for å unngå enum-migreringskompleksitet.
+7. Er maks 10 rader per 10-minutters kjøring nok for forventet backlog, eller bør dette konfigureres fra miljø?
+8. Finnes det en planlagt oppgave for å lage API-/servicekall som soft-deleter dokumenter, slik at cleanup senere kan trigges fra applikasjonsflyten i tillegg til periodisk reconciliation?
 
 ## Anbefaling
 
-Start med databasebasert cleanup-state, atomic claim og maks én batch per wake-up. Det gir en enkel nok løsning, men unngår de viktigste driftssviktene: tight retry-loop, dobbeltprosessering ved leader-skifte og uendelig re-prosessering av dokumenter uten Dialogporten-lenke.
+Start med to cleanup-kolonner, atomic row-claim og maks 10 rader per 10-minutters kjøring. Det gir en enkel nok løsning, men unngår de viktigste driftssviktene: permanent låste rader ved jobb-død, tight retry-loop, dobbeltprosessering ved leader-skifte og uendelig re-prosessering av dokumenter uten Dialogporten-lenke.
