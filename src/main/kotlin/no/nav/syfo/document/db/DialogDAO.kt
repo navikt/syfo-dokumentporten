@@ -11,7 +11,7 @@ import java.util.UUID
 
 class DialogDAO(private val database: DatabaseInterface) {
     suspend fun getDialogCandidatesWithApiOnlyTrue(): List<UUID> {
-        val greedyQuery = """
+        val query = """
             SELECT dialogporten_uuid 
             FROM dialog 
             WHERE created <= '2026-05-04' ::timestamptz
@@ -22,7 +22,7 @@ class DialogDAO(private val database: DatabaseInterface) {
 
         return withContext(Dispatchers.IO) {
             database.connection.use { conn ->
-                val preparedStatement = conn.prepareStatement(greedyQuery)
+                val preparedStatement = conn.prepareStatement(query)
                 preparedStatement.use { ps ->
                     val resultSet = ps.executeQuery()
                     buildList {

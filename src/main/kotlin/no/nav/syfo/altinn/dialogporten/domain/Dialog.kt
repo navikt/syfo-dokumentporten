@@ -10,7 +10,7 @@ data class Dialog(
     override val content: Content,
     override val transmissions: List<Transmission> = emptyList(),
     override val attachments: List<Attachment> = emptyList(),
-    override val isApiOnly: Boolean? = false,
+    override val isApiOnly: Boolean = false,
 ) : IDialog
 
 interface IDialog {
@@ -21,7 +21,7 @@ interface IDialog {
     val content: Content
     val transmissions: List<Transmission>
     val attachments: List<Attachment>?
-    val isApiOnly: Boolean?
+    val isApiOnly: Boolean
 }
 
 data class ExtendedDialog(
@@ -34,5 +34,5 @@ data class ExtendedDialog(
     override val content: Content,
     override val transmissions: List<Transmission> = emptyList(),
     override val attachments: List<Attachment>? = null,
-    override val isApiOnly: Boolean? = true,
+    override val isApiOnly: Boolean = false,
 ) : IDialog

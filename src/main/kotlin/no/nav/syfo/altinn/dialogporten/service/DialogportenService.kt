@@ -256,15 +256,17 @@ class DialogportenService(
             .map(::getDialogForApiOnlyUpdate)
             .map(::patchDialogApiOnly)
             .toList()
+        val updatedDialogIds = dialogUpdateResults
+            .filterIsInstance<DialogApiOnlyUpdateResult.Updated>()
+            .map { it.dialogId }
+        val failedDialogIds = dialogUpdateResults
+            .filterIsInstance<DialogApiOnlyUpdateResult.Failed>()
+            .map { it.dialogId }
+            .toSet()
 
         return ApiOnlyBatchResult(
-            updatedDialogIds = dialogUpdateResults
-                .filterIsInstance<DialogApiOnlyUpdateResult.Updated>()
-                .map { it.dialogId },
-            failedDialogIds = dialogUpdateResults
-                .filterIsInstance<DialogApiOnlyUpdateResult.Failed>()
-                .map { it.dialogId }
-                .toSet(),
+            updatedDialogIds = updatedDialogIds,
+            failedDialogIds = failedDialogIds,
         )
     }
 
@@ -272,19 +274,22 @@ class DialogportenService(
         when (dialogResult) {
             is DialogApiOnlyUpdateResult.Failed,
             is DialogApiOnlyUpdateResult.Updated -> dialogResult
+
             is DialogApiOnlyUpdateResult.ReadyForPatch -> {
                 try {
-                    dialogportenClient.patchDialog(
-                        dialogResult.dialog.id,
-                        dialogResult.dialog.revision,
-                        patch = listOf(
-                            DialogportenClient.DialogportenPatch(
-                                DialogportenClient.DialogportenPatch.OPERATION.REPLACE,
-                                DialogportenClient.DialogportenPatch.PATH.IS_API_ONLY,
-                                "false"
+                    if (dialogResult.dialog.isApiOnly) {
+                        dialogportenClient.patchDialog(
+                            dialogResult.dialog.id,
+                            dialogResult.dialog.revision,
+                            patch = listOf(
+                                DialogportenClient.DialogportenPatch(
+                                    DialogportenClient.DialogportenPatch.OPERATION.REPLACE,
+                                    DialogportenClient.DialogportenPatch.PATH.IS_API_ONLY,
+                                    "false"
+                                )
                             )
                         )
-                    )
+                    }
 
                     DialogApiOnlyUpdateResult.Updated(dialogResult.dialog.id)
                 } catch (_: DialogportenClientException) {
