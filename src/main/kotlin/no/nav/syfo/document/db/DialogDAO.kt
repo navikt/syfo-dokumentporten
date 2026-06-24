@@ -14,7 +14,8 @@ class DialogDAO(private val database: DatabaseInterface) {
         val query = """
             SELECT dialogporten_uuid 
             FROM dialog 
-            WHERE created <= '2026-05-04' ::timestamptz
+            WHERE created < '2026-05-05 00:00:00+00' ::timestamptz
+            AND dialogporten_uuid IS NOT NULL
             AND dialogporten_api_only is true
             ORDER BY created ASC
             LIMIT 500;
