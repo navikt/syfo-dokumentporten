@@ -51,7 +51,7 @@ class DialogportenServiceTest :
                 dialogEntity().copy(dialogportenUUID = null)
         }
 
-        fun extendedDialog(id: UUID = UUID.randomUUID()): ExtendedDialog = ExtendedDialog(
+        fun extendedDialog(id: UUID = UUID.randomUUID(), isApiOnly: Boolean = false): ExtendedDialog = ExtendedDialog(
             revision = UUID.randomUUID(),
             id = id,
             party = "urn:altinn:organization:identifier-no:999999999",
@@ -61,6 +61,7 @@ class DialogportenServiceTest :
                 title = "Dialog title",
                 summary = "Dialog summary",
             ),
+            isApiOnly = isApiOnly,
         )
 
         describe("sendDocumentsToDialogporten") {
@@ -452,8 +453,8 @@ class DialogportenServiceTest :
             it("should set api only false for dialogs that are fetched and patched successfully") {
                 val dialogId1 = UUID.randomUUID()
                 val dialogId2 = UUID.randomUUID()
-                val dialog1 = extendedDialog(dialogId1)
-                val dialog2 = extendedDialog(dialogId2)
+                val dialog1 = extendedDialog(dialogId1, isApiOnly = true)
+                val dialog2 = extendedDialog(dialogId2, isApiOnly = true)
 
                 coEvery { dialogDao.getDialogCandidatesWithApiOnlyTrue() } returnsMany
                     listOf(listOf(dialogId1, dialogId2), emptyList())
@@ -477,8 +478,8 @@ class DialogportenServiceTest :
                 val successfulDialogId = UUID.randomUUID()
                 val fetchFailureDialogId = UUID.randomUUID()
                 val patchFailureDialogId = UUID.randomUUID()
-                val successfulDialog = extendedDialog(successfulDialogId)
-                val patchFailureDialog = extendedDialog(patchFailureDialogId)
+                val successfulDialog = extendedDialog(successfulDialogId, isApiOnly = true)
+                val patchFailureDialog = extendedDialog(patchFailureDialogId, isApiOnly = true)
 
                 coEvery { dialogDao.getDialogCandidatesWithApiOnlyTrue() } returnsMany
                     listOf(listOf(successfulDialogId, fetchFailureDialogId, patchFailureDialogId), emptyList())

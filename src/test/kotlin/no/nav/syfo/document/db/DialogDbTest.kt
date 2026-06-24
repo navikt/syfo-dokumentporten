@@ -2,16 +2,40 @@ package no.nav.syfo.document.db
 
 import dialogEntity
 import io.kotest.core.spec.style.DescribeSpec
+import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.comparables.shouldBeGreaterThan
 import io.kotest.matchers.equality.shouldBeEqualUsingFields
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import no.nav.syfo.TestDB
+import java.sql.Timestamp
+import java.time.Instant
 
 class DialogDbTest :
     DescribeSpec({
         val testDb = TestDB.database
         val dialogDAO = DialogDAO(testDb)
+
+        fun updateDialogApiOnlyAndCreated(dialogportenUUID: java.util.UUID, apiOnly: Boolean, created: Instant,) {
+            testDb.connection.use { connection ->
+                connection.prepareStatement(
+                    """
+                        UPDATE dialog
+                        SET dialogporten_api_only = ?,
+                            created = ?,
+                            updated = ?
+                        WHERE dialogporten_uuid = ?
+                    """.trimIndent()
+                ).use { preparedStatement ->
+                    preparedStatement.setBoolean(1, apiOnly)
+                    preparedStatement.setTimestamp(2, Timestamp.from(created))
+                    preparedStatement.setTimestamp(3, Timestamp.from(Instant.now()))
+                    preparedStatement.setObject(4, dialogportenUUID)
+                    preparedStatement.executeUpdate()
+                }
+                connection.commit()
+            }
+        }
 
         beforeTest {
             TestDB.clearAllData()
@@ -79,6 +103,65 @@ class DialogDbTest :
                 )
                 // Assert
                 retrievedDialog shouldBe null
+            }
+        }
+
+        describe("DialogDb -> getDialogCandidatesWithApiOnlyTrue") {
+            it("should return all matching dialog ids ordered by created ascending") {
+                val oldestDialog = dialogDAO.insertDialog(dialogEntity())
+                val nextDialog = dialogDAO.insertDialog(dialogEntity())
+                val tooRecentDialog = dialogDAO.insertDialog(dialogEntity())
+                val apiOnlyFalseDialog = dialogDAO.insertDialog(dialogEntity())
+
+                updateDialogApiOnlyAndCreated(
+                    dialogportenUUID = oldestDialog.dialogportenUUID!!,
+                    apiOnly = true,
+                    created = Instant.parse("2026-05-02T00:00:00Z")
+                )
+                updateDialogApiOnlyAndCreated(
+                    dialogportenUUID = nextDialog.dialogportenUUID!!,
+                    apiOnly = true,
+                    created = Instant.parse("2026-05-03T00:00:00Z")
+                )
+                updateDialogApiOnlyAndCreated(
+                    dialogportenUUID = tooRecentDialog.dialogportenUUID!!,
+                    apiOnly = true,
+                    created = Instant.parse("2026-05-05T00:00:00Z")
+                )
+                updateDialogApiOnlyAndCreated(
+                    dialogportenUUID = apiOnlyFalseDialog.dialogportenUUID!!,
+                    apiOnly = false,
+                    created = Instant.parse("2026-05-01T00:00:00Z")
+                )
+
+                val candidates = dialogDAO.getDialogCandidatesWithApiOnlyTrue()
+
+                candidates shouldContainExactly listOf(
+                    oldestDialog.dialogportenUUID,
+                    nextDialog.dialogportenUUID,
+                )
+            }
+        }
+
+        describe("DialogDb -> setDialogApiOnlyFalse") {
+            it("should update only the selected dialog") {
+                val dialogToUpdate = dialogDAO.insertDialog(dialogEntity())
+                val otherDialog = dialogDAO.insertDialog(dialogEntity())
+
+                updateDialogApiOnlyAndCreated(
+                    dialogportenUUID = dialogToUpdate.dialogportenUUID!!,
+                    apiOnly = true,
+                    created = Instant.parse("2026-05-01T00:00:00Z")
+                )
+                updateDialogApiOnlyAndCreated(
+                    dialogportenUUID = otherDialog.dialogportenUUID!!,
+                    apiOnly = true,
+                    created = Instant.parse("2026-05-02T00:00:00Z")
+                )
+
+                dialogDAO.setDialogApiOnlyFalse(dialogToUpdate.dialogportenUUID)
+
+                dialogDAO.getDialogCandidatesWithApiOnlyTrue() shouldContainExactly listOf(otherDialog.dialogportenUUID)
             }
         }
     })
