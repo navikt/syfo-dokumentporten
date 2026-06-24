@@ -26,7 +26,7 @@ class DialogDAO(private val database: DatabaseInterface) {
                 preparedStatement.use { ps ->
                     val resultSet = ps.executeQuery()
                     buildList {
-                        if (resultSet.next()) {
+                        while (resultSet.next()) {
                             add(resultSet.toDialogportenUUID())
                         }
                     }
@@ -46,6 +46,8 @@ class DialogDAO(private val database: DatabaseInterface) {
                 conn.prepareStatement(updateQuery).use {
                     it.setObject(1, dialogportenUUID)
                     it.executeUpdate()
+                }.also {
+                    conn.commit()
                 }
             }
         }
