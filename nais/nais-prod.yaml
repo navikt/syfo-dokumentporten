@@ -129,6 +129,6 @@ spec:
     - name: PDL_SCOPE
       value: prod-fss.pdl.pdl-api
     - name: ENABLE_API_ONLY_JOB
-      value: "false"
+      value: "true"
   envFrom:
     - secret: altinn-subscription-key
