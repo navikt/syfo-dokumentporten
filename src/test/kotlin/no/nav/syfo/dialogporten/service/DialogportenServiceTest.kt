@@ -10,9 +10,13 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
+import no.nav.syfo.altinn.dialogporten.client.DialogportenClientException
 import no.nav.syfo.altinn.dialogporten.client.IDialogportenClient
+import no.nav.syfo.altinn.dialogporten.domain.Content
 import no.nav.syfo.altinn.dialogporten.domain.Dialog
+import no.nav.syfo.altinn.dialogporten.domain.ExtendedDialog
 import no.nav.syfo.altinn.dialogporten.domain.Transmission
+import no.nav.syfo.altinn.dialogporten.domain.create
 import no.nav.syfo.altinn.dialogporten.service.DialogportenService
 import no.nav.syfo.document.api.v1.dto.DocumentType
 import no.nav.syfo.document.db.DocumentDAO
@@ -46,6 +50,19 @@ class DialogportenServiceTest :
             coEvery { dialogDao.updateDialogWithBirthDate(any(), any(), any()) } returns
                 dialogEntity().copy(dialogportenUUID = null)
         }
+
+        fun extendedDialog(id: UUID = UUID.randomUUID(), isApiOnly: Boolean = false): ExtendedDialog = ExtendedDialog(
+            revision = UUID.randomUUID(),
+            id = id,
+            party = "urn:altinn:organization:identifier-no:999999999",
+            serviceResource = "urn:altinn:resource:nav_syfo_dialog",
+            externalReference = "syfo-dokumentporten",
+            content = Content.create(
+                title = "Dialog title",
+                summary = "Dialog summary",
+            ),
+            isApiOnly = isApiOnly,
+        )
 
         describe("sendDocumentsToDialogporten") {
             context("when there are no documents to send") {
@@ -429,6 +446,82 @@ class DialogportenServiceTest :
                     // Both documents should still be sent
                     coVerify(exactly = 2) { dialogportenClient.createDialog(any()) }
                 }
+            }
+        }
+
+        describe("updateApiOnlyForDialog") {
+            it("should set api only false for dialogs that are fetched and patched successfully") {
+                val dialogId1 = UUID.randomUUID()
+                val dialogId2 = UUID.randomUUID()
+                val dialog1 = extendedDialog(dialogId1, isApiOnly = true)
+                val dialog2 = extendedDialog(dialogId2, isApiOnly = true)
+
+                coEvery { dialogDao.getDialogCandidatesWithApiOnlyTrue() } returnsMany
+                    listOf(listOf(dialogId1, dialogId2), emptyList())
+                coEvery { dialogportenClient.getDialogById(dialogId1) } returns dialog1
+                coEvery { dialogportenClient.getDialogById(dialogId2) } returns dialog2
+                coEvery { dialogportenClient.patchDialog(dialogId1, dialog1.revision, any()) } returns Unit
+                coEvery { dialogportenClient.patchDialog(dialogId2, dialog2.revision, any()) } returns Unit
+                coEvery { dialogDao.setDialogApiOnlyFalse(any()) } returns Unit
+
+                dialogportenService.updateApiOnlyForDialog()
+
+                coVerify(exactly = 1) { dialogportenClient.getDialogById(dialogId1) }
+                coVerify(exactly = 1) { dialogportenClient.getDialogById(dialogId2) }
+                coVerify(exactly = 1) { dialogportenClient.patchDialog(dialogId1, dialog1.revision, any()) }
+                coVerify(exactly = 1) { dialogportenClient.patchDialog(dialogId2, dialog2.revision, any()) }
+                coVerify(exactly = 1) { dialogDao.setDialogApiOnlyFalse(dialogId1) }
+                coVerify(exactly = 1) { dialogDao.setDialogApiOnlyFalse(dialogId2) }
+            }
+
+            it("should only update dialogs that complete the full fetch and patch flow") {
+                val successfulDialogId = UUID.randomUUID()
+                val fetchFailureDialogId = UUID.randomUUID()
+                val patchFailureDialogId = UUID.randomUUID()
+                val successfulDialog = extendedDialog(successfulDialogId, isApiOnly = true)
+                val patchFailureDialog = extendedDialog(patchFailureDialogId, isApiOnly = true)
+
+                coEvery { dialogDao.getDialogCandidatesWithApiOnlyTrue() } returnsMany
+                    listOf(listOf(successfulDialogId, fetchFailureDialogId, patchFailureDialogId), emptyList())
+                coEvery { dialogportenClient.getDialogById(successfulDialogId) } returns successfulDialog
+                coEvery { dialogportenClient.getDialogById(fetchFailureDialogId) } throws
+                    DialogportenClientException("fetch failed")
+                coEvery { dialogportenClient.getDialogById(patchFailureDialogId) } returns patchFailureDialog
+                coEvery {
+                    dialogportenClient.patchDialog(
+                        successfulDialogId,
+                        successfulDialog.revision,
+                        any()
+                    )
+                } returns Unit
+                coEvery {
+                    dialogportenClient.patchDialog(
+                        patchFailureDialogId,
+                        patchFailureDialog.revision,
+                        any()
+                    )
+                } throws
+                    DialogportenClientException("patch failed")
+                coEvery { dialogDao.setDialogApiOnlyFalse(any()) } returns Unit
+
+                dialogportenService.updateApiOnlyForDialog()
+
+                coVerify(exactly = 1) { dialogDao.setDialogApiOnlyFalse(successfulDialogId) }
+                coVerify(exactly = 0) { dialogDao.setDialogApiOnlyFalse(fetchFailureDialogId) }
+                coVerify(exactly = 0) { dialogDao.setDialogApiOnlyFalse(patchFailureDialogId) }
+            }
+
+            it("should stop when a batch contains only failing dialogs") {
+                val failingDialogId = UUID.randomUUID()
+
+                coEvery { dialogDao.getDialogCandidatesWithApiOnlyTrue() } returns listOf(failingDialogId)
+                coEvery { dialogportenClient.getDialogById(failingDialogId) } throws
+                    DialogportenClientException("fetch failed")
+
+                dialogportenService.updateApiOnlyForDialog()
+
+                coVerify(exactly = 1) { dialogDao.getDialogCandidatesWithApiOnlyTrue() }
+                coVerify(exactly = 0) { dialogDao.setDialogApiOnlyFalse(any()) }
             }
         }
     })

@@ -142,5 +142,7 @@ spec:
       value: https://pdl-api.dev-fss-pub.nais.io/graphql
     - name: PDL_SCOPE
       value: dev-fss.pdl.pdl-api
+    - name: ENABLE_API_ONLY_JOB
+      value: "true"
   envFrom:
     - secret: altinn-subscription-key

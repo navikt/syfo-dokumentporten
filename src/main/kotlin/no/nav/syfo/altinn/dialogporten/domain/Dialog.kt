@@ -1,12 +1,39 @@
 package no.nav.syfo.altinn.dialogporten.domain
 
+import java.util.UUID
+import kotlin.time.Instant
+
 data class Dialog(
-    val serviceResource: String,
-    val party: String,
-    val externalReference: String,
-    val status: DialogStatus? = null,
-    val content: Content,
-    val transmissions: List<Transmission> = emptyList(),
-    val attachments: List<Attachment> = emptyList(),
-    val isApiOnly: Boolean? = false,
-)
+    override val serviceResource: String,
+    override val party: String,
+    override val externalReference: String,
+    override val status: DialogStatus? = null,
+    override val content: Content,
+    override val transmissions: List<Transmission> = emptyList(),
+    override val attachments: List<Attachment> = emptyList(),
+    override val isApiOnly: Boolean = false,
+) : IDialog
+
+interface IDialog {
+    val serviceResource: String
+    val party: String
+    val externalReference: String
+    val status: DialogStatus?
+    val content: Content
+    val transmissions: List<Transmission>
+    val attachments: List<Attachment>?
+    val isApiOnly: Boolean
+}
+
+data class ExtendedDialog(
+    val revision: UUID,
+    val id: UUID,
+    override val party: String,
+    override val serviceResource: String,
+    override val externalReference: String,
+    override val status: DialogStatus? = null,
+    override val content: Content,
+    override val transmissions: List<Transmission> = emptyList(),
+    override val attachments: List<Attachment>? = null,
+    override val isApiOnly: Boolean = false,
+) : IDialog
