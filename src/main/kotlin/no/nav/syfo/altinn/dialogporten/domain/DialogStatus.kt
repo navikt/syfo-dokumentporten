@@ -7,4 +7,5 @@ enum class DialogStatus {
     Sent,
     RequiresAttention,
     Completed,
+    NotApplicable
 }
