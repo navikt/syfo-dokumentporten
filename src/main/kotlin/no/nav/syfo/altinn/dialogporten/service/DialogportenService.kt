@@ -246,7 +246,7 @@ class DialogportenService(
 
             logger.info("Updated ${batchResult.updatedDialogIds.size} dialogs")
             logger.info("Failed to process ${batchResult.failedDialogIds.size} dialogs")
-            delay(500.milliseconds)
+            delay(1000.milliseconds)
         } while (dialogsToUpdate.isNotEmpty())
     }
 

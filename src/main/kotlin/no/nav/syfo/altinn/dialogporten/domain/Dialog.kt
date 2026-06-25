@@ -1,6 +1,7 @@
 package no.nav.syfo.altinn.dialogporten.domain
 
 import java.util.UUID
+import kotlin.time.Instant
 
 data class Dialog(
     override val serviceResource: String,

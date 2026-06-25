@@ -18,7 +18,7 @@ class DialogDAO(private val database: DatabaseInterface) {
             AND dialogporten_uuid IS NOT NULL
             AND dialogporten_api_only is true
             ORDER BY created ASC
-            LIMIT 500;
+            LIMIT 200;
         """.trimIndent()
 
         return withContext(Dispatchers.IO) {
