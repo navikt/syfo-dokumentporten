@@ -1,18 +1,20 @@
-apiVersion: nais.io/v1
-kind: Alert
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
 metadata:
   name: syfo-dokumentporten-alerts
   namespace: team-esyfo
   labels:
     team: team-esyfo
 spec:
-  receivers:
-    slack:
-      channel: esyfo-alarm
-  alerts:
-    - alert: syfo-dokumentporten-varselinstruks-terminal-error
-      expr: sum(increase(syfo_dokumentporten_varsel_permanent_error_total{app="syfo-dokumentporten",namespace="team-esyfo"}[5m])) > 0
-      for: 1m
-      description: "Varselinstruks har gått til terminal ERROR etter permanente publiseringsfeil eller oppbrukt retry-terskel."
-      action: "Undersøk logger for varselpublisering mot esyfovarsel og følg opp varselinstrukser som har stoppet i terminal ERROR."
-      severity: danger
+  groups:
+    - name: syfo-dokumentporten-alerts
+      rules:
+        - alert: syfo-dokumentporten-varselinstruks-terminal-error
+          expr: sum(increase(syfo_dokumentporten_varsel_permanent_error_total{app="syfo-dokumentporten",namespace="team-esyfo"}[5m])) > 0
+          for: 1m
+          labels:
+            severity: critical
+            namespace: team-esyfo
+          annotations:
+            description: "Varselinstruks har gått til terminal ERROR etter permanente publiseringsfeil eller oppbrukt retry-terskel."
+            action: "Undersøk logger for varselpublisering mot esyfovarsel og følg opp varselinstrukser som har stoppet i terminal ERROR."
