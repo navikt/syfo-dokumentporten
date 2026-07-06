@@ -23,7 +23,7 @@ jobs:
     secrets: inherit
     with:
       app: syfo-dokumentporten
-      java-version: '21'
+      java-version: '25'
 
   deploy-alert-prod:
     if: github.ref_name == 'main'
