@@ -105,6 +105,7 @@ class ExternalDocumentApiTest :
                             dialogDAO = dialogDAO,
                             validationService = validationServiceSpy,
                             documentService = documentService,
+                            dialogportenService = mockk(relaxed = true),
                         )
                     }
                 }

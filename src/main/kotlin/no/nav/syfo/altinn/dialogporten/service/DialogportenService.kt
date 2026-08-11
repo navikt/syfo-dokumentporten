@@ -13,6 +13,7 @@ import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSIONS_CREATED
 import no.nav.syfo.altinn.dialogporten.client.DialogportenClient
 import no.nav.syfo.altinn.dialogporten.client.DialogportenClientException
 import no.nav.syfo.altinn.dialogporten.client.IDialogportenClient
+import no.nav.syfo.altinn.dialogporten.domain.Activity
 import no.nav.syfo.altinn.dialogporten.domain.Attachment
 import no.nav.syfo.altinn.dialogporten.domain.AttachmentUrlConsumerType
 import no.nav.syfo.altinn.dialogporten.domain.Content
@@ -312,5 +313,15 @@ class DialogportenService(
         data class Updated(val dialogId: UUID) : DialogApiOnlyUpdateResult
 
         data class Failed(val dialogId: UUID) : DialogApiOnlyUpdateResult
+    }
+
+    suspend fun markTransmissionOpened(dialogportenDialogId: UUID, transmissionId: UUID) {
+        val activity = Activity(
+            type = Activity.ActivityType.TransmissionOpened,
+            transmissionId = transmissionId,
+            performedBy = Activity.ActivityActor(actorType = "ServiceOwner"),
+        )
+        dialogportenClient.createActivity(activity, dialogportenDialogId)
+        logger.info("Marked transmission $transmissionId as opened in dialog $dialogportenDialogId")
     }
 }
