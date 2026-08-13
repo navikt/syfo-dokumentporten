@@ -8,7 +8,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import no.nav.syfo.altinn.common.AltinnTokenProvider
 import no.nav.syfo.altinn.dialogporten.registerDialogportenTokenApi
-import no.nav.syfo.altinn.dialogporten.service.DialogportenService
 import no.nav.syfo.application.ApplicationState
 import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.application.isProdEnv
@@ -32,7 +31,6 @@ fun Application.configureRouting() {
     val validationService by inject<ValidationService>()
     val altinnTokenProvider by inject<AltinnTokenProvider>()
     val documentService by inject<DocumentService>()
-    val dialogportenService by inject<DialogportenService>()
 
     installCallId()
     installContentNegotiation()
@@ -48,7 +46,6 @@ fun Application.configureRouting() {
             dialogDAO,
             validationService,
             documentService,
-            dialogportenService,
         )
         staticResources("/openapi", "openapi")
         swaggerUI(path = "swagger", swaggerFile = "openapi/documentation.yaml")
