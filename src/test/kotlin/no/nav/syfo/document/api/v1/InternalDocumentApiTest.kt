@@ -72,7 +72,6 @@ class InternalDocumentApiTest :
                             dialogDAOMock,
                             validationService = mockk<ValidationService>(),
                             documentService = documentServiceMock,
-                            dialogportenService = mockk(relaxed = true),
                         )
                     }
                 }

@@ -3,6 +3,7 @@ package no.nav.syfo.altinn.dialogporten.client
 import com.fasterxml.jackson.annotation.JsonValue
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -154,7 +155,8 @@ class DialogportenClient(
             )
             if (e is CancellationException) throw e
             throw DialogportenClientException(
-                e.message ?: "Error creating activity for dialogId: $dialogId"
+                e.message ?: "Error creating activity for dialogId: $dialogId",
+                (e as? ResponseException)?.response?.status,
             )
         }
     }

@@ -424,6 +424,58 @@ class DocumentDbTest :
                 result.first().id shouldBe activeDocument.id
             }
         }
+
+        describe("DocumentDb -> TransmissionOpened state") {
+            it("marks the first GUI opening and finds only unsent eligible activities") {
+                val dialog = dialogDAO.insertDialog(dialogEntity())
+                val eligibleDocument = insertDocument(document().toDocumentEntity(dialog), "test".toByteArray())
+                val documentWithoutTransmissionId = insertDocument(
+                    document().toDocumentEntity(dialog),
+                    "test".toByteArray()
+                )
+                val sentDocument = insertDocument(document().toDocumentEntity(dialog), "test".toByteArray())
+                val deletedDocument = insertDocument(document().toDocumentEntity(dialog), "test".toByteArray())
+                val transmissionId = UUID.randomUUID()
+                val sentTransmissionId = UUID.randomUUID()
+                val deletedTransmissionId = UUID.randomUUID()
+
+                documentDAO.update(
+                    eligibleDocument.copy(
+                        transmissionId = transmissionId,
+                        updated = Instant.now(),
+                    )
+                )
+                documentDAO.update(
+                    sentDocument.copy(
+                        transmissionId = sentTransmissionId,
+                        updated = Instant.now(),
+                    )
+                )
+                documentDAO.update(
+                    deletedDocument.copy(
+                        transmissionId = deletedTransmissionId,
+                        updated = Instant.now(),
+                    )
+                )
+                documentDAO.markGuiOpened(eligibleDocument.id)
+                documentDAO.markGuiOpened(documentWithoutTransmissionId.id)
+                documentDAO.markGuiOpened(sentDocument.id)
+                documentDAO.markGuiOpened(deletedDocument.id)
+                documentDAO.markTransmissionOpenedSent(sentDocument.id)
+                softDeleteDocument(deletedDocument.id)
+
+                val retrievedEligibleDocument = documentDAO.getById(eligibleDocument.id)
+                val firstGuiOpenedAt = requireNotNull(retrievedEligibleDocument?.guiOpenedAt)
+                delay(10)
+                documentDAO.markGuiOpened(eligibleDocument.id)
+                val guiOpenedAtAfterSecondCall = documentDAO.getById(eligibleDocument.id)?.guiOpenedAt
+                val result = documentDAO.getDocumentsWithUnsentTransmissionOpenedActivities()
+
+                guiOpenedAtAfterSecondCall shouldBe firstGuiOpenedAt
+                retrievedEligibleDocument.transmissionOpenedSentAt shouldBe null
+                result.map { it.id } shouldBe listOf(eligibleDocument.id)
+            }
+        }
     })
 
 fun PersistedDocumentEntity.assertExpected(expected: DocumentEntity, id: Long) {
@@ -440,6 +492,9 @@ fun PersistedDocumentEntity.assertExpected(expected: DocumentEntity, id: Long) {
     this.isRead shouldBe expected.isRead
     this.transmissionId shouldBe expected.transmissionId
     this.deletePerformed shouldBe expected.deletePerformed
+    this.guiOpenedAt shouldBe expected.guiOpenedAt
+    this.transmissionOpenedSentAt shouldBe expected.transmissionOpenedSentAt
+    this.transmissionOpenedFailedAt shouldBe expected.transmissionOpenedFailedAt
     this.updated shouldNotBe null
     this.created shouldNotBe null
     this.dialog.id shouldBe expected.dialog.id
