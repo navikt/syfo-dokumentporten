@@ -541,7 +541,7 @@ class DialogportenServiceTest :
                 } returns listOf(document)
                 coEvery {
                     dialogportenClient.createActivity(capture(activitySlot), document.dialog.dialogportenUUID!!)
-                } returns Unit
+                } returns transmissionId
                 coEvery { documentDAO.markTransmissionOpenedSent(document.id) } returns Unit
 
                 dialogportenService.sendTransmissionOpenedActivities()
@@ -549,6 +549,7 @@ class DialogportenServiceTest :
                 activitySlot.captured.id shouldBe transmissionId
                 activitySlot.captured.transmissionId shouldBe transmissionId
                 activitySlot.captured.type shouldBe Activity.ActivityType.TransmissionOpened
+                activitySlot.captured.performedBy.actorType shouldBe Activity.ActorType.ServiceOwner
                 coVerify(exactly = 1) { documentDAO.markTransmissionOpenedSent(document.id) }
             }
 
@@ -563,7 +564,10 @@ class DialogportenServiceTest :
                 } returns listOf(document)
                 coEvery {
                     dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
-                } throws DialogportenClientException("Unavailable", HttpStatusCode.ServiceUnavailable) andThen Unit
+                } throws DialogportenClientException(
+                    "Unavailable",
+                    HttpStatusCode.ServiceUnavailable,
+                ) andThen transmissionId
                 coEvery { documentDAO.markTransmissionOpenedSent(document.id) } returns Unit
 
                 dialogportenService.sendTransmissionOpenedActivities()
@@ -594,7 +598,7 @@ class DialogportenServiceTest :
                     HttpStatusCode.RequestTimeout,
                 ) andThenThrows DialogportenClientException(
                     "Network timeout",
-                ) andThen Unit
+                ) andThen transmissionId
                 coEvery { documentDAO.markTransmissionOpenedSent(document.id) } returns Unit
 
                 dialogportenService.sendTransmissionOpenedActivities()

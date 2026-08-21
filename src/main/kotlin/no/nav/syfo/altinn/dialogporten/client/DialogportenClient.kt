@@ -29,7 +29,7 @@ interface IDialogportenClient {
     suspend fun addTransmission(transmission: Transmission, dialogId: UUID): UUID
     suspend fun patchDialog(dialogId: UUID, revisionNumber: UUID, patch: List<DialogportenClient.DialogportenPatch>)
     suspend fun getDialogById(dialogId: UUID): ExtendedDialog
-    suspend fun createActivity(activity: Activity, dialogId: UUID)
+    suspend fun createActivity(activity: Activity, dialogId: UUID): UUID
 }
 
 class DialogportenClient(
@@ -138,17 +138,19 @@ class DialogportenClient(
         return dialog
     }
 
-    override suspend fun createActivity(activity: Activity, dialogId: UUID) {
-        runCatching {
+    override suspend fun createActivity(activity: Activity, dialogId: UUID): UUID =
+        runCatching<DialogportenClient, UUID> {
             val token = altinnTokenProvider.token(AltinnTokenProvider.DIALOGPORTEN_TARGET_SCOPE).accessToken
-            httpClient
+            val response = httpClient
                 .post("$dialogportenUrl/$dialogId/activities") {
                     header(HttpHeaders.ContentType, ContentType.Application.Json)
                     header(HttpHeaders.Accept, ContentType.Application.Json)
                     bearerAuth(token)
                     setBody(activity)
                 }
-        }.onFailure { e ->
+                .body<String>()
+            UUID.fromString(response.removeSurrounding("\""))
+        }.getOrElse { e ->
             logger.error(
                 "Error creating activity for dialogId: $dialogId, transmissionId: ${activity.transmissionId}",
                 e
@@ -159,5 +161,4 @@ class DialogportenClient(
                 (e as? ResponseException)?.response?.status,
             )
         }
-    }
 }

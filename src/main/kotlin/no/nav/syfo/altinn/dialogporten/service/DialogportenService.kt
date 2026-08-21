@@ -320,14 +320,14 @@ class DialogportenService(
         data class Failed(val dialogId: UUID) : DialogApiOnlyUpdateResult
     }
 
-    suspend fun markTransmissionOpened(dialogportenDialogId: UUID, transmissionId: UUID) {
+    private suspend fun markTransmissionOpened(dialogportenDialogId: UUID, transmissionId: UUID) {
         val activity = Activity(
             // transmission IDs are generated as UUIDv7 when the transmission is created.
             // Reusing it makes retries idempotent without storing another identifier.
             id = transmissionId,
             type = Activity.ActivityType.TransmissionOpened,
             transmissionId = transmissionId,
-            performedBy = Activity.ActivityActor(actorType = "ServiceOwner"),
+            performedBy = Activity.ActivityActor(actorType = Activity.ActorType.ServiceOwner),
         )
         dialogportenClient.createActivity(activity, dialogportenDialogId)
         logger.info("Marked transmission $transmissionId as opened in dialog $dialogportenDialogId")

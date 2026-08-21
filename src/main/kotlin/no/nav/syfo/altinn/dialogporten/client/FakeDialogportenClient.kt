@@ -25,7 +25,8 @@ class FakeDialogportenClient : IDialogportenClient {
     override suspend fun getDialogById(dialogId: UUID): ExtendedDialog =
         throw UnsupportedOperationException("FakeDialogportenClient does not support getDialogById")
 
-    override suspend fun createActivity(activity: Activity, dialogId: UUID) {
+    override suspend fun createActivity(activity: Activity, dialogId: UUID): UUID {
         logger.info("FakeDialogportenClient: createActivity type=${activity.type} for dialogId=$dialogId")
+        return activity.id
     }
 }
