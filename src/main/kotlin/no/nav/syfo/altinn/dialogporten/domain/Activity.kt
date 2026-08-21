@@ -12,5 +12,9 @@ data class Activity(
         TransmissionOpened,
     }
 
-    data class ActivityActor(val actorType: String)
+    enum class ActorType {
+        ServiceOwner,
+    }
+
+    data class ActivityActor(val actorType: ActorType)
 }
