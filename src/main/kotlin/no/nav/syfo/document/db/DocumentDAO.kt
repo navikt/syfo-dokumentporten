@@ -211,7 +211,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
             }
         }
 
-    suspend fun markTransmissionOpenedSent(documentId: Long) {
+    suspend fun setTransmissionOpenedInDialogporten(documentId: Long) {
         withContext(Dispatchers.IO) {
             database.connection.use { connection ->
                 connection.prepareStatement(
@@ -230,7 +230,7 @@ class DocumentDAO(private val database: DatabaseInterface) {
         }
     }
 
-    suspend fun markTransmissionOpenedFailed(documentId: Long) {
+    suspend fun persistSettingTransmissionOpenedFailed(documentId: Long) {
         withContext(Dispatchers.IO) {
             database.connection.use { connection ->
                 connection.prepareStatement(

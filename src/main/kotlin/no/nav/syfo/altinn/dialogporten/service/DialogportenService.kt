@@ -322,8 +322,6 @@ class DialogportenService(
 
     private suspend fun markTransmissionOpened(dialogportenDialogId: UUID, transmissionId: UUID) {
         val activity = Activity(
-            // transmission IDs are generated as UUIDv7 when the transmission is created.
-            // Reusing it makes retries idempotent without storing another identifier.
             id = transmissionId,
             type = Activity.ActivityType.TransmissionOpened,
             transmissionId = transmissionId,
@@ -379,7 +377,7 @@ class DialogportenService(
                 }
 
                 ex.status.isPermanentTransmissionOpenedFailure() -> {
-                    documentDAO.markTransmissionOpenedFailed(document.id)
+                    documentDAO.persistSettingTransmissionOpenedFailed(document.id)
                     COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_PERMANENTLY_FAILED.increment()
                     logger.warn(
                         "Stopped retrying TransmissionOpened activity for dialog $dialogportenDialogId and transmission $transmissionId with status ${ex.status}"
@@ -392,7 +390,7 @@ class DialogportenService(
     }
 
     private suspend fun markTransmissionOpenedSent(documentId: Long) {
-        documentDAO.markTransmissionOpenedSent(documentId)
+        documentDAO.setTransmissionOpenedInDialogporten(documentId)
         COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_SENT.increment()
     }
 
