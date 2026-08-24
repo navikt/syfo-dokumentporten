@@ -585,7 +585,7 @@ class DialogportenServiceTest :
                 coEvery {
                     dialogportenClient.createActivity(capture(activitySlot), document.dialog.dialogportenUUID!!)
                 } returns transmissionId
-                coEvery { documentDAO.markTransmissionOpenedSent(document.id) } returns Unit
+                coEvery { documentDAO.setTransmissionOpenedInDialogporten(document.id) } returns Unit
 
                 dialogportenService.sendTransmissionOpenedActivities()
 
@@ -593,7 +593,7 @@ class DialogportenServiceTest :
                 activitySlot.captured.transmissionId shouldBe transmissionId
                 activitySlot.captured.type shouldBe Activity.ActivityType.TransmissionOpened
                 activitySlot.captured.performedBy.actorType shouldBe Activity.ActorType.ServiceOwner
-                coVerify(exactly = 1) { documentDAO.markTransmissionOpenedSent(document.id) }
+                coVerify(exactly = 1) { documentDAO.setTransmissionOpenedInDialogporten(document.id) }
             }
 
             it("retries a service unavailable activity on a later task run") {
@@ -611,7 +611,7 @@ class DialogportenServiceTest :
                     "Unavailable",
                     HttpStatusCode.ServiceUnavailable,
                 ) andThen transmissionId
-                coEvery { documentDAO.markTransmissionOpenedSent(document.id) } returns Unit
+                coEvery { documentDAO.setTransmissionOpenedInDialogporten(document.id) } returns Unit
 
                 dialogportenService.sendTransmissionOpenedActivities()
                 dialogportenService.sendTransmissionOpenedActivities()
@@ -619,7 +619,7 @@ class DialogportenServiceTest :
                 coVerify(exactly = 2) {
                     dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
                 }
-                coVerify(exactly = 1) { documentDAO.markTransmissionOpenedSent(document.id) }
+                coVerify(exactly = 1) { documentDAO.setTransmissionOpenedInDialogporten(document.id) }
             }
 
             it("retries throttled and timeout activities") {
@@ -642,7 +642,7 @@ class DialogportenServiceTest :
                 ) andThenThrows DialogportenClientException(
                     "Network timeout",
                 ) andThen transmissionId
-                coEvery { documentDAO.markTransmissionOpenedSent(document.id) } returns Unit
+                coEvery { documentDAO.setTransmissionOpenedInDialogporten(document.id) } returns Unit
 
                 dialogportenService.sendTransmissionOpenedActivities()
                 dialogportenService.sendTransmissionOpenedActivities()
@@ -652,8 +652,8 @@ class DialogportenServiceTest :
                 coVerify(exactly = 4) {
                     dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
                 }
-                coVerify(exactly = 1) { documentDAO.markTransmissionOpenedSent(document.id) }
-                coVerify(exactly = 0) { documentDAO.markTransmissionOpenedFailed(any()) }
+                coVerify(exactly = 1) { documentDAO.setTransmissionOpenedInDialogporten(document.id) }
+                coVerify(exactly = 0) { documentDAO.persistSettingTransmissionOpenedFailed(any()) }
             }
 
             it("marks a duplicate activity as sent") {
@@ -668,12 +668,12 @@ class DialogportenServiceTest :
                 coEvery {
                     dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
                 } throws DialogportenClientException("Conflict", HttpStatusCode.Conflict)
-                coEvery { documentDAO.markTransmissionOpenedSent(document.id) } returns Unit
+                coEvery { documentDAO.setTransmissionOpenedInDialogporten(document.id) } returns Unit
 
                 dialogportenService.sendTransmissionOpenedActivities()
 
-                coVerify(exactly = 1) { documentDAO.markTransmissionOpenedSent(document.id) }
-                coVerify(exactly = 0) { documentDAO.markTransmissionOpenedFailed(any()) }
+                coVerify(exactly = 1) { documentDAO.setTransmissionOpenedInDialogporten(document.id) }
+                coVerify(exactly = 0) { documentDAO.persistSettingTransmissionOpenedFailed(any()) }
             }
 
             it("marks permanent client errors as failed") {
@@ -688,12 +688,12 @@ class DialogportenServiceTest :
                 coEvery {
                     dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
                 } throws DialogportenClientException("Bad request", HttpStatusCode.BadRequest)
-                coEvery { documentDAO.markTransmissionOpenedFailed(document.id) } returns Unit
+                coEvery { documentDAO.persistSettingTransmissionOpenedFailed(document.id) } returns Unit
 
                 dialogportenService.sendTransmissionOpenedActivities()
 
-                coVerify(exactly = 1) { documentDAO.markTransmissionOpenedFailed(document.id) }
-                coVerify(exactly = 0) { documentDAO.markTransmissionOpenedSent(any()) }
+                coVerify(exactly = 1) { documentDAO.persistSettingTransmissionOpenedFailed(document.id) }
+                coVerify(exactly = 0) { documentDAO.setTransmissionOpenedInDialogporten(any()) }
             }
 
             it("does not send activities that are already handled or missing identifiers") {
@@ -724,7 +724,7 @@ class DialogportenServiceTest :
                 dialogportenService.sendTransmissionOpenedActivities()
 
                 coVerify(exactly = 0) { dialogportenClient.createActivity(any(), any()) }
-                coVerify(exactly = 0) { documentDAO.markTransmissionOpenedSent(any()) }
+                coVerify(exactly = 0) { documentDAO.setTransmissionOpenedInDialogporten(any()) }
             }
         }
     })

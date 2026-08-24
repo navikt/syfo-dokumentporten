@@ -461,7 +461,7 @@ class DocumentDbTest :
                 documentDAO.markGuiOpened(documentWithoutTransmissionId.id)
                 documentDAO.markGuiOpened(sentDocument.id)
                 documentDAO.markGuiOpened(deletedDocument.id)
-                documentDAO.markTransmissionOpenedSent(sentDocument.id)
+                documentDAO.setTransmissionOpenedInDialogporten(sentDocument.id)
                 softDeleteDocument(deletedDocument.id)
 
                 val retrievedEligibleDocument = documentDAO.getById(eligibleDocument.id)
