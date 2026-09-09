@@ -15,6 +15,7 @@ interface Environment {
     val kafka: KafkaEnvironment
     val varselPublishPendingGracePeriod: Duration
     val enableApiOnlyJob: Boolean
+    val enableDocumentCleanupJob: Boolean
 }
 
 const val NAIS_DATABASE_ENV_PREFIX = "SYFO_DOKUMENTPORTEN_DB"
@@ -29,7 +30,8 @@ data class NaisEnvironment(
     override val valkeyEnvironment: ValkeyEnvironment = ValkeyEnvironment.createFromEnvVars(),
     override val kafka: KafkaEnvironment = KafkaEnvironment.createFromEnvVars(),
     override val varselPublishPendingGracePeriod: Duration = getVarselPublishPendingGracePeriod(),
-    override val enableApiOnlyJob: Boolean = getEnvVar("ENABLE_API_ONLY_JOB", "false").toBoolean()
+    override val enableApiOnlyJob: Boolean = getEnvVar("ENABLE_API_ONLY_JOB", "false").toBoolean(),
+    override val enableDocumentCleanupJob: Boolean = getEnvVar("ENABLE_DOCUMENT_CLEANUP_JOB", "false").toBoolean(),
 
 ) : Environment
 
@@ -66,4 +68,5 @@ data class LocalEnvironment(
         DEFAULT_VARSEL_PUBLISH_PENDING_GRACE_PERIOD_MINUTES
     ),
     override val enableApiOnlyJob: Boolean = true,
+    override val enableDocumentCleanupJob: Boolean = false,
 ) : Environment
