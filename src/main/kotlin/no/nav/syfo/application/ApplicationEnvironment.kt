@@ -56,9 +56,8 @@ private fun getVarselPublishPendingGracePeriod(): Duration {
     return Duration.ofMinutes(gracePeriodMinutes)
 }
 
-private fun getDocumentCleanupInterval(): Duration? {
-    return parseDocumentCleanupInterval(System.getenv(DOCUMENT_CLEANUP_INTERVAL_MINUTES_ENV))
-}
+private fun getDocumentCleanupInterval(): Duration? =
+    parseDocumentCleanupInterval(System.getenv(DOCUMENT_CLEANUP_INTERVAL_MINUTES_ENV))
 
 internal fun parseDocumentCleanupInterval(rawValue: String?): Duration? {
     val intervalMinutes = rawValue?.trim()?.takeIf { it.isNotEmpty() } ?: return null
