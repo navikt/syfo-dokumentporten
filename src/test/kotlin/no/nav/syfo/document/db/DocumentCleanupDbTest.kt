@@ -86,7 +86,7 @@ class DocumentCleanupDbTest :
             documentContentDAO.getDocumentContentById(recentDocument.id) shouldNotBe null
         }
 
-        it("treats missing content as success and cleans content for an already soft-deleted document") {
+        it("marks documents with missing and existing content as cleaned and drains them from the working set") {
             val cutoff = Instant.parse("2026-04-30T12:00:00Z")
             val missingContentDocument = insertDocument(cutoff.minusSeconds(2))
             val softDeletedDocument = insertDocument(cutoff.minusSeconds(1))
@@ -94,13 +94,20 @@ class DocumentCleanupDbTest :
             deleteContent(missingContentDocument.id)
             softDelete(softDeletedDocument.id, originalDeletePerformed)
 
+            contentDeletedAt(missingContentDocument.id) shouldBe null
+            contentDeletedAt(softDeletedDocument.id) shouldBe null
+
             val firstResult = documentDAO.cleanupExpiredDocuments(cutoff, 500)
-            val secondResult = documentDAO.cleanupExpiredDocuments(cutoff, 500)
 
             firstResult shouldBe DocumentCleanupBatchResult(processedCount = 2, deletedContentCount = 1)
             documentDAO.getById(missingContentDocument.id)?.deletePerformed shouldNotBe null
             documentDAO.getById(softDeletedDocument.id)?.deletePerformed shouldBe originalDeletePerformed
             documentContentDAO.getDocumentContentById(softDeletedDocument.id) shouldBe null
+            contentDeletedAt(missingContentDocument.id) shouldNotBe null
+            contentDeletedAt(softDeletedDocument.id) shouldNotBe null
+
+            val secondResult = documentDAO.cleanupExpiredDocuments(cutoff, 500)
+
             secondResult shouldBe DocumentCleanupBatchResult(processedCount = 0, deletedContentCount = 0)
         }
 
@@ -115,20 +122,6 @@ class DocumentCleanupDbTest :
             documentDAO.cleanupExpiredDocuments(cutoff, 2) shouldBe
                 DocumentCleanupBatchResult(processedCount = 1, deletedContentCount = 1)
             documentDAO.cleanupExpiredDocuments(cutoff, 2) shouldBe
-                DocumentCleanupBatchResult(processedCount = 0, deletedContentCount = 0)
-        }
-
-        it("marks an already cleaned document once and drains it from the working set") {
-            val cutoff = Instant.parse("2026-04-30T12:00:00Z")
-            val document = insertDocument(cutoff.minusSeconds(1))
-            softDelete(document.id, Instant.parse("2026-01-01T12:00:00Z"))
-            deleteContent(document.id)
-
-            contentDeletedAt(document.id) shouldBe null
-            documentDAO.cleanupExpiredDocuments(cutoff, 500) shouldBe
-                DocumentCleanupBatchResult(processedCount = 1, deletedContentCount = 0)
-            contentDeletedAt(document.id) shouldNotBe null
-            documentDAO.cleanupExpiredDocuments(cutoff, 500) shouldBe
                 DocumentCleanupBatchResult(processedCount = 0, deletedContentCount = 0)
         }
     })

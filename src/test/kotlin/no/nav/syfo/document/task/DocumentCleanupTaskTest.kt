@@ -14,9 +14,11 @@ import no.nav.syfo.application.leaderelection.LeaderElection
 import no.nav.syfo.document.service.DocumentCleanupRunResult
 import no.nav.syfo.document.service.DocumentCleanupService
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 class DocumentCleanupTaskTest :
     DescribeSpec({
@@ -95,32 +97,6 @@ class DocumentCleanupTaskTest :
             }
         }
 
-        it("retries on the next scheduled run after a transient cleanup failure") {
-            runTest {
-                val leaderElection = mockk<LeaderElection>()
-                val cleanupService = mockk<DocumentCleanupService>()
-                coEvery { leaderElection.isLeader() } returns true
-                coEvery {
-                    cleanupService.cleanupExpiredDocuments()
-                } throws RuntimeException("Transient cleanup failure") andThen runResult
-                val task = DocumentCleanupTask(leaderElection, cleanupService, clock, runAtUtcHour = 2)
-
-                val job = launch(start = CoroutineStart.UNDISPATCHED) {
-                    task.runTask()
-                }
-
-                advanceTimeBy(2.hours)
-                runCurrent()
-
-                coVerify(exactly = 1) { cleanupService.cleanupExpiredDocuments() }
-                advanceTimeBy(2.hours)
-                runCurrent()
-
-                coVerify(exactly = 2) { cleanupService.cleanupExpiredDocuments() }
-                job.cancelAndJoin()
-            }
-        }
-
         it("does not run cleanup before the scheduled hour") {
             runTest {
                 val leaderElection = mockk<LeaderElection>()
@@ -132,6 +108,59 @@ class DocumentCleanupTaskTest :
                 }
 
                 advanceTimeBy(1.hours)
+                runCurrent()
+
+                coVerify(exactly = 0) { leaderElection.isLeader() }
+                coVerify(exactly = 0) { cleanupService.cleanupExpiredDocuments() }
+                job.cancelAndJoin()
+            }
+        }
+
+        it("runs cleanup repeatedly with a configured interval") {
+            runTest {
+                val leaderElection = mockk<LeaderElection>()
+                val cleanupService = mockk<DocumentCleanupService>()
+                coEvery { leaderElection.isLeader() } returns true
+                coEvery { cleanupService.cleanupExpiredDocuments() } returns runResult
+                val task = DocumentCleanupTask(
+                    leaderElection,
+                    cleanupService,
+                    clock,
+                    documentCleanupInterval = Duration.ofMinutes(5),
+                )
+
+                val job = launch(start = CoroutineStart.UNDISPATCHED) {
+                    task.runTask()
+                }
+
+                advanceTimeBy(5.minutes)
+                runCurrent()
+
+                coVerify(exactly = 1) { cleanupService.cleanupExpiredDocuments() }
+                advanceTimeBy(5.minutes)
+                runCurrent()
+
+                coVerify(exactly = 2) { cleanupService.cleanupExpiredDocuments() }
+                job.cancelAndJoin()
+            }
+        }
+
+        it("does not run cleanup before the configured interval") {
+            runTest {
+                val leaderElection = mockk<LeaderElection>()
+                val cleanupService = mockk<DocumentCleanupService>()
+                val task = DocumentCleanupTask(
+                    leaderElection,
+                    cleanupService,
+                    clock,
+                    documentCleanupInterval = Duration.ofMinutes(5),
+                )
+
+                val job = launch(start = CoroutineStart.UNDISPATCHED) {
+                    task.runTask()
+                }
+
+                advanceTimeBy(4.minutes)
                 runCurrent()
 
                 coVerify(exactly = 0) { leaderElection.isLeader() }

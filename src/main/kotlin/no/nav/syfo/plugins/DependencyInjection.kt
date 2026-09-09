@@ -216,7 +216,7 @@ private fun servicesModule() = module {
     single { PublishVarselTask(get(), get()) }
     single { UpdateApiOnlyTask(get(), get()) }
     single { DocumentCleanupService(get()) }
-    single { DocumentCleanupTask(get(), get()) }
+    single { DocumentCleanupTask(get(), get(), documentCleanupInterval = env().documentCleanupInterval) }
 }
 
 private fun Scope.env() = get<Environment>()
