@@ -17,6 +17,12 @@ spec:
     - https://syfo-dokumentporten.nav.no/oauth2
   image: {{image}} #
   port: 8080
+  startup:
+    path: /internal/is_alive
+    initialDelay: 20
+    periodSeconds: 10
+    timeout: 5
+    failureThreshold: 90
   liveness:
     path: /internal/is_alive
     initialDelay: 10
@@ -129,6 +135,8 @@ spec:
     - name: PDL_SCOPE
       value: prod-fss.pdl.pdl-api
     - name: ENABLE_API_ONLY_JOB
+      value: "false"
+    - name: ENABLE_DOCUMENT_CLEANUP_JOB
       value: "false"
   envFrom:
     - secret: altinn-subscription-key
