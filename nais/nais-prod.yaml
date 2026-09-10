@@ -137,6 +137,6 @@ spec:
     - name: ENABLE_API_ONLY_JOB
       value: "false"
     - name: ENABLE_DOCUMENT_CLEANUP_JOB
-      value: "false"
+      value: "true"
   envFrom:
     - secret: altinn-subscription-key

@@ -14,14 +14,12 @@ interface Environment {
     val valkeyEnvironment: ValkeyEnvironment
     val kafka: KafkaEnvironment
     val varselPublishPendingGracePeriod: Duration
-    val documentCleanupInterval: Duration?
     val enableApiOnlyJob: Boolean
     val enableDocumentCleanupJob: Boolean
 }
 
 const val NAIS_DATABASE_ENV_PREFIX = "SYFO_DOKUMENTPORTEN_DB"
 const val VARSEL_PUBLISH_PENDING_GRACE_PERIOD_MINUTES_ENV = "VARSEL_PUBLISH_PENDING_GRACE_PERIOD_MINUTES"
-const val DOCUMENT_CLEANUP_INTERVAL_MINUTES_ENV = "DOCUMENT_CLEANUP_INTERVAL_MINUTES"
 private const val DEFAULT_VARSEL_PUBLISH_PENDING_GRACE_PERIOD_MINUTES = 1L
 
 data class NaisEnvironment(
@@ -32,7 +30,6 @@ data class NaisEnvironment(
     override val valkeyEnvironment: ValkeyEnvironment = ValkeyEnvironment.createFromEnvVars(),
     override val kafka: KafkaEnvironment = KafkaEnvironment.createFromEnvVars(),
     override val varselPublishPendingGracePeriod: Duration = getVarselPublishPendingGracePeriod(),
-    override val documentCleanupInterval: Duration? = getDocumentCleanupInterval(),
     override val enableApiOnlyJob: Boolean = getEnvVar("ENABLE_API_ONLY_JOB", "false").toBoolean(),
     override val enableDocumentCleanupJob: Boolean = getEnvVar("ENABLE_DOCUMENT_CLEANUP_JOB", "false").toBoolean(),
 
@@ -56,23 +53,6 @@ private fun getVarselPublishPendingGracePeriod(): Duration {
     return Duration.ofMinutes(gracePeriodMinutes)
 }
 
-private fun getDocumentCleanupInterval(): Duration? =
-    parseDocumentCleanupInterval(System.getenv(DOCUMENT_CLEANUP_INTERVAL_MINUTES_ENV))
-
-internal fun parseDocumentCleanupInterval(rawValue: String?): Duration? {
-    val intervalMinutes = rawValue?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-    val intervalMinutesAsLong = intervalMinutes.toLongOrNull() ?: throw RuntimeException(
-        "Invalid variable \"$DOCUMENT_CLEANUP_INTERVAL_MINUTES_ENV\": must be a whole number of minutes",
-    )
-
-    // Zero would make delay(0) spin in the active task loop.
-    require(intervalMinutesAsLong > 0) {
-        "Variable \"$DOCUMENT_CLEANUP_INTERVAL_MINUTES_ENV\" must be greater than zero"
-    }
-
-    return Duration.ofMinutes(intervalMinutesAsLong)
-}
-
 fun isLocalEnv(): Boolean = getEnvVar("NAIS_CLUSTER_NAME", "local") == "local"
 
 fun isProdEnv(): Boolean = getEnvVar("NAIS_CLUSTER_NAME", "local") == "prod-gcp"
@@ -87,7 +67,6 @@ data class LocalEnvironment(
     override val varselPublishPendingGracePeriod: Duration = Duration.ofMinutes(
         DEFAULT_VARSEL_PUBLISH_PENDING_GRACE_PERIOD_MINUTES
     ),
-    override val documentCleanupInterval: Duration? = null,
     override val enableApiOnlyJob: Boolean = true,
     override val enableDocumentCleanupJob: Boolean = false,
 ) : Environment

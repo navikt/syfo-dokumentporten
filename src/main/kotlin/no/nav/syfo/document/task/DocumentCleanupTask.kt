@@ -19,18 +19,11 @@ class DocumentCleanupTask(
     private val leaderElection: LeaderElection,
     private val documentCleanupService: DocumentCleanupService,
     private val clock: Clock = Clock.systemUTC(),
-    private val documentCleanupInterval: java.time.Duration? = null,
     private val runAtUtcHour: Int = DOCUMENT_CLEANUP_RUN_AT_UTC_HOUR,
 ) {
     private val logger = logger()
 
     suspend fun runTask() = coroutineScope {
-        documentCleanupInterval?.let {
-            logger.warn(
-                "Document cleanup task is running with an overridden test interval of ${it.toMinutes()} minutes",
-            )
-        }
-
         while (isActive) {
             delay(durationUntilNextRun())
             try {
@@ -46,10 +39,6 @@ class DocumentCleanupTask(
     }
 
     private fun durationUntilNextRun(): Duration {
-        documentCleanupInterval?.let {
-            return it.toKotlinDuration()
-        }
-
         val now = Instant.now(clock)
         val scheduledToday = now
             .atZone(ZoneOffset.UTC)

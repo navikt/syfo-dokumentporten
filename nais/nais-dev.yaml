@@ -150,9 +150,6 @@ spec:
       value: dev-fss.pdl.pdl-api
     - name: ENABLE_API_ONLY_JOB
       value: "false"
-    # Midlertidig testoppsett for issue #244; fjern begge variablene når verifiseringen i dev er ferdig.
-    - name: DOCUMENT_CLEANUP_INTERVAL_MINUTES
-      value: "5"
     - name: ENABLE_DOCUMENT_CLEANUP_JOB
       value: "true"
   envFrom:
