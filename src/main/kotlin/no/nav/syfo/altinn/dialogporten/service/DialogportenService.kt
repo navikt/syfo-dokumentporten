@@ -1,6 +1,8 @@
 package no.nav.syfo.altinn.dialogporten.service
 
 import com.fasterxml.uuid.Generators
+import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.map
@@ -10,9 +12,13 @@ import no.nav.syfo.DOCUMENT_API_PATH
 import no.nav.syfo.GUI_DOCUMENT_API_PATH
 import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_DIALOGS_CREATED
 import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSIONS_CREATED
+import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_FAILED
+import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_PERMANENTLY_FAILED
+import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_SENT
 import no.nav.syfo.altinn.dialogporten.client.DialogportenClient
 import no.nav.syfo.altinn.dialogporten.client.DialogportenClientException
 import no.nav.syfo.altinn.dialogporten.client.IDialogportenClient
+import no.nav.syfo.altinn.dialogporten.domain.Activity
 import no.nav.syfo.altinn.dialogporten.domain.Attachment
 import no.nav.syfo.altinn.dialogporten.domain.AttachmentUrlConsumerType
 import no.nav.syfo.altinn.dialogporten.domain.Content
@@ -313,4 +319,82 @@ class DialogportenService(
 
         data class Failed(val dialogId: UUID) : DialogApiOnlyUpdateResult
     }
+
+    private suspend fun markTransmissionOpened(dialogportenDialogId: UUID, transmissionId: UUID) {
+        val activity = Activity(
+            id = transmissionId,
+            type = Activity.ActivityType.TransmissionOpened,
+            transmissionId = transmissionId,
+            performedBy = Activity.ActivityActor(actorType = Activity.ActorType.ServiceOwner),
+        )
+        dialogportenClient.createActivity(activity, dialogportenDialogId)
+        logger.info("Marked transmission $transmissionId as opened in dialog $dialogportenDialogId")
+    }
+
+    suspend fun sendTransmissionOpenedActivities() {
+        val documents = documentDAO.getDocumentsWithUnsentTransmissionOpenedActivities()
+        logger.info("Found ${documents.size} TransmissionOpened activities to send to Dialogporten")
+
+        for (document in documents) {
+            val dialogportenDialogId = document.dialog.dialogportenUUID
+            val transmissionId = document.transmissionId
+            if (
+                document.transmissionOpenedSentAt != null ||
+                document.transmissionOpenedFailedAt != null ||
+                dialogportenDialogId == null ||
+                transmissionId == null
+            ) {
+                continue
+            }
+
+            try {
+                sendTransmissionOpenedActivity(document, dialogportenDialogId, transmissionId)
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_FAILED.increment()
+                logger.error(
+                    "Failed to send TransmissionOpened activity for dialog $dialogportenDialogId and transmission $transmissionId",
+                    ex
+                )
+            }
+        }
+    }
+
+    private suspend fun sendTransmissionOpenedActivity(
+        document: PersistedDocumentEntity,
+        dialogportenDialogId: UUID,
+        transmissionId: UUID,
+    ) {
+        try {
+            markTransmissionOpened(dialogportenDialogId, transmissionId)
+            markTransmissionOpenedSent(document.id)
+        } catch (ex: DialogportenClientException) {
+            when {
+                ex.status == HttpStatusCode.Conflict -> {
+                    // The idempotent activity API's duplicate response is unverified; confirm this in dev.
+                    markTransmissionOpenedSent(document.id)
+                }
+
+                ex.status.isPermanentTransmissionOpenedFailure() -> {
+                    documentDAO.persistSettingTransmissionOpenedFailed(document.id)
+                    COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_PERMANENTLY_FAILED.increment()
+                    logger.warn(
+                        "Stopped retrying TransmissionOpened activity for dialog $dialogportenDialogId and transmission $transmissionId with status ${ex.status}"
+                    )
+                }
+
+                else -> throw ex
+            }
+        }
+    }
+
+    private suspend fun markTransmissionOpenedSent(documentId: Long) {
+        documentDAO.setTransmissionOpenedInDialogporten(documentId)
+        COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_SENT.increment()
+    }
+
+    private fun HttpStatusCode?.isPermanentTransmissionOpenedFailure(): Boolean = this != null &&
+        value in 400..499 &&
+        this !in setOf(HttpStatusCode.RequestTimeout, HttpStatusCode.Conflict, HttpStatusCode.TooManyRequests)
 }

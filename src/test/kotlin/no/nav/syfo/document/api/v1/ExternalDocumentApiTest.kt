@@ -28,7 +28,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.spyk
-import no.nav.syfo.TestDB
 import no.nav.syfo.altinn.pdp.service.PdpService
 import no.nav.syfo.altinntilganger.AltinnTilgangerService
 import no.nav.syfo.altinntilganger.client.FakeAltinnTilgangerClient
@@ -76,7 +75,6 @@ class ExternalDocumentApiTest :
 
         beforeTest {
             clearAllMocks()
-            TestDB.clearAllData()
             coEvery { pdpServiceMock.hasAccessToResource(any(), any(), any()) } returns true
             coEvery { eregCache.getOrganisasjon(any()) } returns null
             fakeAltinnTilgangerClient.usersWithAccess.clear()
@@ -145,6 +143,7 @@ class ExternalDocumentApiTest :
                                 }
                             )
                         }
+                        coVerify(exactly = 0) { documentDAO.markGuiOpened(any()) }
                     }
                 }
 
@@ -737,6 +736,60 @@ class ExternalDocumentApiTest :
                         // Assert
                         response.status shouldBe HttpStatusCode.OK
                     }
+                }
+            }
+        }
+
+        describe("GET /gui/documents") {
+            it("marks GUI opening even when the document was already read by an external client") {
+                withTestApplication {
+                    val document = documentEntity(dialogEntity()).copy(isRead = true)
+                    coEvery { documentDAO.getByLinkId(document.linkId) } returns document
+                    coEvery { documentContentDAO.getDocumentContentById(document.id) } returns documentContent()
+                    texasClientMock.defaultMocks(
+                        systemBrukerOrganisasjon = DefaultOrganization.copy(
+                            ID = "0192:${document.dialog.orgNumber}"
+                        ),
+                        scope = MASKINPORTEN_SYFO_DOKUMENTPORTEN_SCOPE,
+                    )
+
+                    val response = client.get("api/v1/gui/documents/${document.linkId}") {
+                        bearerAuth(createMockToken(ident = document.dialog.orgNumber))
+                    }
+
+                    response.status shouldBe HttpStatusCode.OK
+                    coVerify(exactly = 1) { documentDAO.markGuiOpened(document.id) }
+                    coVerify(exactly = 0) { documentDAO.update(any()) }
+                }
+            }
+
+            it("keeps collection and details endpoints available") {
+                withTestApplication {
+                    val document = documentEntity(dialogEntity())
+                    val page = Page(
+                        meta = Page.Meta(size = 1, pageSize = 50, hasMore = false, resultSize = 1),
+                        items = listOf(document),
+                    )
+                    coEvery { documentDAO.findDocumentsByParameters(pageSize = any()) } returns page
+                    coEvery { documentDAO.getByLinkId(document.linkId) } returns document
+                    texasClientMock.defaultMocks(
+                        systemBrukerOrganisasjon = DefaultOrganization.copy(
+                            ID = "0192:${document.dialog.orgNumber}"
+                        ),
+                        scope = MASKINPORTEN_SYFO_DOKUMENTPORTEN_SCOPE,
+                    )
+
+                    val collectionResponse = client.get(
+                        "api/v1/gui/documents?orgNumber=${document.dialog.orgNumber}&documentType=DIALOGMOTE&createdAfter=2024-01-01T00:00:00Z"
+                    ) {
+                        bearerAuth(createMockToken(ident = document.dialog.orgNumber))
+                    }
+                    val detailsResponse = client.get("api/v1/gui/documents/${document.linkId}/details") {
+                        bearerAuth(createMockToken(ident = document.dialog.orgNumber))
+                    }
+
+                    collectionResponse.status shouldBe HttpStatusCode.OK
+                    detailsResponse.status shouldBe HttpStatusCode.OK
                 }
             }
         }
