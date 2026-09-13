@@ -21,12 +21,6 @@ spec:
     - https://syfo-dokumentporten.ekstern.dev.nav.no/oauth2
   image: {{image}} #
   port: 8080
-  startup:
-    path: /internal/is_alive
-    initialDelay: 20
-    periodSeconds: 10
-    timeout: 5
-    failureThreshold: 90
   liveness:
     path: /internal/is_alive
     initialDelay: 10
