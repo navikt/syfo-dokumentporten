@@ -25,6 +25,74 @@ private fun selectDocWithDialogJoin(useCount: Boolean = false) =
     """
 
 class DocumentDAO(private val database: DatabaseInterface) {
+    suspend fun cleanupExpiredDocuments(cutoff: Instant, batchSize: Int): DocumentCleanupBatchResult {
+        require(batchSize > 0) { "Batch size must be greater than zero" }
+
+        return withContext(Dispatchers.IO) {
+            database.connection.use { connection ->
+                try {
+                    val expiredIds = connection.prepareStatement(
+                        """
+                        SELECT id
+                        FROM document
+                        WHERE content_deleted_at IS NULL
+                          AND created < ?
+                        ORDER BY created, id
+                        LIMIT ?
+                        FOR UPDATE SKIP LOCKED
+                        """.trimIndent()
+                    ).use { preparedStatement ->
+                        preparedStatement.setTimestamp(1, Timestamp.from(cutoff))
+                        preparedStatement.setInt(2, batchSize)
+                        preparedStatement.executeQuery().use { resultSet ->
+                            buildList {
+                                while (resultSet.next()) {
+                                    add(resultSet.getLong("id"))
+                                }
+                            }
+                        }
+                    }
+
+                    if (expiredIds.isEmpty()) {
+                        connection.commit()
+                        return@use DocumentCleanupBatchResult(
+                            processedCount = 0,
+                            deletedContentCount = 0,
+                        )
+                    }
+
+                    val idArray = connection.createArrayOf("bigint", expiredIds.toTypedArray())
+                    val deletedContentCount = connection.prepareStatement(
+                        """
+                        DELETE FROM document_content
+                        WHERE id = ANY(?)
+                        """.trimIndent()
+                    ).use { preparedStatement ->
+                        preparedStatement.setArray(1, idArray)
+                        preparedStatement.executeUpdate()
+                    }
+                    val processedCount = connection.prepareStatement(
+                        """
+                        UPDATE document
+                        SET delete_performed = COALESCE(delete_performed, CURRENT_TIMESTAMP),
+                            content_deleted_at = CURRENT_TIMESTAMP
+                        WHERE id = ANY(?)
+                        """.trimIndent()
+                    ).use { preparedStatement ->
+                        preparedStatement.setArray(1, idArray)
+                        preparedStatement.executeUpdate()
+                    }
+
+                    connection.commit()
+                    DocumentCleanupBatchResult(processedCount, deletedContentCount)
+                } catch (ex: Exception) {
+                    runCatching { connection.rollback() }.onFailure(ex::addSuppressed)
+                    throw ex
+                }
+            }
+        }
+    }
+
     suspend fun insert(
         connection: Connection,
         documentEntity: DocumentEntity,
@@ -265,6 +333,8 @@ class DocumentDAO(private val database: DatabaseInterface) {
         }
     }
 }
+
+data class DocumentCleanupBatchResult(val processedCount: Int, val deletedContentCount: Int)
 
 fun ResultSet.toDocumentEntity(withDialog: PersistedDialogEntity? = null): PersistedDocumentEntity =
     PersistedDocumentEntity(

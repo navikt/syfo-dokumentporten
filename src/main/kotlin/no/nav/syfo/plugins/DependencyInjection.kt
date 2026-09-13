@@ -29,8 +29,10 @@ import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import no.nav.syfo.document.service.DialogService
+import no.nav.syfo.document.service.DocumentCleanupService
 import no.nav.syfo.document.service.DocumentService
 import no.nav.syfo.document.service.ValidationService
+import no.nav.syfo.document.task.DocumentCleanupTask
 import no.nav.syfo.ereg.EregService
 import no.nav.syfo.ereg.client.EregClient
 import no.nav.syfo.ereg.client.FakeEregClient
@@ -213,6 +215,8 @@ private fun servicesModule() = module {
     single { SendDialogTask(get(), get()) }
     single { PublishVarselTask(get(), get()) }
     single { UpdateApiOnlyTask(get(), get()) }
+    single { DocumentCleanupService(get()) }
+    single { DocumentCleanupTask(get(), get()) }
 }
 
 private fun Scope.env() = get<Environment>()
