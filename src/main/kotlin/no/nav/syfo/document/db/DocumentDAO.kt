@@ -165,6 +165,91 @@ class DocumentDAO(private val database: DatabaseInterface) {
         }
     }
 
+    suspend fun markGuiOpened(documentId: Long) {
+        withContext(Dispatchers.IO) {
+            database.connection.use { connection ->
+                connection.prepareStatement(
+                    """
+                    UPDATE document
+                    SET gui_opened_at = NOW()
+                    WHERE id = ?
+                        AND gui_opened_at IS NULL
+                    """.trimIndent()
+                ).use { preparedStatement ->
+                    preparedStatement.setLong(1, documentId)
+                    preparedStatement.executeUpdate()
+                }
+                connection.commit()
+            }
+        }
+    }
+
+    suspend fun getDocumentsWithUnsentTransmissionOpenedActivities(limit: Int = 100,): List<PersistedDocumentEntity> =
+        withContext(Dispatchers.IO) {
+            database.connection.use { connection ->
+                connection.prepareStatement(
+                    """
+                ${selectDocWithDialogJoin()}
+                WHERE doc.gui_opened_at IS NOT NULL
+                    AND doc.transmission_opened_sent_at IS NULL
+                    AND doc.transmission_opened_failed_at IS NULL
+                    AND doc.delete_performed IS NULL
+                    AND dialog.dialogporten_uuid IS NOT NULL
+                    AND doc.transmission_id IS NOT NULL
+                ORDER BY doc.gui_opened_at
+                LIMIT ?
+                    """.trimIndent()
+                ).use { preparedStatement ->
+                    preparedStatement.setInt(1, limit)
+                    val resultSet = preparedStatement.executeQuery()
+                    buildList {
+                        while (resultSet.next()) {
+                            add(resultSet.toDocumentEntity())
+                        }
+                    }
+                }
+            }
+        }
+
+    suspend fun setTransmissionOpenedInDialogporten(documentId: Long) {
+        withContext(Dispatchers.IO) {
+            database.connection.use { connection ->
+                connection.prepareStatement(
+                    """
+                    UPDATE document
+                    SET transmission_opened_sent_at = NOW()
+                    WHERE id = ?
+                        AND transmission_opened_sent_at IS NULL
+                    """.trimIndent()
+                ).use { preparedStatement ->
+                    preparedStatement.setLong(1, documentId)
+                    preparedStatement.executeUpdate()
+                }
+                connection.commit()
+            }
+        }
+    }
+
+    suspend fun persistSettingTransmissionOpenedFailed(documentId: Long) {
+        withContext(Dispatchers.IO) {
+            database.connection.use { connection ->
+                connection.prepareStatement(
+                    """
+                    UPDATE document
+                    SET transmission_opened_failed_at = NOW()
+                    WHERE id = ?
+                        AND transmission_opened_sent_at IS NULL
+                        AND transmission_opened_failed_at IS NULL
+                    """.trimIndent()
+                ).use { preparedStatement ->
+                    preparedStatement.setLong(1, documentId)
+                    preparedStatement.executeUpdate()
+                }
+                connection.commit()
+            }
+        }
+    }
+
     suspend fun getDocumentsByStatus(status: DocumentStatus, limit: Int = 100): List<PersistedDocumentEntity> =
         withContext(Dispatchers.IO) {
             database.connection.use { connection ->
@@ -279,6 +364,9 @@ fun ResultSet.toDocumentEntity(withDialog: PersistedDialogEntity? = null): Persi
         isRead = getBoolean("is_read"),
         transmissionId = getObject("transmission_id") as UUID?,
         deletePerformed = getTimestamp("delete_performed")?.toInstant(),
+        guiOpenedAt = getTimestamp("gui_opened_at")?.toInstant(),
+        transmissionOpenedSentAt = getTimestamp("transmission_opened_sent_at")?.toInstant(),
+        transmissionOpenedFailedAt = getTimestamp("transmission_opened_failed_at")?.toInstant(),
         created = getTimestamp("created").toInstant(),
         updated = getTimestamp("updated").toInstant(),
         dialog = withDialog ?: PersistedDialogEntity(
