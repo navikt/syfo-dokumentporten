@@ -1,3 +1,5 @@
+import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.ktor)
@@ -15,6 +17,13 @@ repositories {
     mavenCentral()
 }
 dependencies {
+    constraints {
+        implementationWithKtorVersionCheck(
+            dependencyNotation = "io.netty:netty-handler:4.2.17.Final",
+            expectedKtorVersion = "3.5.2",
+        )
+    }
+
     implementation(libs.datafaker)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
@@ -51,6 +60,18 @@ dependencies {
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.bundles.testcontainers) // Will want this eventually
 }
+
+fun DependencyConstraintHandler.implementationWithKtorVersionCheck(
+    dependencyNotation: String,
+    expectedKtorVersion: String,
+) {
+    val currentKtorVersion = libs.versions.ktor.version.get()
+    check(currentKtorVersion == expectedKtorVersion) {
+        "Review the $dependencyNotation constraint before changing Ktor from $expectedKtorVersion to $currentKtorVersion"
+    }
+    add("implementation", dependencyNotation)
+}
+
 application {
     mainClass.set("no.nav.syfo.ApplicationKt")
 }
