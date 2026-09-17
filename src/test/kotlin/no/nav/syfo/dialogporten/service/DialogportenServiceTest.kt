@@ -9,8 +9,14 @@ import io.ktor.http.HttpStatusCode
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.test.runTest
+import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_FAILED
+import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_PERMANENTLY_FAILED
+import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_SENT
 import no.nav.syfo.altinn.dialogporten.client.DialogportenClientException
 import no.nav.syfo.altinn.dialogporten.client.IDialogportenClient
 import no.nav.syfo.altinn.dialogporten.domain.Activity
@@ -21,6 +27,7 @@ import no.nav.syfo.altinn.dialogporten.domain.Transmission
 import no.nav.syfo.altinn.dialogporten.domain.create
 import no.nav.syfo.altinn.dialogporten.service.DialogportenService
 import no.nav.syfo.document.api.v1.dto.DocumentType
+import no.nav.syfo.document.db.ClaimedTransmissionOpenedDocument
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentStatus
 import no.nav.syfo.pdl.PdlPersonInfo
@@ -28,6 +35,9 @@ import no.nav.syfo.pdl.PdlService
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 class DialogportenServiceTest :
     DescribeSpec({
@@ -529,20 +539,58 @@ class DialogportenServiceTest :
         }
 
         describe("sendTransmissionOpenedActivities") {
-            it("sends and marks an opened GUI transmission") {
+            fun claimed(document: no.nav.syfo.document.db.PersistedDocumentEntity, token: UUID) =
+                ClaimedTransmissionOpenedDocument(document, token)
+
+            it("retains a claim when the activity request times out") {
+                runTest {
+                    val claimToken = UUID.randomUUID()
+                    val document = documentEntity(dialogEntity()).copy(
+                        transmissionId = UUID.randomUUID(),
+                        guiOpenedAt = Instant.now(),
+                    )
+                    coEvery {
+                        documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities(any(), any())
+                    } returns listOf(claimed(document, claimToken))
+                    coEvery {
+                        dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
+                    } coAnswers { awaitCancellation() }
+                    val failedCountBefore = COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_FAILED.count()
+                    val sentCountBefore = COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_SENT.count()
+                    val permanentlyFailedCountBefore =
+                        COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_PERMANENTLY_FAILED.count()
+
+                    dialogportenService.sendTransmissionOpenedActivities()
+
+                    coVerify(exactly = 1) {
+                        dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
+                    }
+                    coVerify(exactly = 0) { documentDAO.setTransmissionOpenedInDialogporten(any(), any()) }
+                    coVerify(exactly = 0) { documentDAO.persistSettingTransmissionOpenedFailed(any(), any()) }
+                    coVerify(exactly = 0) { documentDAO.releaseTransmissionOpenedClaims(any(), claimToken) }
+                    COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_FAILED.count() shouldBe failedCountBefore + 1
+                    COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_SENT.count() shouldBe sentCountBefore
+                    COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_PERMANENTLY_FAILED.count() shouldBe
+                        permanentlyFailedCountBefore
+                }
+            }
+
+            it("sends and marks an opened GUI transmission with its claim token") {
                 val transmissionId = UUID.randomUUID()
+                val claimToken = UUID.randomUUID()
                 val document = documentEntity(dialogEntity()).copy(
                     transmissionId = transmissionId,
                     guiOpenedAt = Instant.now(),
                 )
                 val activitySlot = slot<Activity>()
                 coEvery {
-                    documentDAO.getDocumentsWithUnsentTransmissionOpenedActivities()
-                } returns listOf(document)
+                    documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities(any(), any())
+                } returns listOf(claimed(document, claimToken))
                 coEvery {
                     dialogportenClient.createActivity(capture(activitySlot), document.dialog.dialogportenUUID!!)
                 } returns transmissionId
-                coEvery { documentDAO.setTransmissionOpenedInDialogporten(document.id) } returns Unit
+                coEvery { documentDAO.setTransmissionOpenedInDialogporten(document.id, claimToken) } returns true
+                val sentCountBefore = COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_SENT.count()
 
                 dialogportenService.sendTransmissionOpenedActivities()
 
@@ -550,25 +598,53 @@ class DialogportenServiceTest :
                 activitySlot.captured.transmissionId shouldBe transmissionId
                 activitySlot.captured.type shouldBe Activity.ActivityType.TransmissionOpened
                 activitySlot.captured.performedBy.actorType shouldBe Activity.ActorType.ServiceOwner
-                coVerify(exactly = 1) { documentDAO.setTransmissionOpenedInDialogporten(document.id) }
+                coVerify(exactly = 1) { documentDAO.setTransmissionOpenedInDialogporten(document.id, claimToken) }
+                COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_SENT.count() shouldBe sentCountBefore + 1
             }
 
-            it("retries a service unavailable activity on a later task run") {
+            it("does not treat a lost success CAS as sent") {
                 val transmissionId = UUID.randomUUID()
+                val claimToken = UUID.randomUUID()
                 val document = documentEntity(dialogEntity()).copy(
                     transmissionId = transmissionId,
                     guiOpenedAt = Instant.now(),
                 )
                 coEvery {
-                    documentDAO.getDocumentsWithUnsentTransmissionOpenedActivities()
-                } returns listOf(document)
+                    documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities(any(), any())
+                } returns listOf(claimed(document, claimToken))
+                coEvery {
+                    dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
+                } returns transmissionId
+                coEvery { documentDAO.setTransmissionOpenedInDialogporten(document.id, claimToken) } returns false
+                val sentCountBefore = COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_SENT.count()
+
+                dialogportenService.sendTransmissionOpenedActivities()
+
+                coVerify(exactly = 1) { documentDAO.setTransmissionOpenedInDialogporten(document.id, claimToken) }
+                COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_SENT.count() shouldBe sentCountBefore
+            }
+
+            it("retries a service unavailable activity when it is claimed again later") {
+                val transmissionId = UUID.randomUUID()
+                val firstClaimToken = UUID.randomUUID()
+                val secondClaimToken = UUID.randomUUID()
+                val document = documentEntity(dialogEntity()).copy(
+                    transmissionId = transmissionId,
+                    guiOpenedAt = Instant.now(),
+                )
+                coEvery {
+                    documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities(any(), any())
+                } returnsMany listOf(
+                    listOf(claimed(document, firstClaimToken)),
+                    listOf(claimed(document, secondClaimToken)),
+                )
                 coEvery {
                     dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
                 } throws DialogportenClientException(
                     "Unavailable",
                     HttpStatusCode.ServiceUnavailable,
                 ) andThen transmissionId
-                coEvery { documentDAO.setTransmissionOpenedInDialogporten(document.id) } returns Unit
+                coEvery { documentDAO.setTransmissionOpenedInDialogporten(document.id, secondClaimToken) } returns true
 
                 dialogportenService.sendTransmissionOpenedActivities()
                 dialogportenService.sendTransmissionOpenedActivities()
@@ -576,18 +652,24 @@ class DialogportenServiceTest :
                 coVerify(exactly = 2) {
                     dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
                 }
-                coVerify(exactly = 1) { documentDAO.setTransmissionOpenedInDialogporten(document.id) }
+                coVerify(exactly = 1) {
+                    documentDAO.setTransmissionOpenedInDialogporten(document.id, secondClaimToken)
+                }
+                coVerify(exactly = 0) {
+                    documentDAO.releaseTransmissionOpenedClaims(any(), firstClaimToken)
+                }
             }
 
             it("retries throttled and timeout activities") {
                 val transmissionId = UUID.randomUUID()
+                val claimToken = UUID.randomUUID()
                 val document = documentEntity(dialogEntity()).copy(
                     transmissionId = transmissionId,
                     guiOpenedAt = Instant.now(),
                 )
                 coEvery {
-                    documentDAO.getDocumentsWithUnsentTransmissionOpenedActivities()
-                } returns listOf(document)
+                    documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities(any(), any())
+                } returns listOf(claimed(document, claimToken))
                 coEvery {
                     dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
                 } throws DialogportenClientException(
@@ -599,7 +681,7 @@ class DialogportenServiceTest :
                 ) andThenThrows DialogportenClientException(
                     "Network timeout",
                 ) andThen transmissionId
-                coEvery { documentDAO.setTransmissionOpenedInDialogporten(document.id) } returns Unit
+                coEvery { documentDAO.setTransmissionOpenedInDialogporten(document.id, claimToken) } returns true
 
                 dialogportenService.sendTransmissionOpenedActivities()
                 dialogportenService.sendTransmissionOpenedActivities()
@@ -609,51 +691,85 @@ class DialogportenServiceTest :
                 coVerify(exactly = 4) {
                     dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
                 }
-                coVerify(exactly = 1) { documentDAO.setTransmissionOpenedInDialogporten(document.id) }
-                coVerify(exactly = 0) { documentDAO.persistSettingTransmissionOpenedFailed(any()) }
+                coVerify(exactly = 1) { documentDAO.setTransmissionOpenedInDialogporten(document.id, claimToken) }
+                coVerify(exactly = 0) { documentDAO.persistSettingTransmissionOpenedFailed(any(), any()) }
             }
 
             it("marks a duplicate activity as sent") {
                 val transmissionId = UUID.randomUUID()
+                val claimToken = UUID.randomUUID()
                 val document = documentEntity(dialogEntity()).copy(
                     transmissionId = transmissionId,
                     guiOpenedAt = Instant.now(),
                 )
                 coEvery {
-                    documentDAO.getDocumentsWithUnsentTransmissionOpenedActivities()
-                } returns listOf(document)
+                    documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities(any(), any())
+                } returns listOf(claimed(document, claimToken))
                 coEvery {
                     dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
                 } throws DialogportenClientException("Conflict", HttpStatusCode.Conflict)
-                coEvery { documentDAO.setTransmissionOpenedInDialogporten(document.id) } returns Unit
+                coEvery { documentDAO.setTransmissionOpenedInDialogporten(document.id, claimToken) } returns true
 
                 dialogportenService.sendTransmissionOpenedActivities()
 
-                coVerify(exactly = 1) { documentDAO.setTransmissionOpenedInDialogporten(document.id) }
-                coVerify(exactly = 0) { documentDAO.persistSettingTransmissionOpenedFailed(any()) }
+                coVerify(exactly = 1) { documentDAO.setTransmissionOpenedInDialogporten(document.id, claimToken) }
+                coVerify(exactly = 0) { documentDAO.persistSettingTransmissionOpenedFailed(any(), any()) }
             }
 
             it("marks permanent client errors as failed") {
                 val transmissionId = UUID.randomUUID()
+                val claimToken = UUID.randomUUID()
                 val document = documentEntity(dialogEntity()).copy(
                     transmissionId = transmissionId,
                     guiOpenedAt = Instant.now(),
                 )
                 coEvery {
-                    documentDAO.getDocumentsWithUnsentTransmissionOpenedActivities()
-                } returns listOf(document)
+                    documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities(any(), any())
+                } returns listOf(claimed(document, claimToken))
                 coEvery {
                     dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
                 } throws DialogportenClientException("Bad request", HttpStatusCode.BadRequest)
-                coEvery { documentDAO.persistSettingTransmissionOpenedFailed(document.id) } returns Unit
+                coEvery { documentDAO.persistSettingTransmissionOpenedFailed(document.id, claimToken) } returns true
+                val permanentlyFailedCountBefore =
+                    COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_PERMANENTLY_FAILED.count()
 
                 dialogportenService.sendTransmissionOpenedActivities()
 
-                coVerify(exactly = 1) { documentDAO.persistSettingTransmissionOpenedFailed(document.id) }
-                coVerify(exactly = 0) { documentDAO.setTransmissionOpenedInDialogporten(any()) }
+                coVerify(exactly = 1) {
+                    documentDAO.persistSettingTransmissionOpenedFailed(document.id, claimToken)
+                }
+                coVerify(exactly = 0) { documentDAO.setTransmissionOpenedInDialogporten(any(), any()) }
+                COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_PERMANENTLY_FAILED.count() shouldBe
+                    permanentlyFailedCountBefore + 1
             }
 
-            it("does not send activities that are already handled or missing identifiers") {
+            it("does not treat a lost permanent-failure CAS as permanently failed") {
+                val transmissionId = UUID.randomUUID()
+                val claimToken = UUID.randomUUID()
+                val document = documentEntity(dialogEntity()).copy(
+                    transmissionId = transmissionId,
+                    guiOpenedAt = Instant.now(),
+                )
+                coEvery {
+                    documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities(any(), any())
+                } returns listOf(claimed(document, claimToken))
+                coEvery {
+                    dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
+                } throws DialogportenClientException("Bad request", HttpStatusCode.BadRequest)
+                coEvery { documentDAO.persistSettingTransmissionOpenedFailed(document.id, claimToken) } returns false
+                val permanentlyFailedCountBefore =
+                    COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_PERMANENTLY_FAILED.count()
+
+                dialogportenService.sendTransmissionOpenedActivities()
+
+                coVerify(exactly = 1) {
+                    documentDAO.persistSettingTransmissionOpenedFailed(document.id, claimToken)
+                }
+                COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_PERMANENTLY_FAILED.count() shouldBe
+                    permanentlyFailedCountBefore
+            }
+
+            it("releases claimed activities missing required identifiers") {
                 val sentDocument = documentEntity(dialogEntity()).copy(
                     transmissionId = UUID.randomUUID(),
                     guiOpenedAt = Instant.now(),
@@ -669,19 +785,72 @@ class DialogportenServiceTest :
                     guiOpenedAt = Instant.now(),
                 )
                 val documentWithoutTransmissionId = documentEntity(dialogEntity()).copy(guiOpenedAt = Instant.now())
+                val claimToken = UUID.randomUUID()
                 coEvery {
-                    documentDAO.getDocumentsWithUnsentTransmissionOpenedActivities()
+                    documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities(any(), any())
                 } returns listOf(
-                    sentDocument,
-                    permanentlyFailedDocument,
-                    documentWithoutDialogId,
-                    documentWithoutTransmissionId,
+                    claimed(sentDocument, claimToken),
+                    claimed(permanentlyFailedDocument, claimToken),
+                    claimed(documentWithoutDialogId, claimToken),
+                    claimed(documentWithoutTransmissionId, claimToken),
                 )
+                coEvery { documentDAO.releaseTransmissionOpenedClaims(any(), claimToken) } returns 1
 
                 dialogportenService.sendTransmissionOpenedActivities()
 
                 coVerify(exactly = 0) { dialogportenClient.createActivity(any(), any()) }
-                coVerify(exactly = 0) { documentDAO.setTransmissionOpenedInDialogporten(any()) }
+                coVerify(exactly = 0) { documentDAO.setTransmissionOpenedInDialogporten(any(), any()) }
+                coVerify(exactly = 1) {
+                    documentDAO.releaseTransmissionOpenedClaims(listOf(documentWithoutDialogId.id), claimToken)
+                }
+                coVerify(exactly = 1) {
+                    documentDAO.releaseTransmissionOpenedClaims(listOf(documentWithoutTransmissionId.id), claimToken)
+                }
+            }
+
+            it("releases only unstarted claims when the processing budget is exhausted") {
+                val timeSource = mockk<TimeSource>()
+                val timeMark = mockk<TimeMark>()
+                every { timeSource.markNow() } returns timeMark
+                every { timeMark.elapsedNow() } returns 0.minutes andThen 8.minutes
+                val serviceWithControlledTime = DialogportenService(
+                    dialogportenClient,
+                    documentDAO,
+                    publicIngressUrl,
+                    dialogDao,
+                    pdlService,
+                    timeSource,
+                )
+                val claimToken = UUID.randomUUID()
+                val firstDocument = documentEntity(dialogEntity()).copy(
+                    transmissionId = UUID.randomUUID(),
+                    guiOpenedAt = Instant.now(),
+                )
+                val secondDocument = documentEntity(dialogEntity()).copy(
+                    transmissionId = UUID.randomUUID(),
+                    guiOpenedAt = Instant.now(),
+                )
+                coEvery {
+                    documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities(any(), any())
+                } returns listOf(claimed(firstDocument, claimToken), claimed(secondDocument, claimToken))
+                coEvery {
+                    dialogportenClient.createActivity(any(), firstDocument.dialog.dialogportenUUID!!)
+                } returns firstDocument.transmissionId!!
+                coEvery {
+                    documentDAO.setTransmissionOpenedInDialogporten(firstDocument.id, claimToken)
+                } returns true
+                coEvery {
+                    documentDAO.releaseTransmissionOpenedClaims(listOf(secondDocument.id), claimToken)
+                } returns 1
+
+                serviceWithControlledTime.sendTransmissionOpenedActivities()
+
+                coVerify(exactly = 1) {
+                    documentDAO.releaseTransmissionOpenedClaims(listOf(secondDocument.id), claimToken)
+                }
+                coVerify(exactly = 0) {
+                    dialogportenClient.createActivity(any(), secondDocument.dialog.dialogportenUUID!!)
+                }
             }
         }
     })

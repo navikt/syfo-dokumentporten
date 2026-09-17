@@ -8,24 +8,24 @@ import io.mockk.mockk
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import no.nav.syfo.altinn.dialogporten.service.DialogportenService
 import no.nav.syfo.altinn.dialogporten.task.SendTransmissionOpenedTask
-import no.nav.syfo.application.leaderelection.LeaderElection
+import kotlin.time.Duration.Companion.milliseconds
 
 class SendTransmissionOpenedTaskTest :
     DescribeSpec({
-        val leaderElection = mockk<LeaderElection>()
         val dialogportenService = mockk<DialogportenService>()
-        val task = SendTransmissionOpenedTask(leaderElection, dialogportenService)
+        val task = SendTransmissionOpenedTask(dialogportenService)
 
         beforeTest {
             clearAllMocks()
         }
 
-        it("sends opened transmissions when the instance is leader") {
+        it("sends opened transmissions immediately") {
             runTest {
-                coEvery { leaderElection.isLeader() } returns true
                 coEvery { dialogportenService.sendTransmissionOpenedActivities() } returns Unit
 
                 val job = launch(start = CoroutineStart.UNDISPATCHED) {
@@ -37,15 +37,21 @@ class SendTransmissionOpenedTaskTest :
             }
         }
 
-        it("does not send opened transmissions when the instance is not leader") {
+        it("continues after a transient service exception") {
             runTest {
-                coEvery { leaderElection.isLeader() } returns false
+                coEvery { dialogportenService.sendTransmissionOpenedActivities() } throws
+                    RuntimeException("Transient failure") andThen Unit
 
                 val job = launch(start = CoroutineStart.UNDISPATCHED) {
                     task.runTask()
                 }
 
-                coVerify(exactly = 0) { dialogportenService.sendTransmissionOpenedActivities() }
+                coVerify(exactly = 1) { dialogportenService.sendTransmissionOpenedActivities() }
+                @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+                advanceTimeBy(30_000.milliseconds)
+                @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+                runCurrent()
+                coVerify(exactly = 2) { dialogportenService.sendTransmissionOpenedActivities() }
                 job.cancelAndJoin()
             }
         }

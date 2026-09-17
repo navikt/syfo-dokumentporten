@@ -212,7 +212,7 @@ private fun servicesModule() = module {
 
     single { DialogportenService(get(), get(), env().publicIngressUrl, get(), get()) }
     single { SendDialogTask(get(), get()) }
-    single { SendTransmissionOpenedTask(get(), get()) }
+    single { SendTransmissionOpenedTask(get()) }
     single { PublishVarselTask(get(), get()) }
     single { UpdateApiOnlyTask(get(), get()) }
 }
