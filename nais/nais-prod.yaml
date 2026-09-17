@@ -80,6 +80,7 @@ spec:
       consumes:
         - name: "digdir:dialogporten.serviceprovider"
         - name: "altinn:authorization/authorize"
+        - name: "digdir:dialogporten.serviceprovider.changetransmissions"
   azure:
     application:
       enabled: true
