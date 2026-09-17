@@ -9,10 +9,14 @@ import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Timestamp
 import java.sql.Types
+import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 
 private const val COUNT_COLUMN_NAME = "total_count"
+private const val MAX_TRANSMISSION_OPENED_CLAIM_RELEASE_SIZE = 100
+
+data class ClaimedTransmissionOpenedDocument(val document: PersistedDocumentEntity, val claimToken: UUID)
 
 private fun selectDocWithDialogJoin(useCount: Boolean = false) =
     """
@@ -184,71 +188,168 @@ class DocumentDAO(private val database: DatabaseInterface) {
         }
     }
 
-    suspend fun getDocumentsWithUnsentTransmissionOpenedActivities(limit: Int = 100,): List<PersistedDocumentEntity> =
-        withContext(Dispatchers.IO) {
+    suspend fun claimDocumentsWithUnsentTransmissionOpenedActivities(
+        limit: Int = 100,
+        leaseDuration: Duration = Duration.ofMinutes(10),
+    ): List<ClaimedTransmissionOpenedDocument> {
+        require(limit > 0) { "limit must be positive" }
+        require(!leaseDuration.isNegative && !leaseDuration.isZero && leaseDuration.toMillis() > 0) {
+            "leaseDuration must be positive"
+        }
+
+        return withContext(Dispatchers.IO) {
             database.connection.use { connection ->
-                connection.prepareStatement(
+                connection.transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+                val documents = connection.prepareStatement(
                     """
-                ${selectDocWithDialogJoin()}
-                WHERE doc.gui_opened_at IS NOT NULL
-                    AND doc.transmission_opened_sent_at IS NULL
-                    AND doc.transmission_opened_failed_at IS NULL
-                    AND doc.delete_performed IS NULL
-                    AND dialog.dialogporten_uuid IS NOT NULL
-                    AND doc.transmission_id IS NOT NULL
-                ORDER BY doc.gui_opened_at
-                LIMIT ?
+                    ${selectDocWithDialogJoin()}
+                    WHERE doc.gui_opened_at IS NOT NULL
+                        AND doc.transmission_opened_sent_at IS NULL
+                        AND doc.transmission_opened_failed_at IS NULL
+                        AND doc.delete_performed IS NULL
+                        AND dialog.dialogporten_uuid IS NOT NULL
+                        AND doc.transmission_id IS NOT NULL
+                        AND (
+                            doc.transmission_opened_claim_until IS NULL
+                            OR doc.transmission_opened_claim_until < CURRENT_TIMESTAMP
+                        )
+                    ORDER BY doc.gui_opened_at
+                    LIMIT ?
+                    FOR UPDATE OF doc SKIP LOCKED
                     """.trimIndent()
                 ).use { preparedStatement ->
                     preparedStatement.setInt(1, limit)
-                    val resultSet = preparedStatement.executeQuery()
-                    buildList {
-                        while (resultSet.next()) {
-                            add(resultSet.toDocumentEntity())
+                    preparedStatement.executeQuery().use { resultSet ->
+                        buildList {
+                            while (resultSet.next()) {
+                                add(resultSet.toDocumentEntity())
+                            }
                         }
                     }
                 }
-            }
-        }
 
-    suspend fun setTransmissionOpenedInDialogporten(documentId: Long) {
-        withContext(Dispatchers.IO) {
-            database.connection.use { connection ->
-                connection.prepareStatement(
+                if (documents.isEmpty()) {
+                    connection.commit()
+                    return@use emptyList()
+                }
+
+                val claimToken = UUID.randomUUID()
+                val idPlaceholders = documents.joinToString(", ") { "?" }
+                val updatedRows = connection.prepareStatement(
                     """
                     UPDATE document
-                    SET transmission_opened_sent_at = NOW()
-                    WHERE id = ?
-                        AND transmission_opened_sent_at IS NULL
+                    SET transmission_opened_claim_token = ?,
+                        transmission_opened_claim_until = CURRENT_TIMESTAMP + (? * INTERVAL '1 millisecond')
+                    WHERE id IN ($idPlaceholders)
                     """.trimIndent()
                 ).use { preparedStatement ->
-                    preparedStatement.setLong(1, documentId)
+                    preparedStatement.setObject(1, claimToken)
+                    preparedStatement.setLong(2, leaseDuration.toMillis())
+                    documents.forEachIndexed { index, document ->
+                        preparedStatement.setLong(index + 3, document.id)
+                    }
                     preparedStatement.executeUpdate()
                 }
+                if (updatedRows != documents.size) {
+                    connection.rollback()
+                    error("Could not claim all selected TransmissionOpened documents")
+                }
                 connection.commit()
+
+                documents.map { ClaimedTransmissionOpenedDocument(it, claimToken) }
             }
         }
     }
 
-    suspend fun persistSettingTransmissionOpenedFailed(documentId: Long) {
-        withContext(Dispatchers.IO) {
+    suspend fun releaseTransmissionOpenedClaims(documentIds: List<Long>, claimToken: UUID): Int {
+        if (documentIds.isEmpty()) {
+            return 0
+        }
+        require(documentIds.size <= MAX_TRANSMISSION_OPENED_CLAIM_RELEASE_SIZE) {
+            "documentIds cannot exceed $MAX_TRANSMISSION_OPENED_CLAIM_RELEASE_SIZE"
+        }
+
+        return withContext(Dispatchers.IO) {
             database.connection.use { connection ->
-                connection.prepareStatement(
+                connection.transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+                val idPlaceholders = documentIds.joinToString(", ") { "?" }
+                val updatedRows = connection.prepareStatement(
                     """
                     UPDATE document
-                    SET transmission_opened_failed_at = NOW()
-                    WHERE id = ?
+                    SET transmission_opened_claim_token = NULL,
+                        transmission_opened_claim_until = NULL
+                    WHERE id IN ($idPlaceholders)
+                        AND transmission_opened_claim_token = ?
                         AND transmission_opened_sent_at IS NULL
                         AND transmission_opened_failed_at IS NULL
+                        AND delete_performed IS NULL
                     """.trimIndent()
                 ).use { preparedStatement ->
-                    preparedStatement.setLong(1, documentId)
+                    documentIds.forEachIndexed { index, documentId ->
+                        preparedStatement.setLong(index + 1, documentId)
+                    }
+                    preparedStatement.setObject(documentIds.size + 1, claimToken)
                     preparedStatement.executeUpdate()
                 }
                 connection.commit()
+                updatedRows
             }
         }
     }
+
+    suspend fun setTransmissionOpenedInDialogporten(documentId: Long, claimToken: UUID): Boolean =
+        withContext(Dispatchers.IO) {
+            database.connection.use { connection ->
+                connection.transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+                connection.prepareStatement(
+                    """
+                    UPDATE document
+                    SET transmission_opened_sent_at = NOW(),
+                        transmission_opened_claim_token = NULL,
+                        transmission_opened_claim_until = NULL
+                    WHERE id = ?
+                        AND transmission_opened_claim_token = ?
+                        AND transmission_opened_sent_at IS NULL
+                        AND transmission_opened_failed_at IS NULL
+                        AND delete_performed IS NULL
+                    """.trimIndent()
+                ).use { preparedStatement ->
+                    preparedStatement.setLong(1, documentId)
+                    preparedStatement.setObject(2, claimToken)
+                    preparedStatement.executeUpdate()
+                }.let { updatedRows ->
+                    connection.commit()
+                    updatedRows == 1
+                }
+            }
+        }
+
+    suspend fun persistSettingTransmissionOpenedFailed(documentId: Long, claimToken: UUID): Boolean =
+        withContext(Dispatchers.IO) {
+            database.connection.use { connection ->
+                connection.transactionIsolation = Connection.TRANSACTION_READ_COMMITTED
+                connection.prepareStatement(
+                    """
+                    UPDATE document
+                    SET transmission_opened_failed_at = NOW(),
+                        transmission_opened_claim_token = NULL,
+                        transmission_opened_claim_until = NULL
+                    WHERE id = ?
+                        AND transmission_opened_claim_token = ?
+                        AND transmission_opened_sent_at IS NULL
+                        AND transmission_opened_failed_at IS NULL
+                        AND delete_performed IS NULL
+                    """.trimIndent()
+                ).use { preparedStatement ->
+                    preparedStatement.setLong(1, documentId)
+                    preparedStatement.setObject(2, claimToken)
+                    preparedStatement.executeUpdate()
+                }.let { updatedRows ->
+                    connection.commit()
+                    updatedRows == 1
+                }
+            }
+        }
 
     suspend fun getDocumentsByStatus(status: DocumentStatus, limit: Int = 100): List<PersistedDocumentEntity> =
         withContext(Dispatchers.IO) {

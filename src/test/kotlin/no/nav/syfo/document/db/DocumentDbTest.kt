@@ -51,6 +51,56 @@ class DocumentDbTest :
             }
         }
 
+        suspend fun insertEligibleTransmissionOpenedDocument(): PersistedDocumentEntity {
+            val dialog = dialogDAO.insertDialog(dialogEntity())
+            val document = insertDocument(document().toDocumentEntity(dialog), "test".toByteArray())
+            documentDAO.update(
+                document.copy(
+                    transmissionId = UUID.randomUUID(),
+                    updated = Instant.now(),
+                )
+            )
+            documentDAO.markGuiOpened(document.id)
+            return document
+        }
+
+        fun setClaimUntilInPast(documentId: Long) {
+            testDb.connection.use { connection ->
+                connection.prepareStatement(
+                    """
+                    UPDATE document
+                    SET transmission_opened_claim_until = ?
+                    WHERE id = ?
+                    """.trimIndent()
+                ).use { preparedStatement ->
+                    preparedStatement.setTimestamp(1, java.sql.Timestamp.from(Instant.now().minusSeconds(1)))
+                    preparedStatement.setLong(2, documentId)
+                    preparedStatement.executeUpdate()
+                }
+                connection.commit()
+            }
+        }
+
+        fun transmissionOpenedClaimFields(documentId: Long): Pair<UUID?, Instant?> =
+            testDb.connection.use { connection ->
+                connection.prepareStatement(
+                    """
+                    SELECT transmission_opened_claim_token, transmission_opened_claim_until
+                    FROM document
+                    WHERE id = ?
+                    """.trimIndent()
+                ).use { preparedStatement ->
+                    preparedStatement.setLong(1, documentId)
+                    preparedStatement.executeQuery().use { resultSet ->
+                        resultSet.next() shouldBe true
+                        Pair(
+                            resultSet.getObject("transmission_opened_claim_token") as UUID?,
+                            resultSet.getTimestamp("transmission_opened_claim_until")?.toInstant(),
+                        )
+                    }
+                }
+            }
+
         beforeTest {
             TestDB.clearAllData()
         }
@@ -426,7 +476,57 @@ class DocumentDbTest :
         }
 
         describe("DocumentDb -> TransmissionOpened state") {
-            it("marks the first GUI opening and finds only unsent eligible activities") {
+            it("claims eligible rows without overlapping an active claim") {
+                val firstDocument = insertEligibleTransmissionOpenedDocument()
+                val secondDocument = insertEligibleTransmissionOpenedDocument()
+
+                val firstClaim = documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities(limit = 2)
+                val secondClaim = documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities(limit = 2)
+
+                firstClaim.map { it.document.id }.toSet() shouldBe setOf(firstDocument.id, secondDocument.id)
+                firstClaim.map { it.claimToken }.toSet().size shouldBe 1
+                secondClaim shouldBe emptyList()
+            }
+
+            it("makes released untouched rows immediately available to another claim") {
+                val document = insertEligibleTransmissionOpenedDocument()
+                val firstClaim = documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities()
+
+                documentDAO.releaseTransmissionOpenedClaims(
+                    firstClaim.map { it.document.id },
+                    firstClaim.first().claimToken,
+                ) shouldBe 1
+                val secondClaim = documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities()
+
+                secondClaim.map { it.document.id } shouldBe listOf(document.id)
+                secondClaim.first().claimToken shouldNotBe firstClaim.first().claimToken
+            }
+
+            it("reclaims an expired lease and rejects stale terminal updates") {
+                val document = insertEligibleTransmissionOpenedDocument()
+                val firstClaim = documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities().single()
+                setClaimUntilInPast(document.id)
+                val secondClaim = documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities().single()
+
+                secondClaim.claimToken shouldNotBe firstClaim.claimToken
+                documentDAO.setTransmissionOpenedInDialogporten(document.id, firstClaim.claimToken) shouldBe false
+                documentDAO.persistSettingTransmissionOpenedFailed(document.id, firstClaim.claimToken) shouldBe false
+                documentDAO.setTransmissionOpenedInDialogporten(document.id, secondClaim.claimToken) shouldBe true
+                transmissionOpenedClaimFields(document.id) shouldBe Pair(null, null)
+                documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities() shouldBe emptyList()
+            }
+
+            it("clears the claim when a permanent failure is recorded") {
+                val document = insertEligibleTransmissionOpenedDocument()
+                val claim = documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities().single()
+
+                documentDAO.persistSettingTransmissionOpenedFailed(document.id, claim.claimToken) shouldBe true
+
+                transmissionOpenedClaimFields(document.id) shouldBe Pair(null, null)
+                documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities() shouldBe emptyList()
+            }
+
+            it("marks the first GUI opening and claims only unsent eligible activities") {
                 val dialog = dialogDAO.insertDialog(dialogEntity())
                 val eligibleDocument = insertDocument(document().toDocumentEntity(dialog), "test".toByteArray())
                 val documentWithoutTransmissionId = insertDocument(
@@ -437,7 +537,9 @@ class DocumentDbTest :
                 val deletedDocument = insertDocument(document().toDocumentEntity(dialog), "test".toByteArray())
                 val transmissionId = UUID.randomUUID()
                 val sentTransmissionId = UUID.randomUUID()
+                val failedTransmissionId = UUID.randomUUID()
                 val deletedTransmissionId = UUID.randomUUID()
+                val failedDocument = insertDocument(document().toDocumentEntity(dialog), "test".toByteArray())
 
                 documentDAO.update(
                     eligibleDocument.copy(
@@ -452,6 +554,12 @@ class DocumentDbTest :
                     )
                 )
                 documentDAO.update(
+                    failedDocument.copy(
+                        transmissionId = failedTransmissionId,
+                        updated = Instant.now(),
+                    )
+                )
+                documentDAO.update(
                     deletedDocument.copy(
                         transmissionId = deletedTransmissionId,
                         updated = Instant.now(),
@@ -460,8 +568,8 @@ class DocumentDbTest :
                 documentDAO.markGuiOpened(eligibleDocument.id)
                 documentDAO.markGuiOpened(documentWithoutTransmissionId.id)
                 documentDAO.markGuiOpened(sentDocument.id)
+                documentDAO.markGuiOpened(failedDocument.id)
                 documentDAO.markGuiOpened(deletedDocument.id)
-                documentDAO.setTransmissionOpenedInDialogporten(sentDocument.id)
                 softDeleteDocument(deletedDocument.id)
 
                 val retrievedEligibleDocument = documentDAO.getById(eligibleDocument.id)
@@ -469,11 +577,21 @@ class DocumentDbTest :
                 delay(10)
                 documentDAO.markGuiOpened(eligibleDocument.id)
                 val guiOpenedAtAfterSecondCall = documentDAO.getById(eligibleDocument.id)?.guiOpenedAt
-                val result = documentDAO.getDocumentsWithUnsentTransmissionOpenedActivities()
+                val claimedDocuments = documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities()
+                val sentClaim = claimedDocuments.single { it.document.id == sentDocument.id }
+                val failedClaim = claimedDocuments.single { it.document.id == failedDocument.id }
+                documentDAO.setTransmissionOpenedInDialogporten(sentDocument.id, sentClaim.claimToken) shouldBe true
+                documentDAO.persistSettingTransmissionOpenedFailed(
+                    failedDocument.id,
+                    failedClaim.claimToken,
+                ) shouldBe true
+                val eligibleClaim = claimedDocuments.single { it.document.id == eligibleDocument.id }
+                documentDAO.releaseTransmissionOpenedClaims(listOf(eligibleDocument.id), eligibleClaim.claimToken)
+                val result = documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities()
 
                 guiOpenedAtAfterSecondCall shouldBe firstGuiOpenedAt
                 retrievedEligibleDocument.transmissionOpenedSentAt shouldBe null
-                result.map { it.id } shouldBe listOf(eligibleDocument.id)
+                result.map { it.document.id } shouldBe listOf(eligibleDocument.id)
             }
         }
     })
