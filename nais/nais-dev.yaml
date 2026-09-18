@@ -144,5 +144,7 @@ spec:
       value: dev-fss.pdl.pdl-api
     - name: ENABLE_API_ONLY_JOB
       value: "false"
+    - name: ENABLE_DOCUMENT_CLEANUP_JOB
+      value: "true"
   envFrom:
     - secret: altinn-subscription-key
