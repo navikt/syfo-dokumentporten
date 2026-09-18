@@ -10,50 +10,6 @@ import java.time.LocalDate
 import java.util.UUID
 
 class DialogDAO(private val database: DatabaseInterface) {
-    suspend fun getDialogCandidatesWithApiOnlyTrue(): List<UUID> {
-        val query = """
-            SELECT dialogporten_uuid 
-            FROM dialog 
-            WHERE created < '2026-05-05 00:00:00+00' ::timestamptz
-            AND dialogporten_uuid IS NOT NULL
-            AND dialogporten_api_only is true
-            ORDER BY created ASC
-            LIMIT 200;
-        """.trimIndent()
-
-        return withContext(Dispatchers.IO) {
-            database.connection.use { conn ->
-                val preparedStatement = conn.prepareStatement(query)
-                preparedStatement.use { ps ->
-                    val resultSet = ps.executeQuery()
-                    buildList {
-                        while (resultSet.next()) {
-                            add(resultSet.toDialogportenUUID())
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    suspend fun setDialogApiOnlyFalse(dialogportenUUID: UUID) {
-        val updateQuery = """
-            UPDATE dialog
-            SET dialogporten_api_only = false
-            WHERE dialogporten_uuid = ?
-        """.trimIndent()
-        return withContext(Dispatchers.IO) {
-            database.connection.use { conn ->
-                conn.prepareStatement(updateQuery).use {
-                    it.setObject(1, dialogportenUUID)
-                    it.executeUpdate()
-                }.also {
-                    conn.commit()
-                }
-            }
-        }
-    }
-
     suspend fun insertDialog(dialogEntity: DialogEntity): PersistedDialogEntity {
         val insertStatement =
             """
@@ -146,8 +102,6 @@ class DialogDAO(private val database: DatabaseInterface) {
         }
     }
 }
-
-fun ResultSet.toDialogportenUUID(): UUID = getObject("dialogporten_uuid") as UUID
 
 fun ResultSet.toDialog(): PersistedDialogEntity = PersistedDialogEntity(
     id = getLong("id"),
