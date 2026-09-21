@@ -5,6 +5,7 @@ import io.ktor.server.routing.route
 import no.nav.syfo.application.auth.AddTokenIssuerPlugin
 import no.nav.syfo.application.auth.AddTokenIssuerPluginWithRedirect
 import no.nav.syfo.document.api.v1.registerExternalApiV1
+import no.nav.syfo.document.api.v1.registerGuiApiV1
 import no.nav.syfo.document.api.v1.registerInternalDocumentsApiV1
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentContentDAO
@@ -45,7 +46,7 @@ fun Route.registerApiV1(
         }
         route(GUI_DOCUMENT_API_PATH) {
             install(AddTokenIssuerPluginWithRedirect)
-            registerExternalApiV1(
+            registerGuiApiV1(
                 documentDAO = documentDAO,
                 documentContentDAO = documentContentDAO,
                 texasClient = texasClient,
