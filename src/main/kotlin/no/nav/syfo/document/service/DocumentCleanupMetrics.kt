@@ -28,3 +28,8 @@ val COUNT_DOCUMENT_CLEANUP_RUN_CAPPED: Counter =
     Counter.builder("${METRICS_NS}_document_cleanup_run_capped")
         .description("Counts document cleanup runs that stopped at the batch cap")
         .register(METRICS_REGISTRY)
+
+val COUNT_DOCUMENT_CLEANUP_LOCK_CONTENDED: Counter =
+    Counter.builder("${METRICS_NS}_document_cleanup_lock_contended")
+        .description("Counts document cleanup runs skipped because another replica holds the cleanup lock")
+        .register(METRICS_REGISTRY)

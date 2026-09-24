@@ -6,7 +6,7 @@ import kotlinx.coroutines.launch
 import no.nav.syfo.altinn.dialogporten.task.SendDialogTask
 import no.nav.syfo.altinn.dialogporten.task.UpdateApiOnlyTask
 import no.nav.syfo.application.Environment
-import no.nav.syfo.document.task.DocumentCleanupTask
+import no.nav.syfo.application.background.BackgroundLoop
 import no.nav.syfo.esyfovarsel.PublishVarselTask
 import org.koin.ktor.ext.inject
 
@@ -16,7 +16,7 @@ fun Application.configureBackgroundTasks() {
     val sendDialogTask by inject<SendDialogTask>()
     val publishVarselTask by inject<PublishVarselTask>()
     val updateApiOnlyTask by inject<UpdateApiOnlyTask>()
-    val documentCleanupTask by inject<DocumentCleanupTask>()
+    val documentCleanupLoop by inject<BackgroundLoop>()
 
     val sendDialogTaskJob = launch { sendDialogTask.runTask() }
     val publishVarselTaskJob = launch { publishVarselTask.runTask() }
@@ -31,9 +31,9 @@ fun Application.configureBackgroundTasks() {
     }
 
     if (appEnv.enableDocumentCleanupJob) {
-        val documentCleanupTaskJob = launch { documentCleanupTask.runTask() }
+        documentCleanupLoop.start()
         monitor.subscribe(ApplicationStopPreparing) {
-            documentCleanupTaskJob.cancel()
+            documentCleanupLoop.close()
         }
     }
 
