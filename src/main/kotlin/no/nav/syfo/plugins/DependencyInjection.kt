@@ -18,17 +18,21 @@ import no.nav.syfo.application.ApplicationState
 import no.nav.syfo.application.Environment
 import no.nav.syfo.application.LocalEnvironment
 import no.nav.syfo.application.NaisEnvironment
+import no.nav.syfo.application.background.BackgroundLoop
 import no.nav.syfo.application.database.DatabaseConfig
 import no.nav.syfo.application.database.DatabaseInterface
 import no.nav.syfo.application.isLocalEnv
 import no.nav.syfo.application.leaderelection.LeaderElection
+import no.nav.syfo.application.metric.METRICS_REGISTRY
 import no.nav.syfo.application.valkey.EregCache
 import no.nav.syfo.application.valkey.ValkeyCache
 import no.nav.syfo.document.db.DialogDAO
+import no.nav.syfo.document.db.DocumentCleanupRepository
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import no.nav.syfo.document.service.DialogService
+import no.nav.syfo.document.service.DocumentCleanupWorker
 import no.nav.syfo.document.service.DocumentService
 import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.ereg.EregService
@@ -51,6 +55,7 @@ import org.koin.core.scope.Scope
 import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
+import kotlin.time.Duration.Companion.hours
 import no.nav.syfo.application.database.Database as AppDatabase
 
 fun Application.configureDependencies() {
@@ -99,6 +104,7 @@ private fun databaseModule() = module {
     single { Database.connect(get<DatabaseInterface>().dataSource) }
     single { VarselInstruksRepository(get(), env().varselPublishPendingGracePeriod) }
     single { DocumentDAO(get()) }
+    single { DocumentCleanupRepository(get()) }
     single { DialogDAO(get()) }
     single { DocumentContentDAO(get()) }
 }
@@ -213,6 +219,15 @@ private fun servicesModule() = module {
     single { SendDialogTask(get(), get()) }
     single { PublishVarselTask(get(), get()) }
     single { UpdateApiOnlyTask(get(), get()) }
+    single { DocumentCleanupWorker(get()) }
+    single {
+        BackgroundLoop(
+            name = "document cleanup",
+            interval = 1.hours,
+            meterRegistry = METRICS_REGISTRY,
+            iteration = get<DocumentCleanupWorker>()::runOnce,
+        )
+    }
 }
 
 private fun Scope.env() = get<Environment>()
