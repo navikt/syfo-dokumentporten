@@ -1,18 +1,25 @@
 package no.nav.syfo.altinn.dialogporten.service
 
 import com.fasterxml.uuid.Generators
+import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.withTimeoutOrNull
 import no.nav.syfo.API_V1_PATH
 import no.nav.syfo.DOCUMENT_API_PATH
 import no.nav.syfo.GUI_DOCUMENT_API_PATH
 import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_DIALOGS_CREATED
 import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSIONS_CREATED
+import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_FAILED
+import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_PERMANENTLY_FAILED
+import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_SENT
 import no.nav.syfo.altinn.dialogporten.client.DialogportenClient
 import no.nav.syfo.altinn.dialogporten.client.DialogportenClientException
 import no.nav.syfo.altinn.dialogporten.client.IDialogportenClient
+import no.nav.syfo.altinn.dialogporten.domain.Activity
 import no.nav.syfo.altinn.dialogporten.domain.Attachment
 import no.nav.syfo.altinn.dialogporten.domain.AttachmentUrlConsumerType
 import no.nav.syfo.altinn.dialogporten.domain.Content
@@ -37,6 +44,9 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 const val DIALOG_RESSURS = "nav_syfo_dialog"
 
@@ -46,9 +56,14 @@ class DialogportenService(
     private val publicIngressUrl: String,
     private val dialogDAO: DialogDAO,
     private val pdlService: PdlService,
+    private val timeSource: TimeSource = TimeSource.Monotonic,
 ) {
     private val logger = logger()
     private val sendDialogLimit = 100
+    private val transmissionOpenedBatchSize = 100
+    private val transmissionOpenedLeaseDuration = java.time.Duration.ofMinutes(10)
+    private val transmissionOpenedProcessingBudget = 8.minutes
+    private val transmissionOpenedRequestTimeout = 60.seconds
 
     suspend fun sendDocumentsToDialogporten() {
         var batchNum = 0
@@ -61,7 +76,8 @@ class DialogportenService(
                 null
             }
             logger.info(
-                "Batch: $batchNum: Found ${documentsToSend.size} documents to send to dialogporten. First created at ${firstCreatedTimestamp ?: "N/A"}"
+                "Batch: $batchNum: Found ${documentsToSend.size} documents to send to dialogporten. " +
+                    "First created at ${firstCreatedTimestamp ?: "N/A"}"
             )
 
             if (documentsToSend.isEmpty()) {
@@ -126,7 +142,8 @@ class DialogportenService(
         val fullDocumentLink = createApiDocumentLink(document.linkId.toString())
         COUNT_DIALOGPORTEN_TRANSMISSIONS_CREATED.increment()
         logger.info(
-            "Added transmission $transmissionId for document ${document.id}, dialogportenId $dialogportenId, with link $fullDocumentLink and content type ${document.contentType}"
+            "Added transmission $transmissionId for document ${document.id}, dialogportenId $dialogportenId, " +
+                "with link $fullDocumentLink and content type ${document.contentType}"
         )
     }
 
@@ -149,7 +166,8 @@ class DialogportenService(
         COUNT_DIALOGPORTEN_DIALOGS_CREATED.increment()
         COUNT_DIALOGPORTEN_TRANSMISSIONS_CREATED.increment()
         logger.info(
-            "Create dialog $dialogId, with transmission $transmissionId for document ${document.id}, with link $fullDocumentLink and content type ${document.contentType}"
+            "Create dialog $dialogId, with transmission $transmissionId for document ${document.id}, " +
+                "with link $fullDocumentLink and content type ${document.contentType}"
         )
         return dialogId
     }
@@ -239,7 +257,8 @@ class DialogportenService(
 
             if (batchResult.failedDialogIds.isNotEmpty() && batchResult.updatedDialogIds.isEmpty()) {
                 logger.warn(
-                    "Processing halted: received only failing dialogs (${batchResult.failedDialogIds.size}). Aborting..."
+                    "Processing halted: received only failing dialogs " +
+                        "(${batchResult.failedDialogIds.size}). Aborting..."
                 )
                 break
             }
@@ -313,4 +332,120 @@ class DialogportenService(
 
         data class Failed(val dialogId: UUID) : DialogApiOnlyUpdateResult
     }
+
+    private suspend fun markTransmissionOpened(dialogportenDialogId: UUID, transmissionId: UUID) {
+        val activity = Activity(
+            id = transmissionId,
+            type = Activity.ActivityType.TransmissionOpened,
+            transmissionId = transmissionId,
+            performedBy = Activity.ActivityActor(actorType = Activity.ActorType.ServiceOwner),
+        )
+        dialogportenClient.createActivity(activity, dialogportenDialogId)
+        logger.info("Marked transmission $transmissionId as opened in dialog $dialogportenDialogId")
+    }
+
+    suspend fun sendTransmissionOpenedActivities() {
+        val claimedDocuments = documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities(
+            limit = transmissionOpenedBatchSize,
+            leaseDuration = transmissionOpenedLeaseDuration,
+        )
+        logger.info("Claimed ${claimedDocuments.size} TransmissionOpened activities to send to Dialogporten")
+        val startedAt = timeSource.markNow()
+
+        for ((index, claimedDocument) in claimedDocuments.withIndex()) {
+            if (startedAt.elapsedNow() >= transmissionOpenedProcessingBudget) {
+                val releasedRows = documentDAO.releaseTransmissionOpenedClaims(
+                    claimedDocuments.drop(index).map { it.document.id },
+                    claimedDocument.claimToken,
+                )
+                logger.info("Released $releasedRows unstarted TransmissionOpened activity claims")
+                break
+            }
+
+            val document = claimedDocument.document
+            val dialogportenDialogId = document.dialog.dialogportenUUID
+            val transmissionId = document.transmissionId
+            if (
+                document.transmissionOpenedSentAt != null ||
+                document.transmissionOpenedFailedAt != null ||
+                dialogportenDialogId == null ||
+                transmissionId == null
+            ) {
+                if (dialogportenDialogId == null || transmissionId == null) {
+                    documentDAO.releaseTransmissionOpenedClaims(listOf(document.id), claimedDocument.claimToken)
+                }
+                continue
+            }
+
+            try {
+                sendTransmissionOpenedActivity(
+                    document,
+                    dialogportenDialogId,
+                    transmissionId,
+                    claimedDocument.claimToken,
+                )
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_FAILED.increment()
+                logger.error(
+                    "Failed to send TransmissionOpened activity for dialog $dialogportenDialogId " +
+                        "and transmission $transmissionId",
+                    ex
+                )
+            }
+        }
+    }
+
+    private suspend fun sendTransmissionOpenedActivity(
+        document: PersistedDocumentEntity,
+        dialogportenDialogId: UUID,
+        transmissionId: UUID,
+        claimToken: UUID,
+    ) {
+        try {
+            val activityCreated = withTimeoutOrNull(transmissionOpenedRequestTimeout) {
+                markTransmissionOpened(dialogportenDialogId, transmissionId)
+                true
+            } ?: false
+            if (!activityCreated) {
+                COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_FAILED.increment()
+                logger.warn(
+                    "Timed out sending TransmissionOpened activity for dialog $dialogportenDialogId " +
+                        "and transmission $transmissionId"
+                )
+                return
+            }
+            markTransmissionOpenedSent(document.id, claimToken)
+        } catch (ex: DialogportenClientException) {
+            when {
+                ex.status == HttpStatusCode.Conflict -> {
+                    // The idempotent activity API's duplicate response is unverified; confirm this in dev.
+                    markTransmissionOpenedSent(document.id, claimToken)
+                }
+
+                ex.status.isPermanentTransmissionOpenedFailure() -> {
+                    if (documentDAO.persistSettingTransmissionOpenedFailed(document.id, claimToken)) {
+                        COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_PERMANENTLY_FAILED.increment()
+                        logger.warn(
+                            "Stopped retrying TransmissionOpened activity for dialog $dialogportenDialogId " +
+                                "and transmission $transmissionId with status ${ex.status}"
+                        )
+                    }
+                }
+
+                else -> throw ex
+            }
+        }
+    }
+
+    private suspend fun markTransmissionOpenedSent(documentId: Long, claimToken: UUID) {
+        if (documentDAO.setTransmissionOpenedInDialogporten(documentId, claimToken)) {
+            COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_SENT.increment()
+        }
+    }
+
+    private fun HttpStatusCode?.isPermanentTransmissionOpenedFailure(): Boolean = this != null &&
+        value in 400..499 &&
+        this !in setOf(HttpStatusCode.RequestTimeout, HttpStatusCode.Conflict, HttpStatusCode.TooManyRequests)
 }

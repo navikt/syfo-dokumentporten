@@ -3,6 +3,7 @@ package no.nav.syfo.altinn.dialogporten.client
 import com.fasterxml.jackson.annotation.JsonValue
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -14,6 +15,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import kotlinx.coroutines.CancellationException
 import no.nav.syfo.altinn.common.AltinnTokenProvider
+import no.nav.syfo.altinn.dialogporten.domain.Activity
 import no.nav.syfo.altinn.dialogporten.domain.Dialog
 import no.nav.syfo.altinn.dialogporten.domain.ExtendedDialog
 import no.nav.syfo.altinn.dialogporten.domain.Transmission
@@ -27,6 +29,7 @@ interface IDialogportenClient {
     suspend fun addTransmission(transmission: Transmission, dialogId: UUID): UUID
     suspend fun patchDialog(dialogId: UUID, revisionNumber: UUID, patch: List<DialogportenClient.DialogportenPatch>)
     suspend fun getDialogById(dialogId: UUID): ExtendedDialog
+    suspend fun createActivity(activity: Activity, dialogId: UUID): UUID
 }
 
 class DialogportenClient(
@@ -134,4 +137,28 @@ class DialogportenClient(
 
         return dialog
     }
+
+    override suspend fun createActivity(activity: Activity, dialogId: UUID): UUID =
+        runCatching<DialogportenClient, UUID> {
+            val token = altinnTokenProvider.token(AltinnTokenProvider.DIALOGPORTEN_TARGET_SCOPE).accessToken
+            val response = httpClient
+                .post("$dialogportenUrl/$dialogId/activities") {
+                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(HttpHeaders.Accept, ContentType.Application.Json)
+                    bearerAuth(token)
+                    setBody(activity)
+                }
+                .body<String>()
+            UUID.fromString(response.removeSurrounding("\""))
+        }.getOrElse { e ->
+            logger.error(
+                "Error creating activity for dialogId: $dialogId, transmissionId: ${activity.transmissionId}",
+                e
+            )
+            if (e is CancellationException) throw e
+            throw DialogportenClientException(
+                e.message ?: "Error creating activity for dialogId: $dialogId",
+                (e as? ResponseException)?.response?.status,
+            )
+        }
 }
