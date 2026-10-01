@@ -14,7 +14,6 @@ interface Environment {
     val valkeyEnvironment: ValkeyEnvironment
     val kafka: KafkaEnvironment
     val varselPublishPendingGracePeriod: Duration
-    val enableApiOnlyJob: Boolean
 }
 
 const val NAIS_DATABASE_ENV_PREFIX = "SYFO_DOKUMENTPORTEN_DB"
@@ -29,8 +28,6 @@ data class NaisEnvironment(
     override val valkeyEnvironment: ValkeyEnvironment = ValkeyEnvironment.createFromEnvVars(),
     override val kafka: KafkaEnvironment = KafkaEnvironment.createFromEnvVars(),
     override val varselPublishPendingGracePeriod: Duration = getVarselPublishPendingGracePeriod(),
-    override val enableApiOnlyJob: Boolean = getEnvVar("ENABLE_API_ONLY_JOB", "false").toBoolean()
-
 ) : Environment
 
 fun getEnvVar(varName: String, defaultValue: String? = null) =
@@ -65,5 +62,4 @@ data class LocalEnvironment(
     override val varselPublishPendingGracePeriod: Duration = Duration.ofMinutes(
         DEFAULT_VARSEL_PUBLISH_PENDING_GRACE_PERIOD_MINUTES
     ),
-    override val enableApiOnlyJob: Boolean = true,
 ) : Environment

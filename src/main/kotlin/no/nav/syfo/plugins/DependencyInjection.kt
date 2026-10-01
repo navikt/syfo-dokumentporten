@@ -7,7 +7,6 @@ import no.nav.syfo.altinn.dialogporten.client.DialogportenClient
 import no.nav.syfo.altinn.dialogporten.client.FakeDialogportenClient
 import no.nav.syfo.altinn.dialogporten.service.DialogportenService
 import no.nav.syfo.altinn.dialogporten.task.SendDialogTask
-import no.nav.syfo.altinn.dialogporten.task.UpdateApiOnlyTask
 import no.nav.syfo.altinn.pdp.client.FakePdpClient
 import no.nav.syfo.altinn.pdp.client.PdpClient
 import no.nav.syfo.altinn.pdp.service.PdpService
@@ -212,7 +211,6 @@ private fun servicesModule() = module {
     single { DialogportenService(get(), get(), env().publicIngressUrl, get(), get()) }
     single { SendDialogTask(get(), get()) }
     single { PublishVarselTask(get(), get()) }
-    single { UpdateApiOnlyTask(get(), get()) }
 }
 
 private fun Scope.env() = get<Environment>()
