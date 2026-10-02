@@ -142,6 +142,16 @@ sequenceDiagram
 We have a [wiki](https://github.com/navikt/syfo-dokumentporten/wiki) for this project, 
 with more detailed information about how external integrations partners can get started including how to set set up organizations from Test norge and test users with Dolly.
 
+## Internal API
+Machine-to-machine endpoints for Nais applications in `accessPolicy.inbound`, authenticated with an Azure AD token.
+
+- `POST /internal/api/v1/documents` — receive a new document.
+- `DELETE /internal/api/v1/documents/{documentId}` — soft delete all documents with the given `documentId`
+  (the UUID supplied by the consumer on `POST`). Sets `delete_performed`, after which the document is no longer
+  available to external consumers and any pending varsel is not published. Returns `204` also when the document is
+  already deleted, and `404` when no document has the given `documentId`. Existing Dialogporten transmissions are
+  not changed.
+
 ## Kafka
 
 ### Produserer til
