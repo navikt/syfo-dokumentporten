@@ -26,11 +26,11 @@ class DocumentCleanupIndexMigrationTest :
             dropSchema(dataSource)
         }
 
-        describe("V17 document cleanup pending index") {
+        describe("V18 document cleanup pending index") {
             it("recreates an invalid index left by an interrupted concurrent build") {
-                val v16Migration = migrateTo(dataSource, "16")
-                v16Migration.success shouldBe true
-                v16Migration.migrationsExecuted shouldBe 16
+                val v17Migration = migrateTo(dataSource, "17")
+                v17Migration.success shouldBe true
+                v17Migration.migrationsExecuted shouldBe 17
                 createCleanupIndex(dataSource)
 
                 val invalidIndexOid = indexState(dataSource).oid
@@ -38,7 +38,7 @@ class DocumentCleanupIndexMigrationTest :
 
                 indexState(dataSource).indisvalid shouldBe false
 
-                val migrationResult = migrateTo(dataSource, "17")
+                val migrationResult = migrateTo(dataSource, "18")
                 migrationResult.success shouldBe true
                 migrationResult.migrationsExecuted shouldBe 1
 
