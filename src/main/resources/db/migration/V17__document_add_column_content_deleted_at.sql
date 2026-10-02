@@ -1,1 +1,1 @@
-ALTER TABLE document ADD COLUMN content_deleted_at TIMESTAMPTZ;
+ALTER TABLE document ADD COLUMN IF NOT EXISTS content_deleted_at TIMESTAMPTZ;
