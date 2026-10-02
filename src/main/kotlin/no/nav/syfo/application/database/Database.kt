@@ -33,6 +33,7 @@ class Database(private val config: DatabaseConfig) : DatabaseInterface {
     }
 
     private fun runFlywayMigrations() = Flyway.configure().run {
+        configuration(mapOf("flyway.postgresql.transactional.lock" to "false"))
         dataSource(
             config.jdbcUrl,
             config.username,
