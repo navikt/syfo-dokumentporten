@@ -29,6 +29,83 @@ This lets external organizations consume the dialogs and retrieve documents pert
 
 It requires authentication with a [Maskinporten token for a systemuser](https://samarbeid.digdir.no/altinn/systembruker/2542) for organizations to retrieve the documents.
 
+## Document retention and cleanup
+
+PDF content is retained for four **calendar months from storage**, using the persisted
+`document.created` date in **UTC**, not the publication date. The document remains available
+through that date plus four months; attachment `expiresAt` is midnight UTC on the following
+day. For example, a document stored on `2026-06-01T10:00:00Z` expires on
+`2026-10-02T00:00:00Z`: cleanup must not delete it on October 1. Calendar arithmetic clamps
+short months: February 28, 2026 expires June 29, and October 31, 2025 expires March 1, 2026.
+
+The shared `DocumentRetention` policy calculates both attachment expiry and the inverse
+cleanup cutoff. The database predicate stays `created < cutoff AND content_deleted_at IS NULL`,
+using the existing partial index on `(created, id)`. New-dialog and existing-dialog
+transmissions use the same storage-based expiry; delayed publication and retries never extend it.
+**Already-published remote Dialogporten expiry metadata is not rewritten by this change.**
+Its links may therefore show a legacy expiry later than the actual local availability.
+
+When `ENABLE_DOCUMENT_CLEANUP_JOB=true`, every replica runs cleanup immediately at startup,
+then repeats after an hourly delay following each run. Each batch has at most **500 documents**;
+a run stops at **1000 nonempty batches**, with a **100 ms delay** between full batches.
+The transaction-scoped PostgreSQL advisory lock serializes **batches, not entire runs**.
+A contending replica ends its run without waiting; row selection uses `FOR UPDATE SKIP LOCKED`.
+The next scheduled run can continue a backlog, including rows skipped while locked.
+
+Each batch atomically deletes `document_content`, soft-deletes the document using
+`delete_performed` (preserving an existing timestamp), and sets `content_deleted_at`.
+Missing content is tolerated and marked cleaned so it does not remain in the working set.
+Document metadata remains stored, but soft-deleted documents are no longer returned by
+normal document listings and authorized content/details requests return a controlled 404.
+Authorization is still checked before reporting that a document is unavailable.
+Logs and metrics report aggregate cutoff/batch/count/failure information, not PDF content
+or person identifiers.
+
+### Operations and failed V18 migration recovery
+
+Deletion is irreversible through the cleanup feature. As an emergency stop, set
+`ENABLE_DOCUMENT_CLEANUP_JOB=false` and redeploy all replicas. This stops future cleanup on
+the replacement replicas; it does not restore content or undo already committed batches.
+Old replicas may continue until stopped. Production disk, WAL and autovacuum capacity under
+cleanup load has **not been verified** by the local regression tests; monitor capacity and
+cleanup duration, failures, lock contention and capped runs during rollout.
+
+V17 adds `content_deleted_at`; V18 recreates `idx_document_cleanup_pending` concurrently.
+These migrations are already applied in dev and must not be edited. An interrupted
+concurrent index build can leave an invalid index. A failed non-transactional V18 can also
+leave a `success=false` entry in `flyway_schema_history`: even after removing the underlying
+obstruction, the next migration attempt fails validation before V18 executes.
+
+Recovery is a **manual, approved, environment- and schema-scoped operation**, never automatic
+production repair:
+
+1. Confirm the correct environment, database, schema, application artifact and migration
+   locations using the approved operational access path. Coordinate replicas/migration
+   runners so only the approved recovery runs. Do not retrieve documents or copy sensitive
+   connection details, rows or logs into tickets or ordinary logs.
+2. Inspect the intended schema's `flyway_schema_history` for version 18, success status and
+   checksums. Inspect `pg_class`/`pg_namespace` and `pg_index` for the schema-qualified
+   `idx_document_cleanup_pending`: object type, owning table, `indisvalid`, `indisready`,
+   indexed columns `(created, id)` and predicate `content_deleted_at IS NULL`.
+3. Identify and correct the actual failure. Remove an invalid index or conflicting
+   non-index object only with approval and after confirming its ownership and impact.
+   Use the verified schema-qualified name and the appropriate approved operation
+   (`DROP INDEX CONCURRENTLY` must be outside a transaction). Do not drop a valid unrelated
+   object merely because its name conflicts.
+4. If a failed history entry remains, run explicit `Flyway.repair()` scoped to that same
+   database/schema/history table with the **same approved migration artifacts, locations
+   and configuration**. Review the repair's intended changes first: repair can affect
+   history beyond V18. Do not delete migration-history rows manually, accept unexplained
+   checksum changes, run broad repairs, or use repair as a substitute for fixing the cause.
+5. Run migrate with the same configuration, or redeploy the approved artifact to run
+   startup migrations. Verify successful V18 history and a valid, ready index on the
+   correct table with the expected columns and partial predicate before resuming rollout.
+
+`DocumentCleanupIndexMigrationTest` exercises both invalid-index recreation and a real
+failed V18, validation rejection after removing the obstruction, explicit scoped repair,
+and successful migration in an isolated test schema. This is recovery evidence, not proof
+of production capacity or authorization to perform a production repair.
+
 
 ## Request flow from LPS perspective
 ```mermaid

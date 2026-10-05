@@ -22,6 +22,7 @@ import no.nav.syfo.altinn.dialogporten.domain.ExtendedDialog
 import no.nav.syfo.altinn.dialogporten.domain.Transmission
 import no.nav.syfo.altinn.dialogporten.domain.Url
 import no.nav.syfo.altinn.dialogporten.domain.create
+import no.nav.syfo.document.DocumentRetention
 import no.nav.syfo.document.api.v1.generateDialogTitle
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentDAO
@@ -33,8 +34,6 @@ import no.nav.syfo.pdl.PdlService
 import no.nav.syfo.util.logger
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZoneId
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -171,7 +170,7 @@ class DialogportenService(
         return "${document.type.displayName}.$fileType"
     }
 
-    private fun DocumentEntity.toDialogWithTransmission(transmissionId: UUID): Dialog = Dialog(
+    private fun PersistedDocumentEntity.toDialogWithTransmission(transmissionId: UUID): Dialog = Dialog(
         serviceResource = "urn:altinn:resource:$DIALOG_RESSURS",
         party = "urn:altinn:organization:identifier-no:${dialog.orgNumber}",
         externalReference = "syfo-dokumentporten",
@@ -185,7 +184,7 @@ class DialogportenService(
         )
     )
 
-    private fun DocumentEntity.toTransmission(transmissionId: UUID): Transmission = Transmission(
+    private fun PersistedDocumentEntity.toTransmission(transmissionId: UUID): Transmission = Transmission(
         id = transmissionId,
         content = Content.create(
             title = title,
@@ -215,17 +214,10 @@ class DialogportenService(
                         consumerType = AttachmentUrlConsumerType.Gui,
                     ),
                 ),
-                expiresAt = instantStartOfFollowingDay4MonthsAhead()
+                expiresAt = DocumentRetention.expiresAt(created)
             ),
         ),
     )
-
-    private fun instantStartOfFollowingDay4MonthsAhead(): Instant = LocalDate.now()
-        .plusMonths(4)
-        .plusDays(1)
-        .atTime(LocalTime.MIN)
-        .atZone(ZoneId.systemDefault())
-        .toInstant()
 
     suspend fun updateApiOnlyForDialog() {
         do {

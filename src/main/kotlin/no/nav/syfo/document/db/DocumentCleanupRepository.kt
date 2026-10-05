@@ -2,103 +2,95 @@ package no.nav.syfo.document.db
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import no.nav.syfo.application.database.DatabaseInterface
-import java.sql.Timestamp
+import org.jetbrains.exposed.v1.core.Coalesce
+import org.jetbrains.exposed.v1.core.IntegerColumnType
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.statements.StatementType
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
+import org.jetbrains.exposed.v1.javatime.CurrentTimestampWithTimeZone
+import org.jetbrains.exposed.v1.javatime.timestampWithTimeZone
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.jetbrains.exposed.v1.jdbc.update
 import java.time.Instant
+import java.time.ZoneOffset
 
 internal const val DOCUMENT_CLEANUP_ADVISORY_LOCK_NAMESPACE = 2_140_101_321
 internal const val DOCUMENT_CLEANUP_ADVISORY_LOCK_KEY = 1
 
-class DocumentCleanupRepository(private val database: DatabaseInterface) {
+class DocumentCleanupRepository(private val database: Database) {
     suspend fun cleanupExpiredDocuments(cutoff: Instant, batchSize: Int): DocumentCleanupBatchResult {
         require(batchSize > 0) { "Batch size must be greater than zero" }
 
         return withContext(Dispatchers.IO) {
-            database.connection.use { connection ->
-                try {
-                    if (!connection.tryAcquireCleanupLock()) {
-                        connection.commit()
-                        return@use DocumentCleanupBatchResult.LockContended
-                    }
-
-                    val expiredIds = connection.selectExpiredDocumentIds(cutoff, batchSize)
-                    if (expiredIds.isEmpty()) {
-                        connection.commit()
-                        return@use DocumentCleanupBatchResult.Completed(
-                            processedCount = 0,
-                            deletedContentCount = 0,
-                        )
-                    }
-
-                    val idArray = connection.createArrayOf("bigint", expiredIds.toTypedArray())
-                    try {
-                        val deletedContentCount = connection.prepareStatement(
-                            """
-                            DELETE FROM document_content
-                            WHERE id = ANY(?)
-                            """.trimIndent()
-                        ).use { preparedStatement ->
-                            preparedStatement.setArray(1, idArray)
-                            preparedStatement.executeUpdate()
-                        }
-                        val processedCount = connection.prepareStatement(
-                            """
-                            UPDATE document
-                            SET delete_performed = COALESCE(delete_performed, CURRENT_TIMESTAMP),
-                                content_deleted_at = CURRENT_TIMESTAMP
-                            WHERE id = ANY(?)
-                            """.trimIndent()
-                        ).use { preparedStatement ->
-                            preparedStatement.setArray(1, idArray)
-                            preparedStatement.executeUpdate()
-                        }
-
-                        connection.commit()
-                        DocumentCleanupBatchResult.Completed(processedCount, deletedContentCount)
-                    } finally {
-                        idArray.free()
-                    }
-                } catch (ex: Exception) {
-                    runCatching { connection.rollback() }.onFailure(ex::addSuppressed)
-                    throw ex
+            suspendTransaction(db = database) {
+                // Preserve one attempt per batch; the hourly loop handles failures on a later run.
+                maxAttempts = 1
+                if (!tryAcquireCleanupLock()) {
+                    return@suspendTransaction DocumentCleanupBatchResult.LockContended
                 }
+
+                val expiredIds = DocumentForCleanupTable
+                    .select(DocumentForCleanupTable.id)
+                    .where {
+                        DocumentForCleanupTable.contentDeletedAt.isNull() and
+                            (DocumentForCleanupTable.created less cutoff.atOffset(ZoneOffset.UTC))
+                    }
+                    .orderBy(
+                        DocumentForCleanupTable.created to SortOrder.ASC,
+                        DocumentForCleanupTable.id to SortOrder.ASC,
+                    )
+                    .limit(batchSize)
+                    .forUpdate(ForUpdateOption.PostgreSQL.ForUpdate(ForUpdateOption.PostgreSQL.MODE.SKIP_LOCKED))
+                    .map { it[DocumentForCleanupTable.id] }
+                if (expiredIds.isEmpty()) {
+                    return@suspendTransaction DocumentCleanupBatchResult.Completed(0, 0)
+                }
+
+                val deletedContentCount = DocumentContentForCleanupTable.deleteWhere {
+                    id inList expiredIds
+                }
+                val processedCount = DocumentForCleanupTable.update({ DocumentForCleanupTable.id inList expiredIds }) {
+                    it[deletePerformed] = Coalesce(deletePerformed, CurrentTimestampWithTimeZone)
+                    it[contentDeletedAt] = CurrentTimestampWithTimeZone
+                }
+                DocumentCleanupBatchResult.Completed(processedCount, deletedContentCount)
             }
         }
     }
 
-    private fun java.sql.Connection.tryAcquireCleanupLock(): Boolean = prepareStatement(
-        "SELECT pg_try_advisory_xact_lock(?, ?)"
-    ).use { preparedStatement ->
-        preparedStatement.setInt(1, DOCUMENT_CLEANUP_ADVISORY_LOCK_NAMESPACE)
-        preparedStatement.setInt(2, DOCUMENT_CLEANUP_ADVISORY_LOCK_KEY)
-        preparedStatement.executeQuery().use { resultSet ->
+    private fun JdbcTransaction.tryAcquireCleanupLock(): Boolean = checkNotNull(
+        exec(
+            stmt = "SELECT pg_try_advisory_xact_lock(?, ?)",
+            args = listOf(
+                IntegerColumnType() to DOCUMENT_CLEANUP_ADVISORY_LOCK_NAMESPACE,
+                IntegerColumnType() to DOCUMENT_CLEANUP_ADVISORY_LOCK_KEY,
+            ),
+            explicitStatementType = StatementType.SELECT,
+        ) { resultSet ->
             check(resultSet.next())
             resultSet.getBoolean(1)
         }
-    }
+    )
+}
 
-    private fun java.sql.Connection.selectExpiredDocumentIds(cutoff: Instant, batchSize: Int): List<Long> =
-        prepareStatement(
-            """
-            SELECT id
-            FROM document
-            WHERE content_deleted_at IS NULL
-              AND created < ?
-            ORDER BY created, id
-            LIMIT ?
-            FOR UPDATE SKIP LOCKED
-            """.trimIndent()
-        ).use { preparedStatement ->
-            preparedStatement.setTimestamp(1, Timestamp.from(cutoff))
-            preparedStatement.setInt(2, batchSize)
-            preparedStatement.executeQuery().use { resultSet ->
-                buildList {
-                    while (resultSet.next()) {
-                        add(resultSet.getLong("id"))
-                    }
-                }
-            }
-        }
+private object DocumentForCleanupTable : Table("document") {
+    val id = long("id")
+    val created = timestampWithTimeZone("created")
+    val deletePerformed = timestampWithTimeZone("delete_performed").nullable()
+    val contentDeletedAt = timestampWithTimeZone("content_deleted_at").nullable()
+}
+
+private object DocumentContentForCleanupTable : Table("document_content") {
+    val id = long("id")
 }
 
 sealed interface DocumentCleanupBatchResult {

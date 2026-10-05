@@ -2,20 +2,18 @@ package no.nav.syfo.document.service
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import no.nav.syfo.document.DocumentRetention
 import no.nav.syfo.document.db.DocumentCleanupBatchResult
 import no.nav.syfo.document.db.DocumentCleanupRepository
 import no.nav.syfo.util.logger
 import java.time.Clock
 import java.time.Instant
-import java.time.ZoneOffset
-import java.time.ZonedDateTime
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 const val DOCUMENT_CLEANUP_BATCH_SIZE = 500
 const val DOCUMENT_CLEANUP_MAX_BATCHES_PER_RUN = 1000
 val DOCUMENT_CLEANUP_BATCH_DELAY = 100.milliseconds
-private const val RETENTION_MONTHS = 4L
 
 class DocumentCleanupWorker(
     private val documentCleanupRepository: DocumentCleanupRepository,
@@ -32,9 +30,7 @@ class DocumentCleanupWorker(
     }
 
     suspend fun runOnce(): DocumentCleanupRunResult {
-        val cutoff = ZonedDateTime.now(clock.withZone(ZoneOffset.UTC))
-            .minusMonths(RETENTION_MONTHS)
-            .toInstant()
+        val cutoff = DocumentRetention.cleanupCutoff(clock.instant())
         var batchCount = 0
         var processedCount = 0
         var deletedContentCount = 0

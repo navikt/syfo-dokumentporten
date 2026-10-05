@@ -17,7 +17,7 @@ class DocumentCleanupWorkerTest :
         it("uses four calendar months in UTC and processes all bounded batches") {
             val documentCleanupRepository = mockk<DocumentCleanupRepository>()
             val now = Instant.parse("2026-06-30T12:00:00Z")
-            val expectedCutoff = Instant.parse("2026-02-28T12:00:00Z")
+            val expectedCutoff = Instant.parse("2026-03-01T00:00:00Z")
             coEvery {
                 documentCleanupRepository.cleanupExpiredDocuments(expectedCutoff, DOCUMENT_CLEANUP_BATCH_SIZE)
             } returnsMany listOf(
@@ -48,7 +48,7 @@ class DocumentCleanupWorkerTest :
         it("marks an exact full batch cap as hit because backlog may remain") {
             val documentCleanupRepository = mockk<DocumentCleanupRepository>()
             val now = Instant.parse("2026-06-30T12:00:00Z")
-            val expectedCutoff = Instant.parse("2026-02-28T12:00:00Z")
+            val expectedCutoff = Instant.parse("2026-03-01T00:00:00Z")
             val cappedRunsBefore = COUNT_DOCUMENT_CLEANUP_RUN_CAPPED.count()
             coEvery {
                 documentCleanupRepository.cleanupExpiredDocuments(expectedCutoff, DOCUMENT_CLEANUP_BATCH_SIZE)
@@ -79,7 +79,7 @@ class DocumentCleanupWorkerTest :
         it("does not report the batch cap when the final batch is partial") {
             val documentCleanupRepository = mockk<DocumentCleanupRepository>()
             val now = Instant.parse("2026-06-30T12:00:00Z")
-            val expectedCutoff = Instant.parse("2026-02-28T12:00:00Z")
+            val expectedCutoff = Instant.parse("2026-03-01T00:00:00Z")
             val cappedRunsBefore = COUNT_DOCUMENT_CLEANUP_RUN_CAPPED.count()
             coEvery {
                 documentCleanupRepository.cleanupExpiredDocuments(expectedCutoff, DOCUMENT_CLEANUP_BATCH_SIZE)
@@ -113,7 +113,7 @@ class DocumentCleanupWorkerTest :
         it("ends safely on lock contention without recording a failed run") {
             val documentCleanupRepository = mockk<DocumentCleanupRepository>()
             val now = Instant.parse("2026-06-30T12:00:00Z")
-            val expectedCutoff = Instant.parse("2026-02-28T12:00:00Z")
+            val expectedCutoff = Instant.parse("2026-03-01T00:00:00Z")
             val contendedRunsBefore = COUNT_DOCUMENT_CLEANUP_LOCK_CONTENDED.count()
             val failedRunsBefore = COUNT_DOCUMENT_CLEANUP_RUN_FAILED.count()
             coEvery {

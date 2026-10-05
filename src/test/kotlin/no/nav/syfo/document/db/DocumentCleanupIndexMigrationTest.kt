@@ -1,10 +1,13 @@
 package no.nav.syfo.document.db
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import no.nav.syfo.TestDB
 import org.flywaydb.core.Flyway
+import org.flywaydb.core.api.FlywayException
+import org.flywaydb.core.api.exception.FlywayValidateException
 import javax.sql.DataSource
 
 private const val MIGRATION_TEST_SCHEMA = "document_cleanup_index_migration_test"
@@ -27,6 +30,36 @@ class DocumentCleanupIndexMigrationTest :
         }
 
         describe("V18 document cleanup pending index") {
+            it("requires explicit scoped repair after an actual failed non-transactional V18 migration") {
+                migrateTo(dataSource, "17").migrationsExecuted shouldBe 17
+                execute(dataSource, "CREATE TABLE $MIGRATION_TEST_SCHEMA.$CLEANUP_INDEX_NAME (id bigint)")
+
+                shouldThrow<FlywayException> { migrateTo(dataSource, "18") }
+                v18HistorySuccess(dataSource) shouldBe listOf(false)
+                cleanupIndexCount(dataSource) shouldBe 0
+
+                execute(dataSource, "DROP TABLE $MIGRATION_TEST_SCHEMA.$CLEANUP_INDEX_NAME")
+                // With the obstruction gone, validation must still stop migration before V18 runs.
+                shouldThrow<FlywayValidateException> { migrateTo(dataSource, "18") }
+                v18HistorySuccess(dataSource) shouldBe listOf(false)
+                cleanupIndexCount(dataSource) shouldBe 0
+
+                flywayTo(dataSource, "18").repair()
+                v18HistorySuccess(dataSource) shouldBe emptyList()
+                val migrationResult = migrateTo(dataSource, "18")
+                migrationResult.success shouldBe true
+                migrationResult.migrationsExecuted shouldBe 1
+                v18HistorySuccess(dataSource) shouldBe listOf(true)
+
+                val recoveredIndex = indexState(dataSource)
+                recoveredIndex.indisvalid shouldBe true
+                recoveredIndex.indisready shouldBe true
+                recoveredIndex.indexSchema shouldBe MIGRATION_TEST_SCHEMA
+                recoveredIndex.tableSchema shouldBe MIGRATION_TEST_SCHEMA
+                recoveredIndex.tableName shouldBe "document"
+                normalizePredicate(recoveredIndex.predicate) shouldBe "content_deleted_at IS NULL"
+            }
+
             it("recreates an invalid index left by an interrupted concurrent build") {
                 val v17Migration = migrateTo(dataSource, "17")
                 v17Migration.success shouldBe true
@@ -64,14 +97,57 @@ private data class IndexState(
     val predicate: String?,
 )
 
-private fun migrateTo(dataSource: DataSource, target: String) = Flyway.configure().run {
+private fun migrateTo(dataSource: DataSource, target: String) = flywayTo(dataSource, target).migrate()
+
+private fun flywayTo(dataSource: DataSource, target: String): Flyway = Flyway.configure().run {
     locations("db")
     defaultSchema(MIGRATION_TEST_SCHEMA)
     schemas(MIGRATION_TEST_SCHEMA)
     target(target)
     configuration(mapOf("flyway.postgresql.transactional.lock" to "false"))
     dataSource(dataSource)
-    load().migrate()
+    load()
+}
+
+private fun v18HistorySuccess(dataSource: DataSource): List<Boolean> = dataSource.connection.use { connection ->
+    try {
+        connection.createStatement().use { statement ->
+            statement.executeQuery(
+                "SELECT success FROM $MIGRATION_TEST_SCHEMA.flyway_schema_history WHERE version = '18'"
+            ).use { resultSet ->
+                buildList {
+                    while (resultSet.next()) {
+                        add(resultSet.getBoolean("success"))
+                    }
+                }
+            }
+        }
+    } finally {
+        connection.rollback()
+    }
+}
+
+private fun cleanupIndexCount(dataSource: DataSource): Int = dataSource.connection.use { connection ->
+    try {
+        connection.prepareStatement(
+            """
+            SELECT count(*)
+            FROM pg_index
+            JOIN pg_class ON pg_class.oid = pg_index.indexrelid
+            JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+            WHERE pg_namespace.nspname = ? AND pg_class.relname = ?
+            """.trimIndent(),
+        ).use { statement ->
+            statement.setString(1, MIGRATION_TEST_SCHEMA)
+            statement.setString(2, CLEANUP_INDEX_NAME)
+            statement.executeQuery().use { resultSet ->
+                check(resultSet.next())
+                resultSet.getInt(1)
+            }
+        }
+    } finally {
+        connection.rollback()
+    }
 }
 
 private fun recreateSchema(dataSource: DataSource) {

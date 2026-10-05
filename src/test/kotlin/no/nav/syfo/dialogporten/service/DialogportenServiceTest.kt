@@ -23,6 +23,7 @@ import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentStatus
 import no.nav.syfo.pdl.PdlPersonInfo
 import no.nav.syfo.pdl.PdlService
+import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
@@ -65,6 +66,49 @@ class DialogportenServiceTest :
         )
 
         describe("sendDocumentsToDialogporten") {
+            it("keeps delayed publication expiry anchored to the persisted storage date") {
+                val storedDocument = documentEntity(
+                    dialogEntity().copy(
+                        dialogportenUUID = null,
+                        birthDate = LocalDate.of(1990, 1, 15),
+                    )
+                ).copy(created = Instant.parse("2026-06-01T10:00:00Z"))
+                val dialogSlot = slot<Dialog>()
+                coEvery { documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED) } returns listOf(storedDocument)
+                coEvery { dialogportenClient.createDialog(capture(dialogSlot)) } returns UUID.randomUUID()
+                coEvery { documentDAO.update(any()) } returns Unit
+
+                dialogportenService.sendDocumentsToDialogporten()
+
+                dialogSlot.captured.transmissions.single().attachments.single().expiresAt shouldBe
+                    Instant.parse("2026-10-02T00:00:00Z")
+            }
+
+            it("keeps existing-dialog attachment expiry unchanged across a failed publication and retry") {
+                val storedDocument = documentEntity(
+                    dialogEntity().copy(
+                        dialogportenUUID = UUID.randomUUID(),
+                        birthDate = LocalDate.of(1990, 1, 15),
+                    )
+                ).copy(created = Instant.parse("2025-10-31T23:59:59Z"))
+                val transmissions = mutableListOf<Transmission>()
+                coEvery { documentDAO.getDocumentsByStatus(DocumentStatus.RECEIVED) } returns listOf(storedDocument)
+                coEvery { dialogportenClient.addTransmission(capture(transmissions), any()) } answers {
+                    if (transmissions.size == 1) {
+                        throw RuntimeException("Expected retryable test failure")
+                    }
+                    UUID.randomUUID()
+                }
+                coEvery { documentDAO.update(any()) } returns Unit
+
+                dialogportenService.sendDocumentsToDialogporten()
+                dialogportenService.sendDocumentsToDialogporten()
+
+                transmissions.map { it.attachments.single().expiresAt } shouldBe
+                    listOf(Instant.parse("2026-03-01T00:00:00Z"), Instant.parse("2026-03-01T00:00:00Z"))
+                coVerify(exactly = 1) { documentDAO.update(any()) }
+            }
+
             context("when there are no documents to send") {
                 it("should not call dialogporten client") {
                     // Arrange

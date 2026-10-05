@@ -6,6 +6,8 @@ import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import no.nav.syfo.TestDB
+import no.nav.syfo.document.DocumentRetention
+import java.sql.Connection
 import java.sql.Timestamp
 import java.time.Instant
 
@@ -13,7 +15,7 @@ class DocumentCleanupDbTest :
     DescribeSpec({
         val database = TestDB.database
         val documentDAO = DocumentDAO(database)
-        val documentCleanupRepository = DocumentCleanupRepository(database)
+        val documentCleanupRepository = DocumentCleanupRepository(TestDB.exposedDatabase)
         val documentContentDAO = DocumentContentDAO(database)
         val dialogDAO = DialogDAO(database)
 
@@ -66,6 +68,17 @@ class DocumentCleanupDbTest :
             }
         }
 
+        fun tryAcquireCleanupLock(connection: Connection): Boolean = connection.prepareStatement(
+            "SELECT pg_try_advisory_xact_lock(?, ?)"
+        ).use { statement ->
+            statement.setInt(1, DOCUMENT_CLEANUP_ADVISORY_LOCK_NAMESPACE)
+            statement.setInt(2, DOCUMENT_CLEANUP_ADVISORY_LOCK_KEY)
+            statement.executeQuery().use { resultSet ->
+                check(resultSet.next())
+                resultSet.getBoolean(1)
+            }
+        }
+
         beforeTest {
             TestDB.clearAllData()
         }
@@ -85,6 +98,41 @@ class DocumentCleanupDbTest :
             documentContentDAO.getDocumentContentById(boundaryDocument.id) shouldNotBe null
             documentDAO.getById(recentDocument.id)?.deletePerformed shouldBe null
             documentContentDAO.getDocumentContentById(recentDocument.id) shouldNotBe null
+        }
+
+        it("does not delete the June 1 document on October 1 but deletes it at October 2 midnight") {
+            val document = insertDocument(Instant.parse("2026-06-01T10:00:00Z"))
+
+            documentCleanupRepository.cleanupExpiredDocuments(
+                DocumentRetention.cleanupCutoff(Instant.parse("2026-10-01T23:59:59.999999999Z")),
+                500,
+            ) shouldBe DocumentCleanupBatchResult.Completed(0, 0)
+            documentContentDAO.getDocumentContentById(document.id) shouldNotBe null
+            contentDeletedAt(document.id) shouldBe null
+
+            documentCleanupRepository.cleanupExpiredDocuments(
+                DocumentRetention.cleanupCutoff(Instant.parse("2026-10-02T00:00:00Z")),
+                500,
+            ) shouldBe DocumentCleanupBatchResult.Completed(1, 1)
+            documentContentDAO.getDocumentContentById(document.id) shouldBe null
+            documentDAO.getById(document.id)?.deletePerformed shouldNotBe null
+            contentDeletedAt(document.id) shouldNotBe null
+        }
+
+        it("includes a clamped short-month end only when its attachment expires") {
+            val document = insertDocument(Instant.parse("2026-02-28T23:59:59Z"))
+            val nextDayDocument = insertDocument(Instant.parse("2026-03-01T00:00:00Z"))
+
+            documentCleanupRepository.cleanupExpiredDocuments(
+                DocumentRetention.cleanupCutoff(Instant.parse("2026-06-28T23:59:59Z")),
+                500,
+            ) shouldBe DocumentCleanupBatchResult.Completed(0, 0)
+            documentCleanupRepository.cleanupExpiredDocuments(
+                DocumentRetention.cleanupCutoff(Instant.parse("2026-06-29T00:00:00Z")),
+                500,
+            ) shouldBe DocumentCleanupBatchResult.Completed(1, 1)
+            documentContentDAO.getDocumentContentById(document.id) shouldBe null
+            documentContentDAO.getDocumentContentById(nextDayDocument.id) shouldNotBe null
         }
 
         it("marks documents with missing and existing content as cleaned and drains them from the working set") {
@@ -149,6 +197,32 @@ class DocumentCleanupDbTest :
                 contentDeletedAt(document.id) shouldBe null
                 lockConnection.rollback()
             }
+            documentCleanupRepository.cleanupExpiredDocuments(cutoff, 500) shouldBe
+                DocumentCleanupBatchResult.Completed(1, 1)
+        }
+
+        it("skips row locks without waiting and releases batch locks after commit") {
+            val cutoff = Instant.parse("2026-04-30T12:00:00Z")
+            val lockedDocument = insertDocument(cutoff.minusSeconds(2))
+            val availableDocument = insertDocument(cutoff.minusSeconds(1))
+
+            database.connection.use { lockConnection ->
+                lockConnection.prepareStatement("SELECT id FROM document WHERE id = ? FOR UPDATE").use { statement ->
+                    statement.setLong(1, lockedDocument.id)
+                    statement.executeQuery().use { resultSet -> check(resultSet.next()) }
+                }
+                documentCleanupRepository.cleanupExpiredDocuments(cutoff, 1) shouldBe
+                    DocumentCleanupBatchResult.Completed(1, 1)
+                documentContentDAO.getDocumentContentById(lockedDocument.id) shouldNotBe null
+                documentContentDAO.getDocumentContentById(availableDocument.id) shouldBe null
+                documentCleanupRepository.cleanupExpiredDocuments(cutoff, 1) shouldBe
+                    DocumentCleanupBatchResult.Completed(0, 0)
+                // This connection was held throughout: the probe cannot reuse the batch's session.
+                tryAcquireCleanupLock(lockConnection) shouldBe true
+                lockConnection.rollback()
+            }
+            documentCleanupRepository.cleanupExpiredDocuments(cutoff, 1) shouldBe
+                DocumentCleanupBatchResult.Completed(1, 1)
         }
 
         it("rolls back content deletion when updating the document fails") {
@@ -179,14 +253,19 @@ class DocumentCleanupDbTest :
                     connection.commit()
                 }
 
-                val failure = runCatching {
-                    documentCleanupRepository.cleanupExpiredDocuments(cutoff, 500)
-                }.exceptionOrNull()
+                database.connection.use { lockProbeConnection ->
+                    val failure = runCatching {
+                        documentCleanupRepository.cleanupExpiredDocuments(cutoff, 500)
+                    }.exceptionOrNull()
 
-                failure shouldNotBe null
-                documentDAO.getById(document.id)?.deletePerformed shouldBe null
-                documentContentDAO.getDocumentContentById(document.id) shouldNotBe null
-                contentDeletedAt(document.id) shouldBe null
+                    failure shouldNotBe null
+                    // Independently prove release after rollback, not reentrancy on the batch's session.
+                    tryAcquireCleanupLock(lockProbeConnection) shouldBe true
+                    documentDAO.getById(document.id)?.deletePerformed shouldBe null
+                    documentContentDAO.getDocumentContentById(document.id) shouldNotBe null
+                    contentDeletedAt(document.id) shouldBe null
+                    lockProbeConnection.rollback()
+                }
             } finally {
                 database.connection.use { connection ->
                     connection.createStatement().use { statement ->
@@ -196,5 +275,8 @@ class DocumentCleanupDbTest :
                     connection.commit()
                 }
             }
+            // A failed batch must also release the transaction-scoped advisory and row locks.
+            documentCleanupRepository.cleanupExpiredDocuments(cutoff, 500) shouldBe
+                DocumentCleanupBatchResult.Completed(1, 1)
         }
     })
