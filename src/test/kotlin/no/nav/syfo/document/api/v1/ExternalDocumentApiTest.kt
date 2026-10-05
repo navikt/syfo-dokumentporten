@@ -342,6 +342,31 @@ class ExternalDocumentApiTest :
                     }
                 }
 
+                it("should return structured 404 and not mark the document read when content is missing") {
+                    withTestApplication {
+                        val callerPid = "11223344556"
+                        val document = documentEntity(dialogEntity())
+                        texasClientMock.defaultMocks(
+                            acr = "Level4",
+                            pid = callerPid
+                        )
+                        fakeAltinnTilgangerClient.usersWithAccess.add(callerPid to document.dialog.orgNumber)
+                        coEvery { documentDAO.getByLinkId(eq(document.linkId)) } returns document
+                        coEvery { documentContentDAO.getDocumentContentById(document.id) } returns null
+
+                        val response = client.get("api/v1/documents/${document.linkId}") {
+                            bearerAuth(createMockToken(callerPid, issuer = tokenXIssuer))
+                        }
+
+                        response.status shouldBe HttpStatusCode.NotFound
+                        response.body<ApiError>().apply {
+                            type shouldBe ErrorType.NOT_FOUND
+                            message shouldBe "Document content not found"
+                        }
+                        coVerify(exactly = 0) { documentDAO.update(any()) }
+                    }
+                }
+
                 it("should return 403 Forbidden if token lacks Level4") {
                     withTestApplication {
                         // Arrange
