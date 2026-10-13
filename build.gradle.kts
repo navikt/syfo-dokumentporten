@@ -19,7 +19,7 @@ repositories {
 dependencies {
     constraints {
         implementationWithKtorVersionCheck(
-            dependencyNotation = "io.netty:netty-handler:4.2.18.Final",
+            dependencyNotation = "io.netty:netty-handler:4.2.19.Final",
             expectedKtorVersion = "3.5.2",
         )
     }
