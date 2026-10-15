@@ -1,8 +1,10 @@
 package no.nav.syfo.document.service
 
+import io.ktor.server.plugins.NotFoundException
 import no.nav.syfo.API_V1_PATH
 import no.nav.syfo.GUI_DOCUMENT_API_PATH
 import no.nav.syfo.application.exception.ApiErrorException
+import no.nav.syfo.document.api.v1.COUNT_DOCUMENT_DELETED
 import no.nav.syfo.document.api.v1.COUNT_DOCUMENT_RECIEVED
 import no.nav.syfo.document.api.v1.COUNT_VARSEL_INSTRUKS_RECEIVED
 import no.nav.syfo.document.api.v1.dto.Document
@@ -11,14 +13,17 @@ import no.nav.syfo.document.api.v1.dto.trimmed
 import no.nav.syfo.document.api.v1.dto.validate
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.DocumentInsertException
+import no.nav.syfo.document.db.exposed.DocumentRepository
 import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import no.nav.syfo.util.logger
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import java.sql.Connection
+import java.util.UUID
 
 class DocumentService(
     private val documentDAO: DocumentDAO,
+    private val documentRepository: DocumentRepository,
     private val varselInstruksDAO: VarselInstruksRepository,
     private val dialogService: DialogService,
     private val exposedDatabase: Database,
@@ -74,6 +79,13 @@ class DocumentService(
             COUNT_VARSEL_INSTRUKS_RECEIVED.increment()
         }
         COUNT_DOCUMENT_RECIEVED.increment()
+    }
+
+    suspend fun softDeleteDocument(documentId: UUID) {
+        if (!documentRepository.softDeleteByDocumentId(documentId)) {
+            throw NotFoundException("Document not found")
+        }
+        COUNT_DOCUMENT_DELETED.increment()
     }
 
     private fun createGuiDocumentLink(linkId: String): String =

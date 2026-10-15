@@ -30,6 +30,7 @@ import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentCleanupRepository
 import no.nav.syfo.document.db.DocumentContentDAO
 import no.nav.syfo.document.db.DocumentDAO
+import no.nav.syfo.document.db.exposed.DocumentRepository
 import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import no.nav.syfo.document.service.DialogService
 import no.nav.syfo.document.service.DocumentCleanupWorker
@@ -103,6 +104,7 @@ private fun databaseModule() = module {
     }
     single { Database.connect(get<DatabaseInterface>().dataSource) }
     single { VarselInstruksRepository(get(), env().varselPublishPendingGracePeriod) }
+    single { DocumentRepository(get()) }
     single { DocumentDAO(get()) }
     single { DocumentCleanupRepository(get<Database>()) }
     single { DialogDAO(get()) }
@@ -208,6 +210,7 @@ private fun servicesModule() = module {
     single {
         DocumentService(
             documentDAO = get(),
+            documentRepository = get(),
             varselInstruksDAO = get(),
             dialogService = get(),
             exposedDatabase = get(),

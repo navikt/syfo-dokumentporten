@@ -10,6 +10,7 @@ import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
 import kotlinx.coroutines.test.runTest
 import no.nav.syfo.TestDB
+import no.nav.syfo.document.db.exposed.DocumentRepository
 import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import varselInstruks
@@ -178,6 +179,34 @@ class VarselInstruksDAOTest :
                     }
 
                     val pending = varselInstruksDAO.getPendingForPublish(limit = 10)
+
+                    pending shouldBe emptyList()
+                }
+            }
+
+            it("should not return varsel instruks for soft-deleted documents as pending for publish") {
+                runTest {
+                    val dialog = dialogDAO.insertDialog(dialogEntity())
+                    val doc = suspendTransaction(db = exposedDb) {
+                        val doc = documentDAO.insert(
+                            connection.connection as Connection,
+                            document(varselInstruks = varselInstruks()).toDocumentEntity(dialog),
+                            "test".toByteArray(),
+                        )
+                        varselInstruksDAO.insert(
+                            doc.id,
+                            doc.type.altinnResource!!,
+                            "https://test.nav.no/api/v1/gui/documents/${doc.linkId}",
+                            varselInstruks(),
+                        )
+                        doc
+                    }
+                    DocumentRepository(exposedDb).softDeleteByDocumentId(doc.documentId)
+
+                    val pending = varselInstruksDAO.getPendingForPublish(
+                        limit = 10,
+                        pendingBefore = Instant.now().plusSeconds(1),
+                    )
 
                     pending shouldBe emptyList()
                 }

@@ -2,8 +2,10 @@ package no.nav.syfo.document.service
 
 import dialogEntity
 import document
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
+import io.ktor.server.plugins.NotFoundException
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -13,8 +15,10 @@ import no.nav.syfo.TestDB
 import no.nav.syfo.document.db.DialogDAO
 import no.nav.syfo.document.db.DocumentDAO
 import no.nav.syfo.document.db.VarselInstruksStatus
+import no.nav.syfo.document.db.exposed.DocumentRepository
 import no.nav.syfo.document.db.exposed.VarselInstruksRepository
 import varselInstruks
+import java.util.UUID
 
 class DocumentServiceTest :
     DescribeSpec({
@@ -26,6 +30,7 @@ class DocumentServiceTest :
         val dialogService = mockk<DialogService>()
         val documentService = DocumentService(
             documentDAO = documentDAO,
+            documentRepository = DocumentRepository(exposedDb),
             varselInstruksDAO = varselInstruksDAO,
             dialogService = dialogService,
             exposedDatabase = exposedDb,
@@ -74,6 +79,16 @@ class DocumentServiceTest :
                             incomingDocument.fnr,
                             incomingDocument.orgNumber,
                         )
+                    }
+                }
+            }
+        }
+
+        describe("softDeleteDocument") {
+            it("should throw NotFoundException when no document has the given document id") {
+                runTest {
+                    shouldThrow<NotFoundException> {
+                        documentService.softDeleteDocument(UUID.randomUUID())
                     }
                 }
             }
