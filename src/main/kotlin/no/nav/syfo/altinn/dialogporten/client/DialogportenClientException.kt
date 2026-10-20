@@ -1,3 +1,5 @@
 package no.nav.syfo.altinn.dialogporten.client
 
-class DialogportenClientException(message: String,) : Exception(message)
+import io.ktor.http.HttpStatusCode
+
+class DialogportenClientException(message: String, val status: HttpStatusCode? = null,) : Exception(message)
