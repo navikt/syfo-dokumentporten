@@ -15,6 +15,33 @@ repositories {
     mavenCentral()
 }
 dependencies {
+    // Temporary security floors for transitive dependencies; remove when ktor, swagger-codegen
+    // and logstash-logback-encoder request patched versions.
+    implementation(platform(libs.jackson.bom))
+    implementation(platform(libs.tools.jackson.bom))
+
+    constraints {
+        // The BOM platforms above already resolve patched versions, but GitHub's dependency graph
+        // reports the requested transitive versions and ignores platform() constraints, so the
+        // Dependabot alerts stay open without these explicit floors.
+        //
+        // jackson-databind 2.22.2 comes in via ktor-serialization-jackson / ktor-bom;
+        // no patched ktor release exists yet. Same approach as navikt/syfo-budstikka#345.
+        implementation(libs.jackson.databind) {
+            because("CVE-2026-91776 (GHSA-wv8q-qhhj-9h54)")
+        }
+        // tools.jackson.core:jackson-core 3.0.1 comes in via logstash-logback-encoder -> tools.jackson:jackson-bom;
+        // no patched encoder release exists yet.
+        implementation(libs.tools.jackson.core) {
+            because("GHSA-2m67-wjpj-xhg9")
+        }
+        // handlebars 4.3.1 comes in via ktor-server-openapi -> swagger-codegen;
+        // no patched swagger-codegen/ktor release exists yet.
+        implementation(libs.handlebars) {
+            because("CVE-2026-55760 (GHSA-r4gv-qr8j-p3pg)")
+        }
+    }
+
     implementation(libs.datafaker)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
