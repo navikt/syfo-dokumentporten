@@ -4,6 +4,9 @@ datafaker= "2.7.0"
 exposed = "1.6.0"
 flyway="13.10.3"
 hikaricp = "7.1.0"
+jacksonBom = "2.22.4"
+toolsJacksonBom = "3.2.4"
+handlebars = "4.5.7"
 jackson-datatype-jsr = "2.20.1"
 kafka = "4.4.0"
 koin="4.2.2"
@@ -52,6 +55,11 @@ testcontainers-postgres = { module = "org.testcontainers:postgresql", version.re
 logstash = {module = "net.logstash.logback:logstash-logback-encoder",  version.ref = "logstashEncoder"}
 fasterxml-uuid = { module = "com.fasterxml.uuid:java-uuid-generator", version.ref = "fasterxml-uuid" }
 valkey-java = { module = "io.valkey:valkey-java", version.ref = "valkey-version" }
+jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jacksonBom" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jacksonBom" }
+tools-jackson-bom = { module = "tools.jackson:jackson-bom", version.ref = "toolsJacksonBom" }
+tools-jackson-core = { module = "tools.jackson.core:jackson-core", version.ref = "toolsJacksonBom" }
+handlebars = { module = "com.github.jknack:handlebars", version.ref = "handlebars" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin-version" }
