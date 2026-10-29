@@ -40,6 +40,11 @@ dependencies {
         implementation(libs.handlebars) {
             because("CVE-2026-55760 (GHSA-r4gv-qr8j-p3pg)")
         }
+        // Guava 33.6.0-jre comes in via jwks-rsa (ktor-server-auth-jwt) and
+        // swagger-parser/json-schema-validator (ktor-server-openapi).
+        implementation(libs.guava) {
+            because("CVE-2026-102554")
+        }
     }
 
     implementation(libs.datafaker)
