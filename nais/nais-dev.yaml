@@ -117,7 +117,7 @@ spec:
         - application: arbeidsgiver-altinn-tilganger
           namespace: fager
       external:
-        - host: "ereg-services-q1.dev-fss-pub.nais.io"
+        - host: "ereg-services-q2.dev-fss-pub.nais.io"
         - host: "platform.tt02.altinn.no"
         - host: "pdl-api.dev-fss-pub.nais.io"
   valkey:
@@ -125,7 +125,7 @@ spec:
       access: readwrite
   env:
     - name: EREG_BASE_URL
-      value: "https://ereg-services-q1.dev-fss-pub.nais.io"
+      value: "https://ereg-services-q2.dev-fss-pub.nais.io"
     - name: ESYFOVARSEL_TOPIC
       value: "team-esyfo.varselbus"
     - name: ALTINN_TILGANGER_BASE_URL
