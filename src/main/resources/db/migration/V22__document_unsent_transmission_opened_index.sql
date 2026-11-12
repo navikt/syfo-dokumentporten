@@ -1,4 +1,4 @@
-CREATE INDEX idx_document_unsent_transmission_opened
+CREATE INDEX IF NOT EXISTS idx_document_unsent_transmission_opened
     ON document (gui_opened_at)
     WHERE gui_opened_at IS NOT NULL
         AND transmission_opened_sent_at IS NULL
