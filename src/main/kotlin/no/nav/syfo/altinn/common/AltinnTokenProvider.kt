@@ -85,7 +85,8 @@ class AltinnTokenProvider(
         .replace("\"", "")
 
     companion object {
-        const val DIALOGPORTEN_TARGET_SCOPE = "digdir:dialogporten.serviceprovider"
+        const val DIALOGPORTEN_TARGET_SCOPE =
+            "digdir:dialogporten.serviceprovider digdir:dialogporten.serviceprovider.changetransmissions"
         const val PDP_TARGET_SCOPE = "altinn:authorization/authorize"
     }
 }
