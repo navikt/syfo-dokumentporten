@@ -138,9 +138,11 @@ class DialogportenClient(
         return dialog
     }
 
-    override suspend fun createActivity(activity: Activity, dialogId: UUID): UUID =
-        runCatching<DialogportenClient, UUID> {
-            val token = altinnTokenProvider.token(AltinnTokenProvider.DIALOGPORTEN_TARGET_SCOPE).accessToken
+    override suspend fun createActivity(activity: Activity, dialogId: UUID): UUID {
+        // Token-chain failures must not carry a status, since the status classifies Dialogporten's response.
+        val token = altinnTokenProvider.token(AltinnTokenProvider.DIALOGPORTEN_TARGET_SCOPE).accessToken
+
+        return runCatching<DialogportenClient, UUID> {
             val response = httpClient
                 .post("$dialogportenUrl/$dialogId/activities") {
                     header(HttpHeaders.ContentType, ContentType.Application.Json)
@@ -161,4 +163,5 @@ class DialogportenClient(
                 (e as? ResponseException)?.response?.status,
             )
         }
+    }
 }

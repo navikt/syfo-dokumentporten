@@ -738,6 +738,39 @@ class DialogportenServiceTest :
                 coVerify(exactly = 0) { documentDAO.persistSettingTransmissionOpenedFailed(any(), any()) }
             }
 
+            it("retries request, auth and token-chain failures instead of marking them permanently failed") {
+                val transmissionId = UUID.randomUUID()
+                val claimToken = UUID.randomUUID()
+                val document = documentEntity(dialogEntity()).copy(
+                    transmissionId = transmissionId,
+                    guiOpenedAt = Instant.now(),
+                )
+                coEvery {
+                    documentDAO.claimDocumentsWithUnsentTransmissionOpenedActivities(any(), any())
+                } returns listOf(claimed(document, claimToken))
+                coEvery {
+                    dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
+                } throws DialogportenClientException(
+                    "Bad request",
+                    HttpStatusCode.BadRequest,
+                ) andThenThrows DialogportenClientException(
+                    "Unauthorized",
+                    HttpStatusCode.Unauthorized,
+                ) andThenThrows DialogportenClientException(
+                    "Forbidden",
+                    HttpStatusCode.Forbidden,
+                ) andThenThrows IllegalStateException("Token exchange failed") andThen transmissionId
+                coEvery { documentDAO.setTransmissionOpenedInDialogporten(document.id, claimToken) } returns true
+
+                repeat(5) { dialogportenService.sendTransmissionOpenedActivities() }
+
+                coVerify(exactly = 5) {
+                    dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
+                }
+                coVerify(exactly = 1) { documentDAO.setTransmissionOpenedInDialogporten(document.id, claimToken) }
+                coVerify(exactly = 0) { documentDAO.persistSettingTransmissionOpenedFailed(any(), any()) }
+            }
+
             it("marks a duplicate activity as sent") {
                 val transmissionId = UUID.randomUUID()
                 val claimToken = UUID.randomUUID()
@@ -771,7 +804,7 @@ class DialogportenServiceTest :
                 } returns listOf(claimed(document, claimToken))
                 coEvery {
                     dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
-                } throws DialogportenClientException("Bad request", HttpStatusCode.BadRequest)
+                } throws DialogportenClientException("Not found", HttpStatusCode.NotFound)
                 coEvery { documentDAO.persistSettingTransmissionOpenedFailed(document.id, claimToken) } returns true
                 val permanentlyFailedCountBefore =
                     COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_PERMANENTLY_FAILED.count()
@@ -798,7 +831,7 @@ class DialogportenServiceTest :
                 } returns listOf(claimed(document, claimToken))
                 coEvery {
                     dialogportenClient.createActivity(any(), document.dialog.dialogportenUUID!!)
-                } throws DialogportenClientException("Bad request", HttpStatusCode.BadRequest)
+                } throws DialogportenClientException("Not found", HttpStatusCode.NotFound)
                 coEvery { documentDAO.persistSettingTransmissionOpenedFailed(document.id, claimToken) } returns false
                 val permanentlyFailedCountBefore =
                     COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_PERMANENTLY_FAILED.count()

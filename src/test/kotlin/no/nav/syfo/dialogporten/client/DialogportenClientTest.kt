@@ -4,6 +4,7 @@ import getMockEngine
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldNotBeInstanceOf
 import io.ktor.client.HttpClient
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -15,6 +16,8 @@ import no.nav.syfo.altinn.common.AltinnTokenProvider
 import no.nav.syfo.altinn.dialogporten.client.DialogportenClient
 import no.nav.syfo.altinn.dialogporten.client.DialogportenClientException
 import no.nav.syfo.altinn.dialogporten.domain.Activity
+import no.nav.syfo.texas.client.TexasClient
+import no.nav.syfo.texas.client.TexasResponse
 import no.nav.syfo.util.httpClientDefault
 import no.nav.syfo.util.jacksonMapper
 import java.util.UUID
@@ -100,6 +103,55 @@ class DialogportenClientTest :
                 ),
                 dialogId,
             ) shouldBe activityId
+        }
+
+        it("does not attribute token-chain failures to Dialogporten for activities") {
+            val dialogId = UUID.randomUUID()
+            val transmissionId = UUID.randomUUID()
+            val texasClient = mockk<TexasClient>()
+            coEvery {
+                texasClient.systemToken("maskinporten", AltinnTokenProvider.DIALOGPORTEN_TARGET_SCOPE)
+            } returns TexasResponse(accessToken = "maskinporten-token", expiresIn = 60, tokenType = "Bearer")
+            val altinnTokenProvider = AltinnTokenProvider(
+                texasClient = texasClient,
+                httpClient = httpClientDefault(
+                    HttpClient(
+                        getMockEngine(
+                            path = "/authentication/api/v1/exchange/maskinporten",
+                            headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                            status = HttpStatusCode.Unauthorized,
+                            content = "",
+                        )
+                    )
+                ),
+                altinnBaseUrl = "",
+            )
+            val dialogportenEngine = getMockEngine(
+                path = "/dialogporten/api/v1/serviceowner/dialogs/$dialogId/activities",
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                status = HttpStatusCode.OK,
+                content = "\"${UUID.randomUUID()}\"",
+            )
+            val client = DialogportenClient(
+                baseUrl = "",
+                httpClient = httpClientDefault(HttpClient(dialogportenEngine)),
+                altinnTokenProvider = altinnTokenProvider,
+            )
+
+            val exception = shouldThrow<Exception> {
+                client.createActivity(
+                    Activity(
+                        id = transmissionId,
+                        type = Activity.ActivityType.TransmissionOpened,
+                        transmissionId = transmissionId,
+                        performedBy = Activity.ActivityActor(actorType = Activity.ActorType.ServiceOwner),
+                    ),
+                    dialogId,
+                )
+            }
+
+            exception.shouldNotBeInstanceOf<DialogportenClientException>()
+            dialogportenEngine.requestHistory shouldBe emptyList()
         }
 
         it("serializes ServiceOwner actor type") {

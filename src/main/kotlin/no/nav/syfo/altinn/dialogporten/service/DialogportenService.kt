@@ -437,7 +437,8 @@ class DialogportenService(
         }
     }
 
-    private fun HttpStatusCode?.isPermanentTransmissionOpenedFailure(): Boolean = this != null &&
-        value in 400..499 &&
-        this !in setOf(HttpStatusCode.RequestTimeout, HttpStatusCode.Conflict, HttpStatusCode.TooManyRequests)
+    // Only statuses about the dialog/transmission itself are permanent. 400/401/403 usually stem from
+    // our request, token, scope or delegation and would otherwise fail every claimed document.
+    private fun HttpStatusCode?.isPermanentTransmissionOpenedFailure(): Boolean =
+        this in setOf(HttpStatusCode.NotFound, HttpStatusCode.Gone, HttpStatusCode.UnprocessableEntity)
 }
