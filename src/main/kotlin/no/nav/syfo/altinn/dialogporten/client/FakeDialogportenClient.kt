@@ -1,5 +1,6 @@
 package no.nav.syfo.altinn.dialogporten.client
 
+import no.nav.syfo.altinn.dialogporten.domain.Activity
 import no.nav.syfo.altinn.dialogporten.domain.Dialog
 import no.nav.syfo.altinn.dialogporten.domain.ExtendedDialog
 import no.nav.syfo.altinn.dialogporten.domain.Transmission
@@ -23,4 +24,9 @@ class FakeDialogportenClient : IDialogportenClient {
 
     override suspend fun getDialogById(dialogId: UUID): ExtendedDialog =
         throw UnsupportedOperationException("FakeDialogportenClient does not support getDialogById")
+
+    override suspend fun createActivity(activity: Activity, dialogId: UUID): UUID {
+        logger.info("FakeDialogportenClient: createActivity type=${activity.type} for dialogId=$dialogId")
+        return activity.id
+    }
 }
