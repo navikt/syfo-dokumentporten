@@ -2,7 +2,7 @@
 [versions]
 datafaker= "2.7.0"
 exposed = "1.6.1"
-flyway="13.12.2"
+flyway="13.13.0"
 hikaricp = "7.1.0"
 jacksonBom = "2.23.0"
 toolsJacksonBom = "3.3.0"
