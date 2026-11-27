@@ -3,10 +3,6 @@ package no.nav.syfo.altinn.dialogporten.service
 import com.fasterxml.uuid.Generators
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withTimeoutOrNull
 import no.nav.syfo.API_V1_PATH
 import no.nav.syfo.DOCUMENT_API_PATH
@@ -16,7 +12,6 @@ import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSIONS_CREATED
 import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_FAILED
 import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_PERMANENTLY_FAILED
 import no.nav.syfo.altinn.dialogporten.COUNT_DIALOGPORTEN_TRANSMISSION_OPENED_ACTIVITIES_SENT
-import no.nav.syfo.altinn.dialogporten.client.DialogportenClient
 import no.nav.syfo.altinn.dialogporten.client.DialogportenClientException
 import no.nav.syfo.altinn.dialogporten.client.IDialogportenClient
 import no.nav.syfo.altinn.dialogporten.domain.Activity
@@ -25,7 +20,6 @@ import no.nav.syfo.altinn.dialogporten.domain.AttachmentUrlConsumerType
 import no.nav.syfo.altinn.dialogporten.domain.Content
 import no.nav.syfo.altinn.dialogporten.domain.ContentValueItem
 import no.nav.syfo.altinn.dialogporten.domain.Dialog
-import no.nav.syfo.altinn.dialogporten.domain.ExtendedDialog
 import no.nav.syfo.altinn.dialogporten.domain.Transmission
 import no.nav.syfo.altinn.dialogporten.domain.Url
 import no.nav.syfo.altinn.dialogporten.domain.create
@@ -42,7 +36,6 @@ import no.nav.syfo.util.logger
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
@@ -236,94 +229,6 @@ class DialogportenService(
             ),
         ),
     )
-
-    suspend fun updateApiOnlyForDialog() {
-        do {
-            val dialogsToUpdate =
-                dialogDAO.getDialogCandidatesWithApiOnlyTrue()
-            val batchResult = updateApiOnlyBatch(dialogsToUpdate)
-
-            for (dialogId in batchResult.updatedDialogIds) {
-                dialogDAO.setDialogApiOnlyFalse(dialogId)
-            }
-
-            if (batchResult.failedDialogIds.isNotEmpty() && batchResult.updatedDialogIds.isEmpty()) {
-                logger.warn(
-                    "Processing halted: received only failing dialogs " +
-                        "(${batchResult.failedDialogIds.size}). Aborting..."
-                )
-                break
-            }
-
-            logger.info("Updated ${batchResult.updatedDialogIds.size} dialogs")
-            logger.info("Failed to process ${batchResult.failedDialogIds.size} dialogs")
-            delay(500.milliseconds)
-        } while (dialogsToUpdate.isNotEmpty())
-    }
-
-    private suspend fun updateApiOnlyBatch(dialogIds: List<UUID>): ApiOnlyBatchResult {
-        val dialogUpdateResults = dialogIds
-            .asFlow()
-            .map(::getDialogForApiOnlyUpdate)
-            .map(::patchDialogApiOnly)
-            .toList()
-        val updatedDialogIds = dialogUpdateResults
-            .filterIsInstance<DialogApiOnlyUpdateResult.Updated>()
-            .map { it.dialogId }
-        val failedDialogIds = dialogUpdateResults
-            .filterIsInstance<DialogApiOnlyUpdateResult.Failed>()
-            .map { it.dialogId }
-            .toSet()
-
-        return ApiOnlyBatchResult(
-            updatedDialogIds = updatedDialogIds,
-            failedDialogIds = failedDialogIds,
-        )
-    }
-
-    private suspend fun patchDialogApiOnly(dialogResult: DialogApiOnlyUpdateResult): DialogApiOnlyUpdateResult =
-        when (dialogResult) {
-            is DialogApiOnlyUpdateResult.Failed,
-            is DialogApiOnlyUpdateResult.Updated -> dialogResult
-
-            is DialogApiOnlyUpdateResult.ReadyForPatch -> {
-                try {
-                    if (dialogResult.dialog.isApiOnly) {
-                        dialogportenClient.patchDialog(
-                            dialogResult.dialog.id,
-                            dialogResult.dialog.revision,
-                            patch = listOf(
-                                DialogportenClient.DialogportenPatch(
-                                    DialogportenClient.DialogportenPatch.OPERATION.REPLACE,
-                                    DialogportenClient.DialogportenPatch.PATH.IS_API_ONLY,
-                                    "false"
-                                )
-                            )
-                        )
-                    }
-
-                    DialogApiOnlyUpdateResult.Updated(dialogResult.dialog.id)
-                } catch (_: DialogportenClientException) {
-                    DialogApiOnlyUpdateResult.Failed(dialogResult.dialog.id)
-                }
-            }
-        }
-
-    private suspend fun getDialogForApiOnlyUpdate(dialogId: UUID): DialogApiOnlyUpdateResult = try {
-        DialogApiOnlyUpdateResult.ReadyForPatch(dialogportenClient.getDialogById(dialogId))
-    } catch (_: DialogportenClientException) {
-        DialogApiOnlyUpdateResult.Failed(dialogId)
-    }
-
-    private data class ApiOnlyBatchResult(val updatedDialogIds: List<UUID>, val failedDialogIds: Set<UUID>)
-
-    private sealed interface DialogApiOnlyUpdateResult {
-        data class ReadyForPatch(val dialog: ExtendedDialog) : DialogApiOnlyUpdateResult
-
-        data class Updated(val dialogId: UUID) : DialogApiOnlyUpdateResult
-
-        data class Failed(val dialogId: UUID) : DialogApiOnlyUpdateResult
-    }
 
     private suspend fun markTransmissionOpened(dialogportenDialogId: UUID, transmissionId: UUID) {
         val activity = Activity(

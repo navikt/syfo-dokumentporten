@@ -8,7 +8,6 @@ import no.nav.syfo.altinn.dialogporten.client.FakeDialogportenClient
 import no.nav.syfo.altinn.dialogporten.service.DialogportenService
 import no.nav.syfo.altinn.dialogporten.task.SendDialogTask
 import no.nav.syfo.altinn.dialogporten.task.SendTransmissionOpenedTask
-import no.nav.syfo.altinn.dialogporten.task.UpdateApiOnlyTask
 import no.nav.syfo.altinn.pdp.client.FakePdpClient
 import no.nav.syfo.altinn.pdp.client.PdpClient
 import no.nav.syfo.altinn.pdp.service.PdpService
@@ -223,7 +222,6 @@ private fun servicesModule() = module {
     single { SendDialogTask(get(), get()) }
     single { SendTransmissionOpenedTask(get()) }
     single { PublishVarselTask(get(), get()) }
-    single { UpdateApiOnlyTask(get(), get()) }
     single { DocumentCleanupWorker(get()) }
     single {
         BackgroundLoop(
