@@ -24,6 +24,9 @@ open class DocumentEntity(
     open val dialog: PersistedDialogEntity,
     open val transmissionId: UUID? = null,
     open val deletePerformed: Instant? = null,
+    open val guiOpenedAt: Instant? = null,
+    open val transmissionOpenedSentAt: Instant? = null,
+    open val transmissionOpenedFailedAt: Instant? = null,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -42,6 +45,9 @@ open class DocumentEntity(
         if (dialog != other.dialog) return false
         if (transmissionId != other.transmissionId) return false
         if (deletePerformed != other.deletePerformed) return false
+        if (guiOpenedAt != other.guiOpenedAt) return false
+        if (transmissionOpenedSentAt != other.transmissionOpenedSentAt) return false
+        if (transmissionOpenedFailedAt != other.transmissionOpenedFailedAt) return false
 
         return true
     }
@@ -58,6 +64,9 @@ open class DocumentEntity(
         result = 31 * result + dialog.hashCode()
         result = 31 * result + (transmissionId?.hashCode() ?: 0)
         result = 31 * result + (deletePerformed?.hashCode() ?: 0)
+        result = 31 * result + (guiOpenedAt?.hashCode() ?: 0)
+        result = 31 * result + (transmissionOpenedSentAt?.hashCode() ?: 0)
+        result = 31 * result + (transmissionOpenedFailedAt?.hashCode() ?: 0)
         return result
     }
 }
@@ -75,6 +84,9 @@ data class PersistedDocumentEntity(
     override val dialog: PersistedDialogEntity,
     override val transmissionId: UUID? = null,
     override val deletePerformed: Instant? = null,
+    override val guiOpenedAt: Instant? = null,
+    override val transmissionOpenedSentAt: Instant? = null,
+    override val transmissionOpenedFailedAt: Instant? = null,
     val created: Instant,
     val updated: Instant,
 ) : DocumentEntity(
@@ -89,6 +101,9 @@ data class PersistedDocumentEntity(
     dialog = dialog,
     transmissionId = transmissionId,
     deletePerformed = deletePerformed,
+    guiOpenedAt = guiOpenedAt,
+    transmissionOpenedSentAt = transmissionOpenedSentAt,
+    transmissionOpenedFailedAt = transmissionOpenedFailedAt,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -109,6 +124,9 @@ data class PersistedDocumentEntity(
         if (dialog != other.dialog) return false
         if (transmissionId != other.transmissionId) return false
         if (deletePerformed != other.deletePerformed) return false
+        if (guiOpenedAt != other.guiOpenedAt) return false
+        if (transmissionOpenedSentAt != other.transmissionOpenedSentAt) return false
+        if (transmissionOpenedFailedAt != other.transmissionOpenedFailedAt) return false
         if (created != other.created) return false
         if (updated != other.updated) return false
 
@@ -129,6 +147,9 @@ data class PersistedDocumentEntity(
         result = 31 * result + dialog.hashCode()
         result = 31 * result + (transmissionId?.hashCode() ?: 0)
         result = 31 * result + (deletePerformed?.hashCode() ?: 0)
+        result = 31 * result + (guiOpenedAt?.hashCode() ?: 0)
+        result = 31 * result + (transmissionOpenedSentAt?.hashCode() ?: 0)
+        result = 31 * result + (transmissionOpenedFailedAt?.hashCode() ?: 0)
         result = 31 * result + created.hashCode()
         result = 31 * result + updated.hashCode()
         return result

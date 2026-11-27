@@ -2,40 +2,16 @@ package no.nav.syfo.document.db
 
 import dialogEntity
 import io.kotest.core.spec.style.DescribeSpec
-import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.comparables.shouldBeGreaterThan
 import io.kotest.matchers.equality.shouldBeEqualUsingFields
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import no.nav.syfo.TestDB
-import java.sql.Timestamp
-import java.time.Instant
 
 class DialogDbTest :
     DescribeSpec({
         val testDb = TestDB.database
         val dialogDAO = DialogDAO(testDb)
-
-        fun updateDialogApiOnlyAndCreated(dialogportenUUID: java.util.UUID, apiOnly: Boolean, created: Instant,) {
-            testDb.connection.use { connection ->
-                connection.prepareStatement(
-                    """
-                        UPDATE dialog
-                        SET dialogporten_api_only = ?,
-                            created = ?,
-                            updated = ?
-                        WHERE dialogporten_uuid = ?
-                    """.trimIndent()
-                ).use { preparedStatement ->
-                    preparedStatement.setBoolean(1, apiOnly)
-                    preparedStatement.setTimestamp(2, Timestamp.from(created))
-                    preparedStatement.setTimestamp(3, Timestamp.from(Instant.now()))
-                    preparedStatement.setObject(4, dialogportenUUID)
-                    preparedStatement.executeUpdate()
-                }
-                connection.commit()
-            }
-        }
 
         beforeTest {
             TestDB.clearAllData()

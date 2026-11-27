@@ -1,0 +1,1 @@
+ALTER TABLE document ADD COLUMN IF NOT EXISTS content_deleted_at TIMESTAMPTZ;

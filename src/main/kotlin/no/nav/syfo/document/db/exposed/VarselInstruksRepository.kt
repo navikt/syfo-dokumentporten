@@ -16,7 +16,7 @@ import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.intLiteral
-import org.jetbrains.exposed.v1.core.java.javaUUID
+import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.core.stringLiteral
@@ -75,23 +75,23 @@ class VarselInstruksRepository(
     ) {
         VarselInstruksTable
             .join(
-                otherTable = DocumentForVarselPublishTable,
+                otherTable = DocumentTable,
                 joinType = JoinType.INNER,
                 additionalConstraint = {
-                    VarselInstruksTable.documentId eq DocumentForVarselPublishTable.id
+                    VarselInstruksTable.documentId eq DocumentTable.id
                 },
             )
             .join(
                 otherTable = DialogForVarselPublishTable,
                 joinType = JoinType.INNER,
                 additionalConstraint = {
-                    DocumentForVarselPublishTable.dialogId eq DialogForVarselPublishTable.id
+                    DocumentTable.dialogId eq DialogForVarselPublishTable.id
                 },
             )
             .select(
                 listOf(
                     VarselInstruksTable.id,
-                    DocumentForVarselPublishTable.documentId,
+                    DocumentTable.documentId,
                     DialogForVarselPublishTable.fnr,
                     DialogForVarselPublishTable.orgNumber,
                     VarselInstruksTable.ressursId,
@@ -105,14 +105,15 @@ class VarselInstruksRepository(
             )
             .where {
                 (VarselInstruksTable.status eq VarselInstruksStatus.PENDING.name) and
-                    (VarselInstruksTable.updated less pendingBefore.atOffset(ZoneOffset.UTC))
+                    (VarselInstruksTable.updated less pendingBefore.atOffset(ZoneOffset.UTC)) and
+                    DocumentTable.deletePerformed.isNull()
             }
             .orderBy(VarselInstruksTable.created to SortOrder.ASC)
             .limit(limit)
             .map { row ->
                 VarselInstruksPublishView(
                     id = row[VarselInstruksTable.id],
-                    documentId = row[DocumentForVarselPublishTable.documentId],
+                    documentId = row[DocumentTable.documentId],
                     fnr = row[DialogForVarselPublishTable.fnr],
                     orgNumber = row[DialogForVarselPublishTable.orgNumber],
                     ressursId = row[VarselInstruksTable.ressursId],
@@ -166,12 +167,6 @@ class VarselInstruksRepository(
             it[VarselInstruksTable.lastPublishError] = error
         }.singleOrNull()?.toVarselInstruksErrorView()
     }
-}
-
-private object DocumentForVarselPublishTable : Table("document") {
-    val id = long("id")
-    val documentId = javaUUID("document_id")
-    val dialogId = long("dialog_id")
 }
 
 private object DialogForVarselPublishTable : Table("dialog") {

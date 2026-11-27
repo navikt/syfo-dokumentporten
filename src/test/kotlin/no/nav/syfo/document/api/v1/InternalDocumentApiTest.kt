@@ -13,12 +13,14 @@ import io.kotest.matchers.string.shouldNotContain
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.delete
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.jackson.jackson
+import io.ktor.server.plugins.NotFoundException
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
@@ -38,6 +40,7 @@ import no.nav.syfo.document.service.ValidationService
 import no.nav.syfo.registerApiV1
 import no.nav.syfo.texas.client.TexasClient
 import varselInstruks
+import java.util.UUID
 
 class InternalDocumentApiTest :
     DescribeSpec({
@@ -309,6 +312,60 @@ class InternalDocumentApiTest :
                     coVerify(exactly = 0) {
                         documentDAOMock.insert(any(), any(), any())
                     }
+                }
+            }
+        }
+
+        describe("DELETE /documents/{documentId}") {
+            it("should return 204 No Content when document is soft deleted") {
+                withTestApplication {
+                    texasClientMock.defaultMocks()
+                    val documentId = UUID.randomUUID()
+                    coEvery { documentServiceMock.softDeleteDocument(documentId) } returns Unit
+
+                    val response = client.delete("/internal/api/v1/documents/$documentId") {
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+
+                    response.status shouldBe HttpStatusCode.NoContent
+                    coVerify(exactly = 1) { documentServiceMock.softDeleteDocument(documentId) }
+                }
+            }
+
+            it("should return 404 when document does not exist") {
+                withTestApplication {
+                    texasClientMock.defaultMocks()
+                    val documentId = UUID.randomUUID()
+                    coEvery { documentServiceMock.softDeleteDocument(documentId) } throws
+                        NotFoundException("Document not found")
+
+                    val response = client.delete("/internal/api/v1/documents/$documentId") {
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+
+                    response.status shouldBe HttpStatusCode.NotFound
+                }
+            }
+
+            it("should return 400 when documentId is not a UUID") {
+                withTestApplication {
+                    texasClientMock.defaultMocks()
+
+                    val response = client.delete("/internal/api/v1/documents/not-a-uuid") {
+                        bearerAuth(createMockToken(ident = "", issuer = "https://test.azuread.microsoft.com"))
+                    }
+
+                    response.status shouldBe HttpStatusCode.BadRequest
+                    coVerify(exactly = 0) { documentServiceMock.softDeleteDocument(any()) }
+                }
+            }
+
+            it("should return 401 without bearer token") {
+                withTestApplication {
+                    val response = client.delete("/internal/api/v1/documents/${UUID.randomUUID()}")
+
+                    response.status shouldBe HttpStatusCode.Unauthorized
+                    coVerify(exactly = 0) { documentServiceMock.softDeleteDocument(any()) }
                 }
             }
         }

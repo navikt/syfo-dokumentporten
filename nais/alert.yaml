@@ -18,3 +18,12 @@ spec:
           annotations:
             description: "Varselinstruks har gått til terminal ERROR etter permanente publiseringsfeil eller oppbrukt retry-terskel."
             action: "Undersøk logger for varselpublisering mot esyfovarsel og følg opp varselinstrukser som har stoppet i terminal ERROR."
+        - alert: syfo-dokumentporten-transmission-opened-permanent-failure
+          expr: sum(increase(syfo_dokumentporten_dialogporten_transmission_opened_activities_permanently_failed_total{app="syfo-dokumentporten",namespace="team-esyfo"}[5m])) > 0
+          for: 1m
+          labels:
+            severity: warning
+            namespace: team-esyfo
+          annotations:
+            description: "TransmissionOpened-aktiviteter er permanent avvist av Dialogporten (404/410/422) og blir ikke forsøkt sendt på nytt."
+            action: "Undersøk logger for «Stopped retrying TransmissionOpened activity» og følg opp dokumenter med transmission_opened_failed_at satt."

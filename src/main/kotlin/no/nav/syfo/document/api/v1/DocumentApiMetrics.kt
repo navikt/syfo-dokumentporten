@@ -31,6 +31,11 @@ val COUNT_DOCUMENTS_REREAD_BY_EXTERNAL_SYSTEMUSER: Counter = Counter.builder(DOC
     .description("Counts the number of documents reread by external system user")
     .register(METRICS_REGISTRY)
 
+const val DOCUMENT_DELETED = "${METRICS_NS}_document_deleted"
+val COUNT_DOCUMENT_DELETED: Counter = Counter.builder(DOCUMENT_DELETED)
+    .description("Counts the number of soft delete requests for existing documents")
+    .register(METRICS_REGISTRY)
+
 const val VARSEL_INSTRUKS_RECEIVED = "${METRICS_NS}_varsel_instruks_received"
 val COUNT_VARSEL_INSTRUKS_RECEIVED: Counter = Counter.builder(VARSEL_INSTRUKS_RECEIVED)
     .description("Counts the number of varsel instrukser received")

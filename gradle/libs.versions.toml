@@ -1,20 +1,24 @@
 
 [versions]
 datafaker= "2.7.0"
-exposed = "1.3.0"
-flyway="12.9.0"
+exposed = "1.6.1"
+flyway="13.13.0"
 hikaricp = "7.1.0"
+jacksonBom = "2.23.0"
+toolsJacksonBom = "3.3.0"
+handlebars = "4.5.8"
+guava = "33.8.0-jre"
 jackson-datatype-jsr = "2.20.1"
-kafka = "4.3.1"
+kafka = "4.4.0"
 koin="4.2.2"
 kotest-extensions="2.0.0"
-kotest="6.2.1"
-kotlin-version = "2.3.21"
-ktor-version = "3.5.1"
-logback-version = "1.5.37"
-micrometer-prometheus = "1.17.0"
-mockk="1.14.11"
-postgresql = "42.7.11"
+kotest="6.2.7"
+kotlin-version = "2.4.21"
+ktor-version = "3.6.1"
+logback-version = "1.6.8"
+micrometer-prometheus = "1.18.0"
+mockk="1.14.12"
+postgresql = "42.7.14"
 testcontainers = "1.21.4"
 fasterxml-uuid = "5.2.0"
 logstashEncoder = "9.0"
@@ -52,6 +56,12 @@ testcontainers-postgres = { module = "org.testcontainers:postgresql", version.re
 logstash = {module = "net.logstash.logback:logstash-logback-encoder",  version.ref = "logstashEncoder"}
 fasterxml-uuid = { module = "com.fasterxml.uuid:java-uuid-generator", version.ref = "fasterxml-uuid" }
 valkey-java = { module = "io.valkey:valkey-java", version.ref = "valkey-version" }
+jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jacksonBom" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jacksonBom" }
+tools-jackson-bom = { module = "tools.jackson:jackson-bom", version.ref = "toolsJacksonBom" }
+tools-jackson-core = { module = "tools.jackson.core:jackson-core", version.ref = "toolsJacksonBom" }
+handlebars = { module = "com.github.jknack:handlebars", version.ref = "handlebars" }
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin-version" }

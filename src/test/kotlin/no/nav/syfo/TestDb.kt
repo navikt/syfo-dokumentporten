@@ -26,7 +26,7 @@ class TestDatabase(
                 jdbcUrl = connectionName
                 username = dbUsername
                 password = dbPassword
-                maximumPoolSize = 1
+                maximumPoolSize = 2
                 minimumIdle = 1
                 isAutoCommit = false
                 connectionTimeout = 10_000

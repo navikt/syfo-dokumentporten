@@ -9,6 +9,10 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   merge_group:
     types: [ checks_requested ]
+  schedule:
+    # Daily rebuild picks up the latest patched base image.
+    - cron: "10 5 * * *"
+      timezone: "Europe/Oslo"
   workflow_dispatch:
 
 jobs:
@@ -23,7 +27,7 @@ jobs:
     secrets: inherit
     with:
       app: syfo-dokumentporten
-      java-version: '21'
+      java-version: '25'
 
   deploy-alert-prod:
     if: github.ref_name == 'main'
@@ -36,8 +40,8 @@ jobs:
       id-token: write
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: nais/deploy/actions/deploy@2d18f050f07b6a007864c6a57070ed915d571beb # v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: nais/deploy/actions/deploy@427e29c94d911626a023a76f402f6dcae1f840b7 # v3
         env:
           CLUSTER: prod-gcp
           RESOURCE: nais/alert.yaml
